@@ -1,0 +1,30 @@
+name: slicer
+version: "0.0.1"
+author: Lucas Ince <lucasince@gmail.com>
+about: Slices 3d Models
+args:
+    - config:
+        short: c
+        long: config
+        value_name: FILE
+        help: Sets a custom config file
+        takes_value: true
+    - INPUT:
+        help: Sets the input file to use
+        required: true
+        index: 1
+    - OUTPUT:
+        help: Sets the output file to use
+        required: false
+        short: o
+        takes_value: true
+    - verbose:
+        short: v
+        multiple: true
+        help: Sets the level of verbosity
+    - SETTINGS:
+        help: Sets the settings file to use
+        required: false
+        takes_value: true
+        short: s
+
