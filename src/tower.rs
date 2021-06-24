@@ -271,6 +271,8 @@ fn joinTriangleEvent(events: Vec<TriangleEvent>, starting_point: usize) -> Vec<T
 
 }
 
+/*
+
 fn join_fragments(fragments: &mut Vec<TowerRing>){
 
     for frag in &*fragments{
@@ -339,6 +341,59 @@ fn join_fragments(fragments: &mut Vec<TowerRing>){
     }
 
 
+}*/
+
+fn join_fragments(fragments: &mut Vec<TowerRing>){
+
+    'outer: loop
+    {
+        for first_pos  in 0..fragments.len(){
+            for second_pos in (first_pos+1)..fragments.len(){
+
+                let first = fragments.get(first_pos).unwrap();
+                let second = fragments.get(second_pos).unwrap();
+
+                if {
+
+                    if let TowerRingElement::Edge { end_index: first_end, .. } = first.last_element.borrow().deref()
+                    {
+                        if let TowerRingElement::Edge { end_index: second_end, .. } = second.first_element.borrow().deref()
+                        {
+                            *first_end == *second_end
+                        } else {
+                            false
+                        }
+                    } else if let TowerRingElement::Face { triangle_index: first_tri, .. } = first.last_element.borrow().deref()
+                    {
+                        if let TowerRingElement::Face { triangle_index: second_tri, .. } = second.first_element.borrow().deref()
+                        {
+                            //println!("!!!!!!!");
+                            *first_tri == *second_tri
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+
+                }
+                {
+                    let second_r = fragments.swap_remove(second_pos);
+                    let first_r = fragments.swap_remove(first_pos);
+
+                    fragments.push(TowerRing::join_rings(first_r,second_r));
+
+                    continue 'outer;
+                }
+            }
+
+        }
+
+        return;
+
+    }
+
+
 }
 
 pub struct TriangleTowerIterator<'s>{
@@ -387,7 +442,7 @@ impl<'s> TriangleTowerIterator<'s>{
                 let mut ring_ptr = tower_ring.first_element.clone();
                 let mut last_ptr = tower_ring.last_element.clone();
 
-                //debug!("Tower ring = {}", tower_ring);
+                //println!("Tower ring = {}", tower_ring);
 
                 while {
                     last_ptr = ring_ptr.clone();
