@@ -101,6 +101,7 @@ impl TowerRing{
         }
     }
 
+    /*
     fn join_rings(first: TowerRing, second: TowerRing) -> Self{
         {
             let mut first_ptr = first.first_element.clone();
@@ -115,6 +116,19 @@ impl TowerRing{
 
             borrow.set_next(Some(second.first_element.clone()));
         }
+
+        let mut new_frag = TowerRing{first_element: first.first_element, last_element: second.last_element};
+
+        new_frag.repair_loop();
+
+        new_frag
+    }*/
+
+    fn join_rings(first: TowerRing, second: TowerRing) -> Self{
+
+        let second_next = second.first_element.borrow().next_clone();
+
+        first.last_element.borrow_mut().set_next(second_next);
 
         let mut new_frag = TowerRing{first_element: first.first_element, last_element: second.last_element};
 
@@ -271,77 +285,6 @@ fn joinTriangleEvent(events: Vec<TriangleEvent>, starting_point: usize) -> Vec<T
 
 }
 
-/*
-
-fn join_fragments(fragments: &mut Vec<TowerRing>){
-
-    for frag in &*fragments{
-        //debug!("fragment {}",frag);
-    }
-
-    let mut found = true;
-    while(found)
-    {
-        if let Some(((first_pos,_),(second_pos,_))) = fragments.iter().enumerate().cartesian_product(fragments.iter().enumerate()).find(|((first_pos,first),(second_pos,second))|{
-
-            if first_pos == second_pos{
-                return false
-            }
-            else{
-
-            }
-
-            if let TowerRingElement::Edge{ end_index: first_end,.. } = first.last_element.borrow().deref()
-            {
-                if let TowerRingElement::Edge{ end_index: second_end,.. } = second.first_element.borrow().deref()
-                {
-                    *first_end == *second_end
-                }
-                else{
-                    false
-                }
-            }
-            else if let TowerRingElement::Face{ triangle_index:  first_tri,.. } = first.last_element.borrow().deref()
-            {
-                if let TowerRingElement::Face{ triangle_index: second_tri,.. } = second.first_element.borrow().deref()
-                {
-                    //println!("!!!!!!!");
-                    *first_tri == *second_tri
-                }
-                else{
-                    false
-                }
-            }
-            else {
-                false
-            }
-
-        })
-        {
-            //println!("join {} {}", first_pos,second_pos);
-            let (first_r,second_r)  = if first_pos > second_pos{
-                let first_r = fragments.remove(first_pos);
-                let second_r = fragments.remove(second_pos);
-                (first_r,second_r)
-            }
-            else{
-                let second_r = fragments.remove(second_pos);
-                let first_r = fragments.remove(first_pos);
-
-                (first_r,second_r)
-            };
-
-            fragments.push(TowerRing::join_rings(first_r,second_r));
-
-        }
-        else{
-            found = false;
-        }
-
-    }
-
-
-}*/
 
 fn join_fragments(fragments: &mut Vec<TowerRing>){
 
@@ -353,30 +296,7 @@ fn join_fragments(fragments: &mut Vec<TowerRing>){
                 let first = fragments.get(first_pos).unwrap();
                 let second = fragments.get(second_pos).unwrap();
 
-                if {
-
-                    if let TowerRingElement::Edge { end_index: first_end, .. } = first.last_element.borrow().deref()
-                    {
-                        if let TowerRingElement::Edge { end_index: second_end, .. } = second.first_element.borrow().deref()
-                        {
-                            *first_end == *second_end
-                        } else {
-                            false
-                        }
-                    } else if let TowerRingElement::Face { triangle_index: first_tri, .. } = first.last_element.borrow().deref()
-                    {
-                        if let TowerRingElement::Face { triangle_index: second_tri, .. } = second.first_element.borrow().deref()
-                        {
-                            //println!("!!!!!!!");
-                            *first_tri == *second_tri
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-
-                }
+                if first.last_element == second.first_element
                 {
                     let second_r = fragments.swap_remove(second_pos);
                     let first_r = fragments.swap_remove(first_pos);
@@ -386,11 +306,10 @@ fn join_fragments(fragments: &mut Vec<TowerRing>){
                     continue 'outer;
                 }
             }
-
         }
 
+        //No more points to join
         return;
-
     }
 
 
