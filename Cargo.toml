@@ -1,0 +1,18 @@
+[package]
+name = "Slicer"
+version = "0.1.0"
+authors = ["mrhatman <lucasince@gmail.com>"]
+edition = "2018"
+
+
+[dependencies]
+clap = { version = "2.33.3", features = ["yaml"] }
+simple_logger = "1.11.0"
+log = "0.4.14"
+nom_stl = "0.2.2"
+nalgebra = "0.27.1"
+itertools = "0.10.1"
+geo = "0.18.0"
+geo-clipper = "0.6.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.64"
