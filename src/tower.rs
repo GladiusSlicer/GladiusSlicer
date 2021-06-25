@@ -100,30 +100,6 @@ impl TowerRing{
             self.last_element = self.first_element.clone();
         }
     }
-
-    /*
-    fn join_rings(first: TowerRing, second: TowerRing) -> Self{
-        {
-            let mut first_ptr = first.first_element.clone();
-
-            while first_ptr.borrow().next_clone().unwrap().borrow().deref() != first.last_element.borrow().deref() {
-                let next = first_ptr.borrow().next_clone().unwrap();
-                first_ptr = next;
-            }
-            {}
-
-            let mut borrow = first_ptr.borrow_mut();
-
-            borrow.set_next(Some(second.first_element.clone()));
-        }
-
-        let mut new_frag = TowerRing{first_element: first.first_element, last_element: second.last_element};
-
-        new_frag.repair_loop();
-
-        new_frag
-    }*/
-
     fn join_rings(first: TowerRing, second: TowerRing) -> Self{
 
         let second_next = second.first_element.borrow().next_clone();
@@ -135,6 +111,55 @@ impl TowerRing{
         new_frag.repair_loop();
 
         new_frag
+    }
+
+    fn split_on_edge(mut self, edge: usize) -> Vec<Self>{
+
+
+        let mut frags = vec![];
+
+        let mut ring_ptr = self.first_element.clone();
+        let mut last_ptr = self.last_element.clone();
+
+        let mut temp_frag = TowerRing{first_element: self.first_element.clone(), last_element: self.last_element.clone()};
+
+        let mut found = false;
+
+        while {
+            last_ptr = ring_ptr.clone();
+            let next = ring_ptr.borrow().next_clone();
+            ring_ptr = next.unwrap();
+            if let TowerRingElement::Edge { end_index, .. } = *ring_ptr.borrow()
+            {
+                if end_index == edge{
+                    last_ptr.borrow_mut().set_next(None);
+                    temp_frag.last_element = last_ptr.clone();
+                    frags.push(std::mem::replace(&mut temp_frag,TowerRing{first_element: ring_ptr.borrow().next_clone().unwrap(), last_element: self.last_element.clone()} ));
+                    self.first_element = ring_ptr.borrow().next_clone().unwrap();
+
+                    found = true;
+
+                }
+            } else {
+
+            }
+
+            *ring_ptr.borrow() != *self.last_element.borrow()
+
+        }
+        {}
+
+        if found{
+            let frag = frags.remove(0);
+            self.last_element = frag.last_element;
+        }
+
+        frags.push(self);
+
+        frags.retain(|frag| frag.first_element.borrow().next_clone().is_some());
+
+        frags
+
     }
 }
 
@@ -208,6 +233,14 @@ impl TowerRingElement{
         match self{
             TowerRingElement::Edge { ref mut next, .. } => *next = n,
             TowerRingElement::Face { ref mut next, .. } => *next = n
+        }
+
+    }
+
+    fn deep_clone(&self) -> TowerRingElement{
+        match self{
+            TowerRingElement::Edge {start_index,end_index,.. } => TowerRingElement::Edge { start_index: *start_index,end_index: *end_index,next:None},
+            TowerRingElement::Face { triangle_index, ..} => TowerRingElement::Face { triangle_index: *triangle_index,next:None}
         }
 
     }
@@ -333,147 +366,21 @@ impl<'s> TriangleTowerIterator<'s>{
 
         while  self.tower.tower_vertices.len() +1 != self.tower_vert_index &&  self.tower.get_height_of_vertex(self.tower_vert_index ) < z
         {
-            //println!("Here");
-            //debug!("Advance to height {} {} {}", self.tower.get_height_of_vertex(self.tower_vert_index), z, self.tower.tower_vertices[self.tower_vert_index].start_index);
-            //println!("Advance to height {} {} {}", self.tower.get_height_of_vertex(self.tower_vert_index), z, self.tower.tower_vertices[self.tower_vert_index].start_index);
-            for ring in &mut self.active_rings {
-
-                let new = if let TowerRingElement::Edge{..}  = *ring.first_element.borrow() {
-                    ring.first_element.borrow().next_clone().unwrap()
-                }
-                else{
-                     ring.first_element.clone()
-                };
-
-                ring.first_element = new.clone();
-                ring.last_element = new;
-
-                //debug!("Input Ring {} ", ring);
-            }
-
 
             let pop_tower_vert = self.tower.tower_vertices[self.tower_vert_index].clone();
 
-            let mut frags = vec![];
-            let mut rings = vec![];
-            for mut tower_ring in self.active_rings.drain(..)
-            {
-                let mut ring_ptr = tower_ring.first_element.clone();
-                let mut last_ptr = tower_ring.last_element.clone();
+            //Create Frags from rings by removing current edges
+            let mut frags :Vec<TowerRing> = self.active_rings
+                .drain(..)
+                .map(|tower_ring| {
+                    tower_ring.split_on_edge(pop_tower_vert.start_index).into_iter()
+                }).flatten().collect();
 
-                //println!("Tower ring = {}", tower_ring);
-
-                while {
-                    last_ptr = ring_ptr.clone();
-                    let next = ring_ptr.borrow().next_clone();
-                    ring_ptr = next.unwrap();
-                    if let TowerRingElement::Edge { end_index, .. } = *ring_ptr.borrow()
-                    {
-                        end_index != pop_tower_vert.start_index && *ring_ptr.borrow() != *tower_ring.last_element.borrow()
-                    } else {
-                        *ring_ptr.borrow() != *tower_ring.last_element.borrow()
-                    }
-
-                }
-                {}
-
-                if *ring_ptr.borrow() == *tower_ring.last_element.borrow()
-                {
-                    //debug!("Next ring = {}", tower_ring);
-                    rings.push(tower_ring)
-                } else {
-
-                    tower_ring.last_element = last_ptr.clone();
-                    tower_ring.last_element.borrow_mut().set_next(None);
-                    while {
-                        if let TowerRingElement::Edge { end_index, .. } = *ring_ptr.borrow()
-                        {
-                            end_index == pop_tower_vert.start_index && *tower_ring.last_element.borrow() != *ring_ptr.borrow()
-                        } else {
-                             *tower_ring.last_element.borrow() != *ring_ptr.borrow()
-                        }
-                    }
-                    {
-                        last_ptr = ring_ptr.clone();
-                        let next = ring_ptr.borrow().next_clone();
-                        ring_ptr = next.unwrap();
-                    }
-                    if *tower_ring.last_element.borrow() != *ring_ptr.borrow()
-                    {
-                        tower_ring.first_element = last_ptr;
-
-                        //debug!("Next Frag = {}", tower_ring);
-
-
-                        let mut last_ptr = tower_ring.first_element.clone();
-                        let mut temp = tower_ring.first_element.clone();
-                        let mut ring_ptr = tower_ring.first_element.clone();
-
-                        let mut deleteing = false;
-
-                        while ring_ptr.borrow().next_clone().is_some() {
-                            let next = ring_ptr.borrow().next_clone().unwrap();
-
-
-                            if let TowerRingElement::Edge { end_index, .. } = *ring_ptr.borrow()
-                            {
-                                if deleteing {
-                                    if end_index != pop_tower_vert.start_index {
-                                        deleteing = false;
-
-                                        temp = last_ptr.clone();
-                                    }
-                                } else {
-                                    if end_index == pop_tower_vert.start_index {
-                                        deleteing = true;
-                                        last_ptr.borrow_mut().set_next(None);
-                                        let new_ring = TowerRing { first_element: temp.clone(), last_element: last_ptr.clone() };
-                                        //debug!("new Frag = {}", new_ring);
-
-                                        frags.push(new_ring);
-
-                                        temp = ring_ptr.clone();
-                                    }
-                                }
-                            }
-                            /*
-                        match ring_ptr.borrow().deref(){
-                            TowerRingElement::Face { triangle_index,.. } => {println!("F{} ",triangle_index)}
-                            TowerRingElement::Edge { end_index,.. } => {println!("E{} ",end_index)}
-                        };
-                        */
-                            last_ptr = ring_ptr.clone();
-                            ring_ptr = next.clone();
-                        }
-                        {}
-
-                        if !deleteing {
-                            tower_ring.first_element = temp;
-                            tower_ring.repair_loop();
-                            //debug!("new Frag = {}", tower_ring);
-                            frags.push(tower_ring);
-                        }
-                    }
-
-
-                }
-            }
-
-            for mut fragment in pop_tower_vert.next_ring_fragments.clone() {
-                if *fragment.first_element.borrow() == *fragment.last_element.borrow() {
-                    //fragment.repair_loop();
-                    rings.push(fragment);
-                } else {
-                    //debug!("point Frag = {}", fragment);
-                    frags.push(fragment)
-                }
-            }
+            //Add the new fragments
+            frags.append(&mut pop_tower_vert.next_ring_fragments.clone() );
 
             join_fragments(&mut frags);
-
-            rings.append(&mut frags);
-
-            self.active_rings = rings;
+            self.active_rings = frags;
             self.tower_vert_index += 1;
         }
 

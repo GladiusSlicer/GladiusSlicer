@@ -1,6 +1,4 @@
 use crate::types::*;
-use std::cmp::Ordering;
-use nalgebra::{Vector3};
 use std::io::BufReader;
 
 pub trait Loader{
