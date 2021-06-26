@@ -11,6 +11,7 @@ use crate::plotter::Slice;
 use crate::optimizer::optimize_commands;
 use crate::tower::*;
 use geo::Coordinate;
+use itertools::Itertools;
 
 
 mod loader;
@@ -50,7 +51,27 @@ fn main() {
     println!("Loading Input");
 
     let loader = STLLoader{};
-    let (vertices,triangles)  =loader.load(matches.value_of("INPUT").unwrap()).unwrap();
+    let (mut vertices,triangles)  =loader.load(matches.value_of("INPUT").unwrap()).unwrap();
+
+
+    let transform = if let Some(transform_str) = matches.value_of("MANUALTRANFORM") {
+        serde_json::from_str(transform_str).unwrap()
+    }
+    else{
+        let (min_x,max_x,min_y,max_y,min_z) = vertices.iter().fold((f64::INFINITY,f64::NEG_INFINITY,f64::INFINITY,f64::NEG_INFINITY,f64::INFINITY), |a,b| (a.0.min(b.x),a.1.max(b.x),a.2.min(b.y),a.3.max(b.y),a.4.min(b.z), ));
+        Transform::new_translation_transform( (settings.print_x +max_x+min_x) /2.,(settings.print_y+ max_y+min_y) /2.,-min_z)
+    };
+
+
+
+
+    let trans_str = serde_json::to_string(&transform).unwrap();
+
+    println!("transform {}",trans_str);
+
+    for vert in vertices.iter_mut(){
+        *vert = &transform * *vert;
+    }
 
     println!("Creating Tower");
 
@@ -70,6 +91,9 @@ fn main() {
     let mut moves = vec![];
     let mut layer = settings.layer_height/2.0;
     let mut more_lines = true;
+
+    let mut layer_count = 0;
+
     while more_lines {
         tower_iter.advance_to_height(layer );
 
@@ -77,7 +101,7 @@ fn main() {
         let slices = tower_iter.get_points();
 
         let slice= Slice::from_multiple_point_loop(slices.iter().map( |verts| verts.into_iter().map(|v| Coordinate { x: v.x,y:v.y}  ).collect::<Vec<Coordinate<f64>>>()).collect());
-        slice.slice_into_commands(&settings,&mut moves);
+        slice.slice_into_commands(&settings,&mut moves, layer_count );
 
         if slices.is_empty(){
             more_lines = false;
@@ -86,6 +110,8 @@ fn main() {
             moves.push(Command::LayerChange {z: layer + settings.layer_height});
             layer += settings.layer_height;
         }
+
+        layer_count +=1;
 
     }
 
@@ -195,23 +221,37 @@ fn convert( cmds: &Vec<Command>, settings: Settings, write:&mut impl Write) ->  
     for cmd in cmds{
         match cmd {
             Command::MoveTo { end} => {
-                writeln!(write,"G1 X{:.5} Y{:.5}",end.x+100.0,end.y+100.0 )?
+                writeln!(write,"G1 X{:.5} Y{:.5}",end.x,end.y )?
             },
             Command::MoveAndExtrude {start,end} => {
                 let x_diff = end.x-start.x;
                 let y_diff = end.y-start.y;
                 let length = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
 
-                let extrude = (4.0 * settings.layer_height * settings.layer_width*length) /(std::f64::consts::PI*settings.filament.diameter*settings.filament.diameter);
-                writeln!(write,"G1 X{:.5} Y{:.5} E{:.5}",end.x +100.0,end.y+100.,extrude)?;
+                let extrude = ((4.0 * settings.layer_height * settings.layer_width) /(std::f64::consts::PI*settings.filament.diameter*settings.filament.diameter)) *length;
+
+                writeln!(write,"G1 X{:.5} Y{:.5} E{:.5}",end.x ,end.y,extrude)?;
             }
             Command::SetState {new_state} => {
+
+                match new_state.Retract{
+                    None => {}
+                    Some(dir) => {
+                        writeln!(write, "G1 E{} F{} ; Retract or unretract",if dir {-1.0} else {1.0} * settings.retract_length, 60.0 * settings.retract_speed)?;
+                    }
+                }
+
                 if let Some(speed)  = new_state.MovementSpeed{
                     writeln!(write,"G1 F{:.5}",speed * 60.0 )?;
                 }
                 if let Some(ext_temp)  = new_state.ExtruderTemp{
                      writeln!(write,"M104 S{:.1} ; set extruder temp",ext_temp )?;
                 }
+                if let Some(bed_temp)  = new_state.BedTemp{
+                     writeln!(write,"M140 S{:.1} ; set bed temp",bed_temp )?;
+                }
+
+
             }
             Command::LayerChange {z} => {
                 writeln!(write,"G1 Z{:.5}",z )?;

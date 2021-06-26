@@ -47,7 +47,7 @@ impl Slice{
         Slice{MainPolygon: multi_polygon,ouline_area: None,solid_infill:None,normal_infill: None}
     }
 
-    pub fn slice_into_commands(&self,settings:&Settings, commands: &mut Vec<Command>) {
+    pub fn slice_into_commands(&self,settings:&Settings, commands: &mut Vec<Command>, layer: usize) {
 
         let mut current_mulipoly = self.MainPolygon.clone();
 
@@ -57,7 +57,13 @@ impl Slice{
 
         for poly in current_mulipoly
         {
-            solid_fill_polygon(commands,&poly,settings);
+            if layer < 3{
+                solid_fill_polygon(commands,&poly,settings);
+            }
+            else{
+                partial_fill_polygon(commands,&poly,settings, 0.20);
+            }
+
         }
 
 
@@ -145,8 +151,6 @@ fn solid_fill_polygon( commands: &mut Vec<Command>, poly: &Polygon<f64>, setting
 
         commands.push(Command::SetState {new_state: StateChange{BedTemp: None,ExtruderTemp: None,MovementSpeed: Some(settings.travel_speed),Retract: Some(true)}});
         commands.push(Command::MoveTo {end: Coordinate{x: points[0], y: current_y}});
-        let mut last_point = points[0];
-        let drawing = true;
 
         for (start,end) in points.iter().tuples::<(_,_)>(){
             commands.push(Command::SetState {new_state: StateChange{BedTemp: None,ExtruderTemp: None,MovementSpeed: Some(settings.travel_speed),Retract: Some(true)}});
@@ -156,6 +160,75 @@ fn solid_fill_polygon( commands: &mut Vec<Command>, poly: &Polygon<f64>, setting
         }
 
         current_y += settings.layer_width;
+
+    }
+
+
+
+
+}
+
+fn partial_fill_polygon( commands: &mut Vec<Command>, poly: &Polygon<f64>, settings : &Settings, fill_ratio: f64) {
+    let mut lines : Vec<(Coordinate<f64>,Coordinate<f64>)> = poly.exterior().0.iter().map(|c| *c).circular_tuple_windows::<(_, _)>().collect();
+
+    for interior in poly.interiors(){
+        let mut new_lines = interior.0.iter().map(|c| *c).circular_tuple_windows::<(_, _)>().collect();
+        lines.append(&mut new_lines);
+    }
+
+    for line in lines.iter_mut(){
+        *line = if line.0.y < line.1.y {
+            *line
+        }
+        else{
+            (line.1,line.0)
+        };
+    };
+
+    lines.sort_by(|a,b| b.0.y.partial_cmp(&a.0.y).unwrap());
+
+    let distance = settings.layer_width / fill_ratio;
+
+    let mut current_y = (lines[lines.len() -1].0.y / distance).ceil() * distance ;
+
+    let mut current_lines = Vec::new();
+
+
+
+    while !lines.is_empty(){
+        while !lines.is_empty() && lines[lines.len() -1].0.y < current_y{
+
+            current_lines.push(lines.pop().unwrap());
+        }
+
+
+        if lines.is_empty(){
+            return;
+        }
+
+        current_lines.retain(|(_,e)| e.y > current_y );
+
+
+
+        let mut points = current_lines.iter().map(|(start,end)| {
+            let x = ((current_y- start.y) * ((end.x - start.x)/(end.y - start.y))) + start.x;
+            x
+        }).collect::<Vec<_>>();
+
+        points.sort_by(|a,b| a.partial_cmp(b).unwrap());
+
+
+        commands.push(Command::SetState {new_state: StateChange{BedTemp: None,ExtruderTemp: None,MovementSpeed: Some(settings.travel_speed),Retract: Some(true)}});
+        commands.push(Command::MoveTo {end: Coordinate{x: points[0], y: current_y}});
+
+        for (start,end) in points.iter().tuples::<(_,_)>(){
+            commands.push(Command::SetState {new_state: StateChange{BedTemp: None,ExtruderTemp: None,MovementSpeed: Some(settings.travel_speed),Retract: Some(true)}});
+            commands.push(Command::MoveTo {end: Coordinate{x: *start, y: current_y}});
+            commands.push(Command::SetState {new_state: StateChange{BedTemp: None,ExtruderTemp: None,MovementSpeed: Some(settings.perimeter_speed),Retract: Some(false)}});
+            commands.push(Command::MoveAndExtrude {start: Coordinate{x: *start, y: current_y},end: Coordinate{x: *end, y: current_y}});
+        }
+
+        current_y += distance;
 
     }
 

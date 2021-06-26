@@ -1,18 +1,12 @@
 use crate::types::{Command, StateChange};
 use itertools::{Itertools};
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::borrow::BorrowMut;
-use std::ops::Deref;
 
 pub fn optimize_commands(cmds: &mut Vec<Command> ) {
 
-    let mut optimization_found = true;
     let mut size  = cmds.len();
 
     while {
 
-        optimization_found = false;
 
         state_optomizer(cmds);
         unary_optimizer(cmds);
@@ -66,7 +60,7 @@ pub fn binary_optimizer(cmds: &mut Vec<Command> ){
                     }
                 }
             }
-            (Command::MoveTo {end: f_end}, Command::MoveTo {end:s_end}) => {
+            (Command::MoveTo {..}, Command::MoveTo {end:s_end}) => {
 
                         return Ok(Command::MoveTo { end: s_end });
             }

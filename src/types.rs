@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use nalgebra::{Vector3,Point3};
 use geo::Coordinate;
+use serde::{Serialize, Deserialize};
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct Vertex{
@@ -33,6 +34,46 @@ impl PartialOrd for Vertex{
         }
     }
 }
+
+impl std::ops::Mul<Vertex> for &Transform{
+    type Output = Vertex;
+
+    fn mul(self, rhs: Vertex) -> Self::Output {
+        Vertex{
+            x: self.0[0][0] * rhs.x +  self.0[0][1] * rhs.y +self.0[0][2] * rhs.z + self.0[0][3] ,
+            y: self.0[1][0] * rhs.x +  self.0[1][1] * rhs.y +self.0[1][2] * rhs.z + self.0[1][3] ,
+            z: self.0[2][0] * rhs.x +  self.0[2][1] * rhs.y +self.0[2][2] * rhs.z + self.0[2][3] ,
+        }
+    }
+}
+
+impl Transform{
+    pub fn new_translation_transform(x: f64,y:f64,z:f64) -> Self{
+        Transform(
+            [[1.,0.,0.,x],
+             [0.,1.,0.,y],
+             [0.,0.,1.,z],
+             [0.,0.,0.,1.]]
+        )
+    }
+}
+
+/*
+impl std::ops::Mul<Transform> for Transform{
+    type Output = Transform;
+
+    fn mul(self, rhs: Transform) -> Self::Output {
+        let arrays = [[0.0 ; 4];4];
+        for 0..4
+
+        Transform(arrays)
+    }
+}
+*/
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Transform([[f64;4];4]);
+
+
 
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
@@ -102,3 +143,5 @@ impl StateChange{
 
     }
 }
+
+

@@ -11,13 +11,13 @@ pub struct STLLoader {}
 impl Loader for STLLoader {
     fn load(&self , filepath: &str) -> Option< (Vec<Vertex>, Vec<IndexedTriangle>)>{
 
-        let mut file = std::fs::OpenOptions::new().read(true).open(filepath).unwrap();
+        let file = std::fs::OpenOptions::new().read(true).open(filepath).unwrap();
 
         let mut root_vase = BufReader::new(&file);
         let mesh: nom_stl::IndexMesh = nom_stl::parse_stl(&mut root_vase).unwrap().into();
 
         let mut triangles = vec![];
-        let mut vertices = mesh.vertices().iter().map(|vert|Vertex{x: vert[0] as f64, y: vert[1] as f64, z: vert[2] as f64}).collect::<Vec<Vertex>>();
+        let vertices = mesh.vertices().iter().map(|vert|Vertex{x: vert[0] as f64, y: vert[1] as f64, z: vert[2] as f64}).collect::<Vec<Vertex>>();
 
         for triangle in mesh.triangles()
         {

@@ -16,7 +16,11 @@ pub struct Settings{
     pub perimeter_speed: f64,
     pub infill_speed:  f64,
     pub travel_speed: f64,
-    
+
+    pub print_x : f64,
+    pub print_y : f64,
+    pub print_z : f64,
+
     pub starting_gcode: String,
     pub ending_gcode: String,
 }
@@ -36,6 +40,9 @@ impl Default for Settings{
             perimeter_speed: 5.0,
             infill_speed: 200.0,
             travel_speed: 180.0,
+            print_x: 210.0,
+            print_y: 210.0,
+            print_z: 210.0,
             starting_gcode:     "G90 ; use absolute coordinates \n\
                                 M83 ; extruder relative mode\n\
                                 M106 S255 ; FANNNNN\n\

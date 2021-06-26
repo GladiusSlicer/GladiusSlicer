@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use itertools::Itertools;
-use std::ops::{DerefMut, Deref};
+use std::ops::{ Deref};
 use crate::types::*;
 use std::fmt::{Display, Formatter};
 
@@ -32,7 +31,7 @@ pub struct TriangleTower{
 }
 
 impl TriangleTower{
-    pub fn from_triangles_and_vertices(triangles: &Vec<IndexedTriangle> , mut vertices: Vec<Vertex>) -> Self{
+    pub fn from_triangles_and_vertices(triangles: &Vec<IndexedTriangle> , vertices: Vec<Vertex>) -> Self{
 
         let mut future_tower_vert: Vec<Vec<TriangleEvent>> = (0..vertices.len()).map(|_| vec![]).collect();
 
