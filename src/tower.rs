@@ -3,22 +3,18 @@ use std::rc::Rc;
 use std::ops::{ Deref};
 use crate::types::*;
 use std::fmt::{Display, Formatter};
+use std::collections::{ HashMap};
 
-fn line_z_intersection(z: f64, v_start : Vertex, v_end : Vertex) -> Option<Vertex>{
+#[inline]
+fn line_z_intersection(z: f64, v_start : Vertex, v_end : Vertex) -> Vertex{
 
-    if v_end.z == v_start.z{
-        None
-    }
-    else {
-        let z_normal = (z - v_start.z) / (v_end.z - v_start.z);
-        let y = lerp(v_start.y,v_end.y,z_normal);
-        let x = lerp(v_start.x,v_end.x,z_normal);
-
-        Some(Vertex {  x,y,z})
-    }
+    let z_normal = (z - v_start.z) / (v_end.z - v_start.z);
+    let y = lerp(v_start.y,v_end.y,z_normal);
+    let x = lerp(v_start.x,v_end.x,z_normal);
+    Vertex {  x,y,z}
 }
 
-
+#[inline]
 fn lerp(a:f64, b:f64, f:f64) -> f64
 {
     a + f * (b - a)
@@ -88,10 +84,10 @@ impl TowerRing{
 
             while
             {
-                let next = ring_ptr.borrow().next_clone().unwrap();
+                let next = ring_ptr.borrow().next().unwrap().clone();
                 ring_ptr = next;
 
-                *ring_ptr.borrow().next_clone().unwrap().borrow() != *self.last_element.borrow()
+                *ring_ptr.borrow().next().unwrap().borrow() != *self.last_element.borrow()
             } {}
             let mut borrow = ring_ptr.borrow_mut();
             borrow.set_next(Some(self.first_element.clone()));
@@ -126,8 +122,8 @@ impl TowerRing{
 
         while {
             last_ptr = ring_ptr.clone();
-            let next = ring_ptr.borrow().next_clone();
-            ring_ptr = next.unwrap();
+            let next = ring_ptr.borrow().next().unwrap().clone();
+            ring_ptr = next;
             if let TowerRingElement::Edge { end_index, .. } = *ring_ptr.borrow()
             {
                 if end_index == edge{
@@ -155,7 +151,7 @@ impl TowerRing{
 
         frags.push(self);
 
-        frags.retain(|frag| frag.first_element.borrow().next_clone().is_some());
+        frags.retain(|frag| frag.first_element.borrow().next().is_some());
 
         frags
 
@@ -227,6 +223,14 @@ impl TowerRingElement{
             TowerRingElement::Edge {next,..} => next.clone()
         }
 
+    }
+
+    fn next(&self) -> Option<&Rc<RefCell<TowerRingElement>>>
+    {
+        match self{
+            TowerRingElement::Face {next,..} => next.as_ref(),
+            TowerRingElement::Edge {next,..} => next.as_ref()
+        }
     }
     fn set_next(&mut self,  n: Option<Rc<RefCell<TowerRingElement>>>){
         match self{
@@ -318,13 +322,12 @@ fn joinTriangleEvent(events: Vec<TriangleEvent>, starting_point: usize) -> Vec<T
 }
 
 
-fn join_fragments(fragments: &mut Vec<TowerRing>){
+fn join_fragments(fragments: &mut Vec<TowerRing>) {
 
     'outer: loop
     {
-        for first_pos  in 0..fragments.len(){
-            for second_pos in (first_pos+1)..fragments.len(){
-
+        for first_pos in 0..fragments.len() {
+            for second_pos in (first_pos + 1)..fragments.len() {
                 let first = fragments.get(first_pos).unwrap();
                 let second = fragments.get(second_pos).unwrap();
 
@@ -333,7 +336,7 @@ fn join_fragments(fragments: &mut Vec<TowerRing>){
                     let second_r = fragments.swap_remove(second_pos);
                     let first_r = fragments.swap_remove(first_pos);
 
-                    fragments.push(TowerRing::join_rings(first_r,second_r));
+                    fragments.push(TowerRing::join_rings(first_r, second_r));
 
                     continue 'outer;
                 }
@@ -343,10 +346,7 @@ fn join_fragments(fragments: &mut Vec<TowerRing>){
         //No more points to join
         return;
     }
-
-
 }
-
 pub struct TriangleTowerIterator<'s>{
     tower : &'s TriangleTower,
     tower_vert_index : usize,
@@ -376,7 +376,7 @@ impl<'s> TriangleTowerIterator<'s>{
                 }).flatten().collect();
 
             //Add the new fragments
-            frags.append(&mut pop_tower_vert.next_ring_fragments.clone() );
+            frags.extend(pop_tower_vert.next_ring_fragments.clone().into_iter() );
 
             join_fragments(&mut frags);
             self.active_rings = frags;
@@ -396,9 +396,9 @@ impl<'s> TriangleTowerIterator<'s>{
 
                 if let TowerRingElement::Edge { start_index, end_index,..} = ring_ptr.borrow().deref()
                 {
-                    points.push( line_z_intersection(self.z_height, self.tower.vertices[*start_index ], self.tower.vertices[*end_index ]).unwrap() );
+                    points.push( line_z_intersection(self.z_height, self.tower.vertices[*start_index ], self.tower.vertices[*end_index ]) );
                 }
-                let next = ring_ptr.borrow().next_clone().expect("Rings must be complete Loops").clone();
+                let next = ring_ptr.borrow().next().expect("Rings must be complete Loops").clone();
 
                 ring_ptr =next ;
 

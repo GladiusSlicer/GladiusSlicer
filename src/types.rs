@@ -87,6 +87,21 @@ pub struct IndexedLine{
     pub verts : [usize ;2]
 }
 
+pub struct Move{
+    end: Coordinate<f64>,
+    move_type: MoveType
+}
+
+pub enum MoveType{
+    SolidInfill,
+    Infill,
+    Outer_Perimeter,
+    Inner_Perimeter,
+    Support,
+    Travel
+
+}
+
 #[derive( Clone,  Debug)]
 pub enum Command{
     MoveTo{end: Coordinate<f64>},
@@ -94,10 +109,26 @@ pub enum Command{
     LayerChange{z: f64},
     SetState{new_state: StateChange},
     Delay{msec: u64},
-    Arc{start: Coordinate<f64>, end: Coordinate<f64>, center: Coordinate<f64>, clockwise: bool}
+    Arc{start: Coordinate<f64>, end: Coordinate<f64>, center: Coordinate<f64>, clockwise: bool},
+    //Used in optimization , should be optimized out
+    NoAction
 
 }
-
+/*
+impl Command{
+    fn get_time(&self,state : &mut StateChange,location: &mut Coordinate<f64>) -> f32{
+        match self {
+            Command::MoveTo { end } => {0.0}
+            Command::MoveAndExtrude { start, end } => {}
+            Command::LayerChange { .. } => {0.0}
+            Command::SetState { new_state } => {state.state_diff(new_state)}
+            Command::Delay { msec } => { msec as f32/ 1000.0 }
+            Command::Arc { start, end, center, clockwise } => {0.0}
+            Command::NoAction => { 0.0}
+        }
+    }
+}
+*/
 #[derive( Clone, Debug,Default)]
 pub struct StateChange{
     pub ExtruderTemp : Option<f64>,

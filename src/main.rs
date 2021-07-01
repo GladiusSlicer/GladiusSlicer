@@ -86,45 +86,71 @@ fn main() {
     //    println!("{},{}",vert.x,vert.y);
     //}
 
-    println!("Generating Moves");
+    println!("Slicing");
 
     let mut moves = vec![];
     let mut layer = settings.layer_height/2.0;
     let mut more_lines = true;
 
-    let mut layer_count = 0;
+
+
+    let mut  slices = vec![];
 
     while more_lines {
         tower_iter.advance_to_height(layer );
 
         //println!("layer {}",layer);
-        let slices = tower_iter.get_points();
 
-        let slice= Slice::from_multiple_point_loop(slices.iter().map( |verts| verts.into_iter().map(|v| Coordinate { x: v.x,y:v.y}  ).collect::<Vec<Coordinate<f64>>>()).collect());
-        slice.slice_into_commands(&settings,&mut moves, layer_count );
+        let layer_loops = tower_iter.get_points();
 
-        if slices.is_empty(){
+        if layer_loops.is_empty(){
             more_lines = false;
         }
         else {
-            moves.push(Command::LayerChange {z: layer + settings.layer_height});
-            layer += settings.layer_height;
-        }
+            let slice = Slice::from_multiple_point_loop(layer_loops.iter().map(|verts| verts.into_iter().map(|v| Coordinate { x: v.x, y: v.y }).collect::<Vec<Coordinate<f64>>>()).collect());
+
+            slices.push((layer,slice));
+        };
+
+        layer += settings.layer_height;
+        //println!("laye2 {}",layer)
+
+    }
+    println!("Generating Moves");
+
+    let mut layer_count = 0;
+
+    let slice_count = slices.len();
+
+    for (layer,slice) in slices.iter_mut(){
+        moves.push(Command::LayerChange {z: *layer});
+
+        println!("layer {} {}", layer_count ,layer_count < 3 || layer_count+ 3 +1>slice_count );
+
+
+        slice.slice_into_commands(&settings,&mut moves, layer_count < 3 || layer_count+ 3 +1>slice_count );
+
+
+
+
+
 
         layer_count +=1;
 
     }
 
+
+
     if let Some(file_path ) = matches.value_of("OUTPUT"){
         println!("Optimizing");
-        optimize_commands(&mut moves);
+        optimize_commands(&mut moves,&settings);
         println!("Converting");
         convert(&moves,settings,&mut File::create(file_path).expect("File not Found")).unwrap();
     }
     else{
         println!("Optimizing");
         let stdout = std::io::stdout();
-        optimize_commands(&mut moves);
+        optimize_commands(&mut moves,&settings);
         println!("Converting");
         convert(&moves,settings,&mut stdout.lock()).unwrap();
 
@@ -220,7 +246,7 @@ fn convert( cmds: &Vec<Command>, settings: Settings, write:&mut impl Write) ->  
 
     for cmd in cmds{
         match cmd {
-            Command::MoveTo { end} => {
+            Command::MoveTo { end,..} => {
                 writeln!(write,"G1 X{:.5} Y{:.5}",end.x,end.y )?
             },
             Command::MoveAndExtrude {start,end} => {
@@ -280,6 +306,9 @@ fn convert( cmds: &Vec<Command>, settings: Settings, write:&mut impl Write) ->  
                 writeln!(write,"{} X{:.5} Y{:.5} E{:.5}",if *clockwise { "G2"} else{"G3"},end.x +100.0,end.y+100.,extrude)?;
 
 
+            }
+            Command::NoAction =>{
+                panic!("Converter reached a No Action Command, Optimization Failure")
             }
         }
     }

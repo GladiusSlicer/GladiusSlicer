@@ -21,6 +21,8 @@ pub struct Settings{
     pub print_y : f64,
     pub print_z : f64,
 
+    pub minimum_retract_distance : f64,
+
     pub starting_gcode: String,
     pub ending_gcode: String,
 }
@@ -43,6 +45,7 @@ impl Default for Settings{
             print_x: 210.0,
             print_y: 210.0,
             print_z: 210.0,
+            minimum_retract_distance: 1.0,
             starting_gcode:     "G90 ; use absolute coordinates \n\
                                 M83 ; extruder relative mode\n\
                                 M106 S255 ; FANNNNN\n\
@@ -57,7 +60,11 @@ impl Default for Settings{
                                 G1 X60.0 E9.0 F1000.0 ; intro line\n\
                                 G1 X100.0 E12.5 F1000.0 ; intro line\n\
                                 G92 E0.0;\n".to_string(),
-            ending_gcode:     "G1 X0 F3000 ; home X axis ; disable motors\n\
+            ending_gcode:     "G4 ; wait\n\
+                                M221 S100 \n\
+                                M104 S0 ; turn off temperature \n\
+                                M140 S0 ; turn off heatbed \n\
+                                G1 X0 F3000 ; home X axis \n\
                                 M84 ; disable motors\n\
                                 M107 ; disable fan\n".to_string()
         }
