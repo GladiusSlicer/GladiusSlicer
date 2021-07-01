@@ -89,7 +89,7 @@ fn main() {
     println!("Slicing");
 
     let mut moves = vec![];
-    let mut layer = settings.layer_height/2.0;
+    let mut layer = settings.first_layer_height;
     let mut more_lines = true;
 
 
@@ -142,16 +142,17 @@ fn main() {
 
 
     if let Some(file_path ) = matches.value_of("OUTPUT"){
-        println!("Optimizing");
+        println!("Optimizing {} Moves", moves.len());
         optimize_commands(&mut moves,&settings);
-        println!("Converting");
+        println!("Converting {} Moves", moves.len());
         convert(&moves,settings,&mut File::create(file_path).expect("File not Found")).unwrap();
     }
     else{
-        println!("Optimizing");
+
+        println!("Optimizing {} Moves", moves.len());
         let stdout = std::io::stdout();
         optimize_commands(&mut moves,&settings);
-        println!("Converting");
+        println!("Converting {} Moves", moves.len());
         convert(&moves,settings,&mut stdout.lock()).unwrap();
 
     };

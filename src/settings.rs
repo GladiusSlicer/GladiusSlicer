@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings{
     pub layer_height: f64,
+    pub first_layer_height: f64,
     pub layer_width: f64,
 
     pub filament: FilamentSettings,
@@ -31,6 +32,7 @@ impl Default for Settings{
     fn default() -> Self {
         Settings{
             layer_height: 0.1,
+            first_layer_height: 0.3,
             layer_width: 0.6,
             filament: FilamentSettings::default(),
 
