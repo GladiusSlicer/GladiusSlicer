@@ -61,7 +61,8 @@ impl Slice{
                 let new_moves = solid_fill_polygon(&poly,settings);
 
                 if let Some(chain) = new_moves{
-                    commands.append(&mut (chain.create_commands(settings)))
+                    let moves = chain.create_commands(settings);
+                    commands.extend(moves.into_iter());
                 }
 
 
@@ -134,7 +135,7 @@ fn solid_fill_polygon( poly: &Polygon<f64>, settings : &Settings) -> Option<Move
 
     let mut orient = false;
 
-    let start_point = None;
+    let mut start_point = None;
 
     while !lines.is_empty(){
         while !lines.is_empty() && lines[lines.len() -1].0.y < current_y{
@@ -161,20 +162,20 @@ fn solid_fill_polygon( poly: &Polygon<f64>, settings : &Settings) -> Option<Move
 
         points.sort_by(|a,b| a.partial_cmp(b).unwrap());
 
-        start_point.or(Some(Coordinate{x: points[0], y: current_y}));
+        start_point = start_point.or(Some(Coordinate{x: points[0], y: current_y}));
 
         moves.push(Move{ end: Coordinate{x: points[0], y: current_y},move_type: MoveType::Travel});
 
         if orient {
             for (start, end) in points.iter().tuples::<(_, _)>() {
                 moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
-                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::Travel} );
+                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill} );
             }
         }
         else{
             for (start, end) in points.iter().rev().tuples::<(_, _)>() {
                 moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
-                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::Travel} );
+                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill} );
             }
         }
 
