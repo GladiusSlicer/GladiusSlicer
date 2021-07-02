@@ -4,6 +4,7 @@ use std::ops::{ Deref};
 use crate::types::*;
 use std::fmt::{Display, Formatter};
 use std::collections::{ HashMap};
+use std::hash::{Hash, Hasher};
 
 #[inline]
 fn line_z_intersection(z: f64, v_start : Vertex, v_end : Vertex) -> Vertex{
@@ -95,6 +96,8 @@ impl TowerRing{
             self.last_element = self.first_element.clone();
         }
     }
+
+
     fn join_rings(first: TowerRing, second: TowerRing) -> Self{
 
         let second_next = second.first_element.borrow().next_clone();
@@ -107,6 +110,18 @@ impl TowerRing{
 
         new_frag
     }
+
+    fn add_to_end(&mut self, second: TowerRing){
+
+        let second_next = second.first_element.borrow().next_clone();
+
+        self.last_element.borrow_mut().set_next(second_next);
+        self.last_element = second.last_element;
+
+        self.repair_loop();
+
+    }
+
 
     fn split_on_edge(mut self, edge: usize) -> Vec<Self>{
 
@@ -209,7 +224,7 @@ impl Display for TowerRing{
 
 
 
-#[derive( Clone,  Debug)]
+#[derive( Clone,  Debug,Eq )]
 enum TowerRingElement{
     Face{ triangle_index: usize, next: Option<Rc<RefCell<TowerRingElement>>>  },
     Edge{ start_index: usize, end_index: usize,next: Option<Rc<RefCell<TowerRingElement>>> },
@@ -271,6 +286,23 @@ impl PartialEq for TowerRingElement{
     }
 }
 
+impl Hash for TowerRingElement{
+
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self{
+            TowerRingElement::Edge {end_index, start_index,..} => {
+               end_index.hash(state);
+               start_index.hash(state);
+            }
+            TowerRingElement::Face {triangle_index, ..} => {
+                triangle_index.hash(state);
+            }
+
+        }
+    }
+}
+
+
 #[derive( Clone,  Debug, PartialEq)]
 pub enum TriangleEvent{
     MiddleVertex{leading_edge: usize, triangle: usize, trailing_edge: usize },
@@ -321,7 +353,45 @@ fn joinTriangleEvent(events: Vec<TriangleEvent>, starting_point: usize) -> Vec<T
 
 }
 
+/*
+fn join_fragments(fragments: &mut Vec<TowerRing>) {
 
+    let mut hm = HashMap::new();
+    let mut frags =  fragments.clone();
+    for frag in fragments.drain(..){
+        let last = frag.last_element.borrow().clone();
+        hm.insert(last, frag);
+    }
+
+    let mut found = true;
+
+    while found {
+        for frag in fragments.drain(..){
+            let last = frag.last_element.borrow().clone();
+            hm.insert(last, frag);
+        }
+        found = false;
+        for frag in frags.drain(..) {
+            let first_el = frag.first_element.borrow().clone();
+            let last_el = frag.last_element.borrow().clone();
+            if first_el != last_el {
+                if let Some(mut first) = hm.remove(&first_el) {
+                    println!("here");
+
+                    first.add_to_end(frag);
+                    hm.remove(&last_el);
+                    hm.insert(last_el, first);
+                    found = true;
+                }
+            }
+        }
+        frags.extend(hm.values().map(|v|  v.clone()));
+    }
+
+    fragments.extend(hm.drain().map(|(k,v)| v));
+
+}
+*/
 fn join_fragments(fragments: &mut Vec<TowerRing>) {
 
     'outer: loop
@@ -347,6 +417,8 @@ fn join_fragments(fragments: &mut Vec<TowerRing>) {
         return;
     }
 }
+
+
 pub struct TriangleTowerIterator<'s>{
     tower : &'s TriangleTower,
     tower_vert_index : usize,
