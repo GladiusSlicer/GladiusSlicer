@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use nalgebra::{Vector3,Point3};
 use geo::Coordinate;
 use serde::{Serialize, Deserialize};
+use crate::settings::Settings;
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct Vertex{
@@ -88,10 +89,17 @@ pub struct IndexedLine{
 }
 
 pub struct Move{
-    end: Coordinate<f64>,
-    move_type: MoveType
+    pub end: Coordinate<f64>,
+    pub move_type: MoveType
 }
 
+pub struct MoveChain{
+    pub start_point: Coordinate<f64>,
+    pub moves : Vec<Move>
+}
+
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MoveType{
     SolidInfill,
     Infill,
@@ -100,6 +108,56 @@ pub enum MoveType{
     Support,
     Travel
 
+}
+
+
+impl MoveChain{
+
+    pub fn create_commands(self, settings: &Settings) -> Vec<Command> {
+
+        let mut cmds = vec![];
+        let mut current_type = MoveType::Travel;
+        let mut current_loc  = self.start_point;
+
+        for m in self.moves{
+            if m.move_type != current_type{
+                match m.move_type{
+                    MoveType::SolidInfill => {
+                        cmds.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.infill_speed), Retract: Some(false) } });
+                    }
+                    MoveType::Infill => {
+                         cmds.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.infill_speed), Retract: Some(false) } });
+                    }
+                    MoveType::Outer_Perimeter => {
+                         cmds.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.perimeter_speed), Retract: Some(false) } });
+                    }
+                    MoveType::Inner_Perimeter => {
+                         cmds.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.perimeter_speed), Retract: Some(false) } });
+                    }
+                    MoveType::Support => {
+                         //cmds.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.infill_speed), Retract: Some(false) } });
+                        todo!()
+                    }
+                    MoveType::Travel => {
+                         cmds.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.travel_speed), Retract: Some(true) } });
+                    }
+                }
+                current_type = m.move_type;
+            }
+
+            if current_type ==  MoveType::Travel{
+                cmds.push(Command::MoveTo {end: m.end});
+                current_loc = m.end;
+            }
+            else{
+                cmds.push(Command::MoveAndExtrude {start: current_loc, end: m.end});
+                current_loc = m.end;
+
+            }
+        }
+
+        cmds
+    }
 }
 
 #[derive( Clone,  Debug)]

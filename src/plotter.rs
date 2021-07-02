@@ -1,7 +1,7 @@
 use geo::*;
 use geo_clipper::*;
 use geo::prelude::*;
-use crate::types::{ Command, StateChange};
+use crate::types::{Command, StateChange, Move, MoveType, MoveChain};
 use crate::settings::Settings;
 use itertools::Itertools;
 use std::iter::FromIterator;
@@ -58,7 +58,14 @@ impl Slice{
         for poly in current_mulipoly
         {
             if solid{
-                solid_fill_polygon(commands,&poly,settings);
+                let new_moves = solid_fill_polygon(&poly,settings);
+
+                if let Some(chain) = new_moves{
+                    commands.append(&mut (chain.create_commands(settings)))
+                }
+
+
+
             }
             else{
                 partial_fill_polygon(commands,&poly,settings, settings.infill_percentage);
@@ -100,7 +107,9 @@ fn inset_polygon( commands: &mut Vec<Command>, poly: &MultiPolygon<f64>, setting
     inset_poly.offset(-settings.layer_width/2.0,JoinType::Square,EndType::ClosedPolygon,1000000.0)
 }
 
-fn solid_fill_polygon( commands: &mut Vec<Command>, poly: &Polygon<f64>, settings : &Settings) {
+fn solid_fill_polygon( poly: &Polygon<f64>, settings : &Settings) -> Option<MoveChain> {
+    let mut moves =  vec![];
+
     let mut lines : Vec<(Coordinate<f64>,Coordinate<f64>)> = poly.exterior().0.iter().map(|c| *c).circular_tuple_windows::<(_, _)>().collect();
 
     for interior in poly.interiors(){
@@ -125,6 +134,8 @@ fn solid_fill_polygon( commands: &mut Vec<Command>, poly: &Polygon<f64>, setting
 
     let mut orient = false;
 
+    let start_point = None;
+
     while !lines.is_empty(){
         while !lines.is_empty() && lines[lines.len() -1].0.y < current_y{
 
@@ -133,7 +144,7 @@ fn solid_fill_polygon( commands: &mut Vec<Command>, poly: &Polygon<f64>, setting
 
 
         if lines.is_empty(){
-            return;
+            break;
         }
 
         current_lines.retain(|(s,e)| e.y > current_y );
@@ -150,24 +161,20 @@ fn solid_fill_polygon( commands: &mut Vec<Command>, poly: &Polygon<f64>, setting
 
         points.sort_by(|a,b| a.partial_cmp(b).unwrap());
 
+        start_point.or(Some(Coordinate{x: points[0], y: current_y}));
 
-        commands.push(Command::SetState {new_state: StateChange{BedTemp: None,ExtruderTemp: None,MovementSpeed: Some(settings.travel_speed),Retract: Some(true)}});
-        commands.push(Command::MoveTo {end: Coordinate{x: points[0], y: current_y}});
+        moves.push(Move{ end: Coordinate{x: points[0], y: current_y},move_type: MoveType::Travel});
 
         if orient {
             for (start, end) in points.iter().tuples::<(_, _)>() {
-                commands.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.travel_speed), Retract: Some(true) } });
-                commands.push(Command::MoveTo { end: Coordinate { x: *start, y: current_y } });
-                commands.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.perimeter_speed), Retract: Some(false) } });
-                commands.push(Command::MoveAndExtrude { start: Coordinate { x: *start, y: current_y }, end: Coordinate { x: *end, y: current_y } });
+                moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
+                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::Travel} );
             }
         }
         else{
             for (start, end) in points.iter().rev().tuples::<(_, _)>() {
-                commands.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.travel_speed), Retract: Some(true) } });
-                commands.push(Command::MoveTo { end: Coordinate { x: *start, y: current_y } });
-                commands.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.perimeter_speed), Retract: Some(false) } });
-                commands.push(Command::MoveAndExtrude { start: Coordinate { x: *start, y: current_y }, end: Coordinate { x: *end, y: current_y } });
+                moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
+                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::Travel} );
             }
         }
 
@@ -177,7 +184,7 @@ fn solid_fill_polygon( commands: &mut Vec<Command>, poly: &Polygon<f64>, setting
     }
 
 
-
+    start_point.map(|start_point|MoveChain{moves,start_point })
 
 }
 
