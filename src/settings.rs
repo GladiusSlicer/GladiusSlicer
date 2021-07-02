@@ -16,6 +16,7 @@ pub struct Settings{
 
     pub perimeter_speed: f64,
     pub infill_speed:  f64,
+    pub infill_percentage:  f64,
     pub travel_speed: f64,
 
     pub print_x : f64,
@@ -43,6 +44,7 @@ impl Default for Settings{
 
             perimeter_speed: 5.0,
             infill_speed: 200.0,
+            infill_percentage: 0.2,
             travel_speed: 180.0,
             print_x: 210.0,
             print_y: 210.0,
