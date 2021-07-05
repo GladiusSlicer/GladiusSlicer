@@ -28,27 +28,21 @@ impl Slice{
      pub fn from_multiple_point_loop( lines: MultiLineString<f64>)  -> Self{
 
          let mut lines_and_area : Vec<(LineString<f64>,f64)> = lines.into_iter().map(|line|{
-             let area = -1.0 * line.clone().into_points().iter().circular_tuple_windows::<(_,_)>().map(|(p1,p2)| {
-                 (p1.x()+p2.x())*(p1.y()-p2.y())
-             }).sum::<f64>();
-
+             let area = line.clone().into_points().iter().circular_tuple_windows::<(_,_)>().map(|(p1,p2)| {
+                 (p1.x()+p2.x())*(p2.y()-p1.y())
+             }).sum();
              (line,area)
          }).collect();
 
          lines_and_area.sort_by(|(l1,a1),(l2,a2)| a2.partial_cmp(a1).unwrap());
-
-
          let mut polygons = vec![];
 
-
          for (line,area) in lines_and_area{
-
              if area > 0.0{
                  polygons.push(Polygon::new(line.clone(), vec![]));
              }
              else{
                  //counter clockwise interior polygon
-
                  let smallest_polygon = polygons.iter_mut().rev().find(|poly| poly.contains(&line.0[0] ) ).expect("Polygon order failure");
                  smallest_polygon.interiors_push(line);
              }
@@ -206,21 +200,13 @@ fn solid_fill_polygon( poly: &Polygon<f64>, settings : &Settings) -> Option<Move
 
         if orient {
             for (start, end) in points.iter().tuples::<(_, _)>() {
-                if !line_change{
-                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::SolidInfill} );
-                } else{
-                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
-                }
+                moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
                 moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill} );
             }
         }
         else{
             for (start, end) in points.iter().rev().tuples::<(_, _)>() {
-                if !line_change{
-                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::SolidInfill} );
-                } else{
-                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
-                }
+                moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
                 moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill} );
             }
         }
