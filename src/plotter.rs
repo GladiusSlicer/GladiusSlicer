@@ -256,7 +256,9 @@ fn partial_fill_polygon( poly: &Polygon<f64>, settings : &Settings, fill_ratio: 
 
     lines.sort_by(|a,b| b.0.y.partial_cmp(&a.0.y).unwrap());
 
-    let mut current_y = lines[lines.len() -1].0.y + settings.layer_width/2.0;
+    let distance = settings.layer_width / fill_ratio;
+
+    let mut current_y = (lines[lines.len() -1].0.y / distance).ceil() * distance ;
 
     let mut current_lines = Vec::new();
 
