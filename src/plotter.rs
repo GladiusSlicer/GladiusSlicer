@@ -27,21 +27,33 @@ impl Slice{
 
      pub fn from_multiple_point_loop( lines: MultiLineString<f64>)  -> Self{
 
-         let mut polygons : Vec<Polygon<f64>> = vec![];
+         let mut lines_and_area : Vec<(LineString<f64>,f64)> = lines.into_iter().map(|line|{
+             let area = -1.0 * line.clone().into_points().iter().circular_tuple_windows::<(_,_)>().map(|(p1,p2)| {
+                 (p1.x()+p2.x())*(p1.y()-p2.y())
+             }).sum::<f64>();
 
-         for line in lines.iter(){
+             (line,area)
+         }).collect();
 
-             let new_polygon = Polygon::new(line.clone(), vec![]);
+         lines_and_area.sort_by(|(l1,a1),(l2,a2)| a2.partial_cmp(a1).unwrap());
 
-             'outer : for polygon in polygons.iter_mut(){
-                 if polygon.contains(&new_polygon){
-                     polygon.interiors_push(line.clone());
-                     break 'outer;
-                 }
+
+         let mut polygons = vec![];
+
+
+         for (line,area) in lines_and_area{
+
+             if area > 0.0{
+                 polygons.push(Polygon::new(line.clone(), vec![]));
              }
+             else{
+                 //counter clockwise interior polygon
 
-             polygons.push(new_polygon);
+                 let smallest_polygon = polygons.iter_mut().rev().find(|poly| poly.contains(&line.0[0] ) ).expect("Polygon order failure");
+                 smallest_polygon.interiors_push(line);
+             }
          }
+
         let multi_polygon :MultiPolygon<f64> = MultiPolygon(polygons);
 
         Slice{MainPolygon: multi_polygon,ouline_area: None,solid_infill:None,normal_infill: None}
