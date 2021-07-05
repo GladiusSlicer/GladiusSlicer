@@ -3,9 +3,10 @@ use geo_clipper::*;
 use geo::prelude::*;
 use crate::types::{Command, StateChange, Move, MoveType, MoveChain};
 use crate::settings::Settings;
-use itertools::Itertools;
+use itertools::{Itertools, chain};
 use std::iter::FromIterator;
 use std::collections::VecDeque;
+use ordered_float::OrderedFloat;
 
 pub struct Slice{
     MainPolygon: MultiPolygon<f64>,
@@ -50,8 +51,13 @@ impl Slice{
 
         let mut current_mulipoly = self.MainPolygon.clone();
 
+
+        let mut chains = vec![];
+
         for _ in 0..3{
-            current_mulipoly =  inset_polygon(commands, &current_mulipoly,settings);
+            let (m,mut new_chains) =  inset_polygon(&current_mulipoly,settings);
+            current_mulipoly = m;
+            chains.append(&mut new_chains);
         }
 
         for poly in current_mulipoly
@@ -59,57 +65,70 @@ impl Slice{
             if solid{
                 let new_moves = solid_fill_polygon(&poly,settings);
 
+
                 if let Some(chain) = new_moves{
-                    let moves = chain.create_commands(settings);
-                    commands.extend(moves.into_iter());
+                    chains.push(chain);
                 }
-
-
 
             }
             else{
                 let new_moves = partial_fill_polygon(&poly,settings,settings.infill_percentage);
 
                 if let Some(chain) = new_moves{
-                    let moves = chain.create_commands(settings);
-                    commands.extend(moves.into_iter());
+                    chains.push(chain);
                 }
             }
 
         }
 
+        let mut ordered_chains = vec![chains.swap_remove(0)];
+
+        while !chains.is_empty(){
+            let index = chains.iter().position_min_by_key(|a|OrderedFloat(ordered_chains.last().unwrap().moves.last().unwrap().end.euclidean_distance(&a.start_point))).unwrap();
+            let closest_chain = chains.remove(index);
+            ordered_chains.push(closest_chain);
+        }
+
+        let mut full_moves = vec![];
+        let starting_point =  ordered_chains[0].start_point;
+        for mut chain in ordered_chains{
+            full_moves.push(Move{end: chain.start_point ,move_type: MoveType::Travel });
+            full_moves.append(&mut chain.moves)
+        }
+
+        commands.append(&mut MoveChain{moves:full_moves,start_point: starting_point}.create_commands(settings));
 
     }
 }
 
 
-fn inset_polygon( commands: &mut Vec<Command>, poly: &MultiPolygon<f64>, settings : &Settings) -> MultiPolygon<f64>{
+fn inset_polygon( poly: &MultiPolygon<f64>, settings : &Settings) -> (MultiPolygon<f64>,Vec<MoveChain>){
+
+    let mut move_chains =  vec![];
     let inset_poly = poly.offset(-settings.layer_width/2.0,JoinType::Miter(10.0),EndType::ClosedPolygon,1000000.0);
 
     for polygon in inset_poly.0.iter()
     {
-        commands.push(Command::SetState {new_state: StateChange{BedTemp: None,ExtruderTemp: None,MovementSpeed: Some(settings.travel_speed),Retract: Some(true)}});
-        commands.push(Command::MoveTo {end: polygon.exterior().0[0]});
-        commands.push(Command::SetState {new_state: StateChange{BedTemp: None,ExtruderTemp: None,MovementSpeed: Some(settings.perimeter_speed),Retract: Some(false)}});
+        let mut moves = vec![];
+
+
         for (&start,&end) in polygon.exterior().0.iter().circular_tuple_windows::<(_,_)>(){
-            commands.push(Command::MoveAndExtrude {start,end});
+            moves.push(Move{end: end,move_type: MoveType::Outer_Perimeter});
         }
+
+        move_chains.push(MoveChain{start_point:polygon.exterior()[0], moves});
 
         for interior in polygon.interiors() {
-            commands.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.travel_speed), Retract: Some(true) } });
-            commands.push(Command::MoveTo { end: interior.0[0] });
-            commands.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.perimeter_speed), Retract: Some(false) } });
+            let mut moves = vec![];
             for (&start, &end) in interior.0.iter().circular_tuple_windows::<(_, _)>() {
-                commands.push(Command::MoveAndExtrude { start, end });
+                moves.push(Move{end: end,move_type: MoveType::Outer_Perimeter});
             }
+            move_chains.push(MoveChain{start_point:interior.0[0], moves});
         }
-
-
-
 
     }
 
-    inset_poly.offset(-settings.layer_width/2.0,JoinType::Square,EndType::ClosedPolygon,1000000.0)
+    (inset_poly.offset(-settings.layer_width/2.0,JoinType::Miter(10.0),EndType::ClosedPolygon,1000000.0),move_chains)
 }
 
 fn solid_fill_polygon( poly: &Polygon<f64>, settings : &Settings) -> Option<MoveChain> {
