@@ -128,7 +128,7 @@ fn main() {
         println!("layer {} {}", layer_count ,layer_count < 3 || layer_count+ 3 +1>slice_count );
 
 
-        slice.slice_into_commands(&settings,&mut moves, layer_count < 3 || layer_count+ 3 +1>slice_count );
+        slice.slice_into_commands(&settings,&mut moves, layer_count < 3 || layer_count+ 3 +1>slice_count ,layer_count,*layer);
 
 
 

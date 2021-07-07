@@ -53,7 +53,7 @@ impl Slice{
         Slice{MainPolygon: multi_polygon,ouline_area: None,solid_infill:None,normal_infill: None}
     }
 
-    pub fn slice_into_commands(&self,settings:&Settings, commands: &mut Vec<Command>, solid: bool) {
+    pub fn slice_into_commands(&self,settings:&Settings, commands: &mut Vec<Command>, solid: bool, layer_count: usize, layer_height: f64) {
 
         let mut current_mulipoly = self.MainPolygon.clone();
 
@@ -70,7 +70,7 @@ impl Slice{
         {
             if solid{
 
-                let angle = (45 as f64);
+                let angle = (120 as f64) * layer_count as f64;
 
                 let rotate_poly = poly.rotate_around_point(angle,Point(Coordinate::zero()));
 
