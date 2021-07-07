@@ -87,23 +87,24 @@ impl Slice{
 
         }
 
-        let mut ordered_chains = vec![chains.swap_remove(0)];
+        if chains.len() >0 {
+            let mut ordered_chains = vec![chains.swap_remove(0)];
 
-        while !chains.is_empty(){
-            let index = chains.iter().position_min_by_key(|a|OrderedFloat(ordered_chains.last().unwrap().moves.last().unwrap().end.euclidean_distance(&a.start_point))).unwrap();
-            let closest_chain = chains.remove(index);
-            ordered_chains.push(closest_chain);
+            while !chains.is_empty() {
+                let index = chains.iter().position_min_by_key(|a| OrderedFloat(ordered_chains.last().unwrap().moves.last().unwrap().end.euclidean_distance(&a.start_point))).unwrap();
+                let closest_chain = chains.remove(index);
+                ordered_chains.push(closest_chain);
+            }
+
+            let mut full_moves = vec![];
+            let starting_point = ordered_chains[0].start_point;
+            for mut chain in ordered_chains {
+                full_moves.push(Move { end: chain.start_point, move_type: MoveType::Travel });
+                full_moves.append(&mut chain.moves)
+            }
+
+            commands.append(&mut MoveChain { moves: full_moves, start_point: starting_point }.create_commands(settings));
         }
-
-        let mut full_moves = vec![];
-        let starting_point =  ordered_chains[0].start_point;
-        for mut chain in ordered_chains{
-            full_moves.push(Move{end: chain.start_point ,move_type: MoveType::Travel });
-            full_moves.append(&mut chain.moves)
-        }
-
-        commands.append(&mut MoveChain{moves:full_moves,start_point: starting_point}.create_commands(settings));
-
     }
 }
 
@@ -111,7 +112,7 @@ impl Slice{
 fn inset_polygon( poly: &MultiPolygon<f64>, settings : &Settings) -> (MultiPolygon<f64>,Vec<MoveChain>){
 
     let mut move_chains =  vec![];
-    let inset_poly = poly.offset(-settings.layer_width/2.0,JoinType::Miter(10.0),EndType::ClosedPolygon,1000000.0);
+    let inset_poly = poly.offset(-settings.layer_width/2.0,JoinType::Square,EndType::ClosedPolygon,1000000.0);
 
     for polygon in inset_poly.0.iter()
     {
@@ -134,7 +135,7 @@ fn inset_polygon( poly: &MultiPolygon<f64>, settings : &Settings) -> (MultiPolyg
 
     }
 
-    (inset_poly.offset(-settings.layer_width/2.0,JoinType::Miter(10.0),EndType::ClosedPolygon,1000000.0),move_chains)
+    (inset_poly.offset(-settings.layer_width/2.0,JoinType::Square,EndType::ClosedPolygon,1000000.0),move_chains)
 }
 
 fn solid_fill_polygon( poly: &Polygon<f64>, settings : &Settings) -> Option<MoveChain> {
