@@ -158,6 +158,23 @@ impl MoveChain{
 
         cmds
     }
+
+    pub(crate) fn rotate(&mut self, angle: f64)  {
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+
+        for m in self.moves.iter_mut(){
+            let nx = m.end.x * cos_a - m.end.y*sin_a;
+            let ny = m.end.x * sin_a + m.end.y*cos_a;
+            m.end.x = nx;
+            m.end.y = ny;
+        }
+        let nx = self.start_point.x * cos_a - self.start_point.y*sin_a;
+        let ny = self.start_point.x * sin_a + self.start_point.y*cos_a;
+
+        self.start_point.x = nx;
+        self.start_point.y = ny;
+    }
 }
 
 #[derive( Clone,  Debug,PartialEq)]

@@ -8,7 +8,7 @@ use geo::euclidean_distance::EuclideanDistance;
 pub fn optimize_commands(cmds: &mut Vec<Command> ,settings:& Settings) {
 
     let mut size  = cmds.len();
-    arc_optomizer(cmds);
+    //arc_optomizer(cmds);
     while {
 
 

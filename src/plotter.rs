@@ -69,10 +69,15 @@ impl Slice{
         for poly in current_mulipoly
         {
             if solid{
-                let new_moves = solid_fill_polygon(&poly,settings);
 
+                let angle = (45 as f64);
 
-                if let Some(chain) = new_moves{
+                let rotate_poly = poly.rotate_around_point(angle,Point(Coordinate::zero()));
+
+                let new_moves = solid_fill_polygon(&rotate_poly,settings);
+
+                if let Some(mut chain) = new_moves{
+                    chain.rotate(-angle.to_radians());
                     chains.push(chain);
                 }
 
