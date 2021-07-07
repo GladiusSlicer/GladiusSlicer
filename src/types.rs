@@ -160,7 +160,7 @@ impl MoveChain{
     }
 }
 
-#[derive( Clone,  Debug)]
+#[derive( Clone,  Debug,PartialEq)]
 pub enum Command{
     MoveTo{end: Coordinate<f64>},
     MoveAndExtrude{start: Coordinate<f64>, end: Coordinate<f64>},
@@ -187,7 +187,7 @@ impl Command{
     }
 }
 */
-#[derive( Clone, Debug,Default)]
+#[derive( Clone, Debug,Default,PartialEq)]
 pub struct StateChange{
     pub ExtruderTemp : Option<f64>,
     pub BedTemp : Option<f64>,

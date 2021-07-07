@@ -297,14 +297,16 @@ fn convert( cmds: &Vec<Command>, settings: Settings, write:&mut impl Write) ->  
 
                 //Divide the chord length by double the radius.
                 let t = cord_length / (2.0*radius);
+                //println!("{}",t);
                 //Find the inverse sine of the result (in radians).
                 //Double the result of the inverse sine to get the central angle in radians.
                 let central = t.asin() *2.0;
                 //Once you have the central angle in radians, multiply it by the radius to get the arc length.
                 let extrusion_length  = central * radius;
 
+                //println!("{}",extrusion_length);
                 let extrude = (4.0 * settings.layer_height * settings.layer_width*extrusion_length) /(std::f64::consts::PI*settings.filament.diameter*settings.filament.diameter);
-                writeln!(write,"{} X{:.5} Y{:.5} E{:.5}",if *clockwise { "G2"} else{"G3"},end.x +100.0,end.y+100.,extrude)?;
+                writeln!(write,"{} X{:.5} Y{:.5} I{:.5} J{:.5} E{:.5}",if *clockwise { "G2"} else{"G3"},end.x ,end.y,center.x, center.y, extrude)?;
 
 
             }
