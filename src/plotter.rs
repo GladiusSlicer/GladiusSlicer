@@ -5,8 +5,10 @@ use crate::types::{Command, StateChange, Move, MoveType, MoveChain};
 use crate::settings::Settings;
 use itertools::{Itertools, chain};
 use std::iter::FromIterator;
-use std::collections::VecDeque;
+use std::collections::{VecDeque, BinaryHeap};
 use ordered_float::OrderedFloat;
+use std::io::BufRead;
+use std::cmp::Ordering;
 
 pub struct Slice{
     MainPolygon: MultiPolygon<f64>,
@@ -322,8 +324,73 @@ fn partial_fill_polygon( poly: &Polygon<f64>, settings : &Settings, fill_ratio: 
     start_point.map(|start_point|MoveChain{moves,start_point })
 
 }
+/*
+struct MonotoneSection{
+    lower_chain: Vec<Coordinate<f64>>,
+    upper_chain: Vec<Coordinate<f64>>,
+}
+
+fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection>{
+
+    let mono_points = poly.exterior().0.iter()
+        .circular_tuple_windows::<(Coordinate<f64>,Coordinate<f64>,Coordinate<f64>)>()
+        .map(|(p1,p2,p3)|
+            {
+                if p1.y < p2.y && p3.y < p2.y{
+                    //split
+                    let (line1, line2) = if p1.x < p3.x{
+                        (MonotoneLine{p1: p2, p2: p1},MonotoneLine{p1: p2, p2: p3})
+                    }
+                    else{
+                        (MonotoneLine{p1: p2, p2: p3},MonotoneLine{p1: p2, p2: p1})
+                    };
+                    MonotonePoint{line1,line2,point_type: PointType::Split}
+                }
+                else if p1.y > p2.y && p3.y < p2.y{
+                    //merge
+                    let (line1, line2) = if p1.x < p3.x{
+                        (MonotoneLine{p1: p1, p2: p2},MonotoneLine{p1: p3, p2: p2})
+                    }
+                    else{
+                        (MonotoneLine{p1: p3, p2: p2},MonotoneLine{p1: p1, p2: p2})
+                    };
+                    MonotonePoint{line1,line2,point_type: PointType::Merge}
+                }
+                else{
+                    if p1.y < p3.y{
+                        MonotonePoint{line1:MonotoneLine{p1: p3, p2: p2},line2: MonotoneLine{p1: p2, p2: p1},point_type: PointType::Normal}
+                    }
+                    else{
+                        MonotonePoint{line1:MonotoneLine{p1: p1, p2: p2},line2: MonotoneLine{p1: p2, p2: p3},point_type: PointType::Normal}
+                    };
+                }
+            }
+        ).collect::<BinaryHeap<MonotonePoint>>();
 
 
+    vec![]
+}
+
+struct MonotonePoint{
+    line1: MonotoneLine,
+    line2: MonotoneLine,
+    point_type: PointType
+}
+
+impl PartialOrd for MonotonePoint{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.line1.p2
+    }
+}
 
 
+struct MonotoneLine{
+    p1: Coordinate<f64>,
+    p2: Coordinate<f64>
+}
 
+enum PointType{
+    Normal,
+    Merge,
+    Split,
+}*/
