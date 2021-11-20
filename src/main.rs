@@ -89,7 +89,7 @@ fn main() {
     println!("Slicing");
 
     let mut moves = vec![];
-    let mut layer = settings.first_layer_height;
+    let mut layer = 0.0;
     let mut more_lines = true;
 
 
@@ -97,8 +97,17 @@ fn main() {
     let mut  slices = vec![];
 
     while more_lines {
-        tower_iter.advance_to_height(layer );
-
+        if slices.is_empty(){
+            //first layer
+            layer+= settings.first_layer_height/2.0;
+            tower_iter.advance_to_height(layer );
+            layer+= settings.first_layer_height/2.0;
+        }
+        else{
+            layer += settings.layer_height/2.0;
+            tower_iter.advance_to_height(layer );
+            layer += settings.layer_height/2.0;
+        }
         //println!("layer {}",layer);
 
         let layer_loops = tower_iter.get_points();
@@ -112,7 +121,6 @@ fn main() {
             slices.push((layer,slice));
         };
 
-        layer += settings.layer_height;
         //println!("laye2 {}",layer)
 
     }
@@ -132,7 +140,7 @@ fn main() {
 
     //Fill all remaining areas
     for (layer,slice) in slices.iter_mut(){
-        slice.fill_remaining_area(&settings,layer_count < 3 || layer_count+ 3 +1>slice_count ,layer_count,*layer);
+        slice.fill_remaining_area(&settings,layer_count < 3 || layer_count+ 3 +1>slice_count ,layer_count);
         layer_count +=1;
     }
 

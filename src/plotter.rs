@@ -66,7 +66,7 @@ impl Slice{
 
     }
 
-    pub fn fill_remaining_area(&mut self,settings:&Settings, solid: bool, layer_count: usize, layer_height: f64){
+    pub fn fill_remaining_area(&mut self,settings:&Settings, solid: bool, layer_count: usize){
         //For each region still available fill wih infill
         for poly in &self.remaining_area
         {
