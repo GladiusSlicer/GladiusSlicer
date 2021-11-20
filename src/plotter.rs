@@ -10,9 +10,10 @@ use ordered_float::OrderedFloat;
 
 pub struct Slice{
     MainPolygon: MultiPolygon<f64>,
-    ouline_area: Option<MultiPolygon<f64>>,
+    remaining_area: MultiPolygon<f64>,
     solid_infill: Option<MultiPolygon<f64>>,
     normal_infill: Option<MultiPolygon<f64>>,
+    chains: Vec<MoveChain>,
 }
 
 impl Slice{
@@ -22,7 +23,7 @@ impl Slice{
             vec![],
         );
 
-        Slice{MainPolygon: MultiPolygon(vec![polygon]),ouline_area: None,solid_infill:None,normal_infill: None}
+        Slice{MainPolygon: MultiPolygon(vec![polygon.clone()]),remaining_area: MultiPolygon(vec![polygon]),solid_infill:None,normal_infill: None,chains: vec![]}
     }
 
      pub fn from_multiple_point_loop( lines: MultiLineString<f64>)  -> Self{
@@ -50,23 +51,22 @@ impl Slice{
 
         let multi_polygon :MultiPolygon<f64> = MultiPolygon(polygons);
 
-        Slice{MainPolygon: multi_polygon,ouline_area: None,solid_infill:None,normal_infill: None}
+        Slice{MainPolygon: multi_polygon.clone(),remaining_area: multi_polygon,solid_infill:None,normal_infill: None,chains: vec![]}
     }
 
-    pub fn slice_into_commands(&self,settings:&Settings, commands: &mut Vec<Command>, solid: bool, layer_count: usize, layer_height: f64) {
-
-        let mut current_mulipoly = self.MainPolygon.clone();
-
-
-        let mut chains = vec![];
-
+    pub fn slice_perimeters_into_chains(&mut self,settings : &Settings){
+        //Create the outer shells
         for _ in 0..3{
-            let (m,mut new_chains) =  inset_polygon(&current_mulipoly,settings);
-            current_mulipoly = m;
-            chains.append(&mut new_chains);
+            let (m,mut new_chains) =  inset_polygon(&self.remaining_area,settings);
+            self.remaining_area = m;
+            self.chains.append(&mut new_chains);
         }
 
-        for poly in current_mulipoly
+    }
+
+    pub fn fill_remaining_area(&mut self,settings:&Settings, solid: bool, layer_count: usize, layer_height: f64){
+        //For each region still available fill wih infill
+        for poly in &self.remaining_area
         {
             if solid{
 
@@ -78,7 +78,7 @@ impl Slice{
 
                 if let Some(mut chain) = new_moves{
                     chain.rotate(-angle.to_radians());
-                    chains.push(chain);
+                    self.chains.push(chain);
                 }
 
             }
@@ -86,18 +86,21 @@ impl Slice{
                 let new_moves = partial_fill_polygon(&poly,settings,settings.infill_percentage);
 
                 if let Some(chain) = new_moves{
-                    chains.push(chain);
+                    self.chains.push(chain);
                 }
             }
 
         }
+    }
+    pub fn slice_into_commands(&mut self,settings:&Settings, commands: &mut Vec<Command>) {
 
-        if chains.len() >0 {
-            let mut ordered_chains = vec![chains.swap_remove(0)];
+        //Order Chains for fastest print
+        if self.chains.len() >0 {
+            let mut ordered_chains = vec![self.chains.swap_remove(0)];
 
-            while !chains.is_empty() {
-                let index = chains.iter().position_min_by_key(|a| OrderedFloat(ordered_chains.last().unwrap().moves.last().unwrap().end.euclidean_distance(&a.start_point))).unwrap();
-                let closest_chain = chains.remove(index);
+            while !self.chains.is_empty() {
+                let index = self.chains.iter().position_min_by_key(|a| OrderedFloat(ordered_chains.last().unwrap().moves.last().unwrap().end.euclidean_distance(&a.start_point))).unwrap();
+                let closest_chain = self.chains.remove(index);
                 ordered_chains.push(closest_chain);
             }
 

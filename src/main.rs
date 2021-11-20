@@ -122,21 +122,24 @@ fn main() {
 
     let slice_count = slices.len();
 
+
+    //Handle Perimeters
+    for (layer,slice) in slices.iter_mut(){
+        slice.slice_perimeters_into_chains(&settings);
+    }
+
+    //Combine layer to form support
+
+    //Fill all remaining areas
+    for (layer,slice) in slices.iter_mut(){
+        slice.fill_remaining_area(&settings,layer_count < 3 || layer_count+ 3 +1>slice_count ,layer_count,*layer);
+        layer_count +=1;
+    }
+
+    //Convert all commands into
     for (layer,slice) in slices.iter_mut(){
         moves.push(Command::LayerChange {z: *layer});
-
-        println!("layer {} {}", layer_count ,layer_count < 3 || layer_count+ 3 +1>slice_count );
-
-
-        slice.slice_into_commands(&settings,&mut moves, layer_count < 3 || layer_count+ 3 +1>slice_count ,layer_count,*layer);
-
-
-
-
-
-
-        layer_count +=1;
-
+        slice.slice_into_commands(&settings,&mut moves);
     }
 
 
