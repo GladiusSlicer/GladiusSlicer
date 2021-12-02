@@ -56,6 +56,10 @@ impl Slice{
         Slice{MainPolygon: multi_polygon.clone(),remaining_area: multi_polygon,solid_infill:None,normal_infill: None,chains: vec![]}
     }
 
+    pub fn get_entire_slice_polygon(&self) -> &MultiPolygon<f64>{
+        &self.MainPolygon
+    }
+
     pub fn slice_perimeters_into_chains(&mut self,settings : &Settings){
         //Create the outer shells
         for _ in 0..3{
@@ -94,6 +98,29 @@ impl Slice{
 
         }
     }
+
+    pub fn fill_solid_subtracted_area(&mut self,other: &MultiPolygon<f64>, settings:&Settings, layer_count: usize){
+        //For each area not in this slice that is in the other polygon, fill solid
+
+        let solid_area = self.remaining_area.difference(&other.offset(-settings.layer_width*2.0,JoinType::Square,EndType::ClosedPolygon,100000.0),100000.0);
+        for poly in &solid_area
+        {
+            let angle = (120 as f64) * layer_count as f64;
+
+            let rotate_poly = poly.rotate_around_point(angle,Point(Coordinate::zero()));
+
+            let new_moves = solid_fill_polygon(&rotate_poly,settings);
+
+            if let Some(mut chain) = new_moves{
+                chain.rotate(-angle.to_radians());
+                self.chains.push(chain);
+            }
+
+        }
+
+        self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
+    }
+
     pub fn slice_into_commands(&mut self,settings:&Settings, commands: &mut Vec<Command>) {
 
         //Order Chains for fastest print

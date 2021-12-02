@@ -12,6 +12,7 @@ use crate::optimizer::optimize_commands;
 use crate::tower::*;
 use geo::Coordinate;
 use itertools::Itertools;
+use geo_clipper::*;
 
 
 mod loader;
@@ -62,12 +63,9 @@ fn main() {
         Transform::new_translation_transform( (settings.print_x +max_x+min_x) /2.,(settings.print_y+ max_y+min_y) /2.,-min_z)
     };
 
-
-
-
     let trans_str = serde_json::to_string(&transform).unwrap();
 
-    println!("transform {}",trans_str);
+    println!("Using Transform {}",trans_str);
 
     for vert in vertices.iter_mut(){
         *vert = &transform * *vert;
@@ -75,16 +73,10 @@ fn main() {
 
     println!("Creating Tower");
 
-    //println!("Here");
 
     let tower = TriangleTower::from_triangles_and_vertices(&triangles,vertices);
 
     let mut tower_iter = TriangleTowerIterator::new(&tower);
-    //tower_iter.advance_to_height(0.5);
-
-    //for vert in &tower_iter.get_points()[0] {
-    //    println!("{},{}",vert.x,vert.y);
-    //}
 
     println!("Slicing");
 
@@ -97,6 +89,8 @@ fn main() {
     let mut  slices = vec![];
 
     while more_lines {
+
+        //Advance to the correct height
         if slices.is_empty(){
             //first layer
             layer+= settings.first_layer_height/2.0;
@@ -108,22 +102,23 @@ fn main() {
             tower_iter.advance_to_height(layer );
             layer += settings.layer_height/2.0;
         }
-        //println!("layer {}",layer);
 
+        //Get the ordered lists of points
         let layer_loops = tower_iter.get_points();
 
         if layer_loops.is_empty(){
             more_lines = false;
         }
         else {
-            let slice = Slice::from_multiple_point_loop(layer_loops.iter().map(|verts| verts.into_iter().map(|v| Coordinate { x: v.x, y: v.y }).collect::<Vec<Coordinate<f64>>>()).collect());
 
+            //Add this slice to the
+            let slice = Slice::from_multiple_point_loop(layer_loops.iter().map(|verts| verts.into_iter().map(|v| Coordinate { x: v.x, y: v.y }).collect::<Vec<Coordinate<f64>>>()).collect());
             slices.push((layer,slice));
         };
-
-        //println!("laye2 {}",layer)
-
     }
+
+
+
     println!("Generating Moves");
 
     let mut layer_count = 0;
@@ -132,34 +127,51 @@ fn main() {
 
 
     //Handle Perimeters
+    println!("Generating Moves: Perimeters");
     for (layer,slice) in slices.iter_mut(){
         slice.slice_perimeters_into_chains(&settings);
     }
 
     //Combine layer to form support
 
+    println!("Generating Moves: Above and below support");
+
+    let layers  = 3;
+    for q in layers..slices.len()-layers{
+
+        let below =  slices[(q-layers+1)..q].iter().map(|m| (m.1.get_entire_slice_polygon()))
+            .fold(slices.get(q-layers).unwrap().1.get_entire_slice_polygon().clone(),(|a,b| a.intersection(b,10000.0)));
+        let above =  slices[q+2..q+layers].iter().map(|m| (m.1.get_entire_slice_polygon()))
+            .fold(slices.get(q+1).unwrap().1.get_entire_slice_polygon().clone(),(|a,b| a.intersection(b,10000.0)));
+        let intersection  = below.intersection(&above,10000.0);
+
+        slices.get_mut(q).unwrap().1.fill_solid_subtracted_area(&intersection,&settings,q)
+    }
+    println!("Generating Moves: Fill Areas");
     //Fill all remaining areas
     for (layer,slice) in slices.iter_mut(){
         slice.fill_remaining_area(&settings,layer_count < 3 || layer_count+ 3 +1>slice_count ,layer_count);
         layer_count +=1;
     }
-
     //Convert all commands into
+    println!("Convert into Commnds");
     for (layer,slice) in slices.iter_mut(){
         moves.push(Command::LayerChange {z: *layer});
         slice.slice_into_commands(&settings,&mut moves);
     }
 
 
-
+    //Output the GCode
     if let Some(file_path ) = matches.value_of("OUTPUT"){
+
+        //Output to file
         println!("Optimizing {} Moves", moves.len());
         optimize_commands(&mut moves,&settings);
         println!("Converting {} Moves", moves.len());
         convert(&moves,settings,&mut File::create(file_path).expect("File not Found")).unwrap();
     }
     else{
-
+        //Output to stdout
         println!("Optimizing {} Moves", moves.len());
         let stdout = std::io::stdout();
         optimize_commands(&mut moves,&settings);
@@ -174,77 +186,6 @@ fn main() {
 
 
 }
-
-/*
-fn triangle_z_intersection(z: f32, triangle : Triangle) -> Option<(Vertex,Vertex)>
-{
-    let v0 = triangle.vertices[0];
-    let v1 = triangle.vertices[1];
-    let v2 = triangle.vertices[2];
-
-    let v0_1_intersection = {
-        if (v0[2] > z) != (v1[2] > z) {
-            // one above and one below
-           line_z_intersection(z,v0,v1)
-        }
-        else{
-            None
-        }
-    };
-    let v1_2_intersection = {
-        if (v1[2] > z) != (v2[2] > z) {
-            // one above and one below
-           line_z_intersection(z,v1,v2)
-        }
-        else{
-            None
-        }
-    };
-    let v2_0_intersection = {
-        if (v2[2] > z) != (v0[2] > z) {
-            // one above and one below
-           line_z_intersection(z,v2,v0)
-        }
-        else{
-            None
-        }
-    };
-    if let Some(r1) = v0_1_intersection{
-
-        if let Some(r2) = v1_2_intersection {
-            Some((r1,r2))
-        }
-        else if let Some(r2) = v2_0_intersection {
-            Some((r1,r2))
-        }
-        else
-        {
-            None
-        }
-    }
-    else if let Some(r1) = v1_2_intersection{
-
-        if let Some(r2) = v2_0_intersection {
-            Some((r1,r2))
-        }
-        else
-        {
-            None
-        }
-    }
-    else{
-        None
-
-    }
-}*/
-
-
-
-
-/*fn deindex_triangle(vertices: &Vec<Vertex> , tri : &IndexedTriangle) -> Triangle{
-    Triangle{normal: tri.normal,vertices: [vertices[tri.vertices[0]],vertices[tri.vertices[1]],vertices[tri.vertices[2]]]}
-}*/
-
 
 
 fn convert( cmds: &Vec<Command>, settings: Settings, write:&mut impl Write) ->  Result<(),Box<dyn std::error::Error>>{
