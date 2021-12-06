@@ -121,7 +121,7 @@ impl Slice{
         self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
     }
 
-    pub fn slice_into_commands(&mut self,settings:&Settings, commands: &mut Vec<Command>) {
+    pub fn slice_into_commands(&mut self,settings:&Settings, commands: &mut Vec<Command>, layer_thickness: f64) {
 
         //Order Chains for fastest print
         if self.chains.len() >0 {
@@ -136,11 +136,11 @@ impl Slice{
             let mut full_moves = vec![];
             let starting_point = ordered_chains[0].start_point;
             for mut chain in ordered_chains {
-                full_moves.push(Move { end: chain.start_point, move_type: MoveType::Travel });
+                full_moves.push(Move { end: chain.start_point, move_type: MoveType::Travel , width: 0.0});
                 full_moves.append(&mut chain.moves)
             }
 
-            commands.append(&mut MoveChain { moves: full_moves, start_point: starting_point }.create_commands(settings));
+            commands.append(&mut MoveChain { moves: full_moves, start_point: starting_point }.create_commands(settings,layer_thickness));
         }
     }
 }
@@ -157,7 +157,7 @@ fn inset_polygon( poly: &MultiPolygon<f64>, settings : &Settings) -> (MultiPolyg
 
 
         for (&start,&end) in polygon.exterior().0.iter().circular_tuple_windows::<(_,_)>(){
-            moves.push(Move{end: end,move_type: MoveType::Outer_Perimeter});
+            moves.push(Move{end: end,move_type: MoveType::Outer_Perimeter, width: settings.layer_width});
         }
 
         move_chains.push(MoveChain{start_point:polygon.exterior()[0], moves});
@@ -165,7 +165,7 @@ fn inset_polygon( poly: &MultiPolygon<f64>, settings : &Settings) -> (MultiPolyg
         for interior in polygon.interiors() {
             let mut moves = vec![];
             for (&start, &end) in interior.0.iter().circular_tuple_windows::<(_, _)>() {
-                moves.push(Move{end: end,move_type: MoveType::Outer_Perimeter});
+                moves.push(Move{end: end,move_type: MoveType::Outer_Perimeter,width: settings.layer_width});
             }
             move_chains.push(MoveChain{start_point:interior.0[0], moves});
         }
@@ -234,18 +234,18 @@ fn solid_fill_polygon( poly: &Polygon<f64>, settings : &Settings) -> Option<Move
 
         start_point = start_point.or(Some(Coordinate{x: points[0], y: current_y}));
 
-        moves.push(Move{ end: Coordinate{x: points[0], y: current_y},move_type: MoveType::Travel});
+        moves.push(Move{ end: Coordinate{x: points[0], y: current_y},move_type: MoveType::Travel,width: 0.0});
 
         if orient {
             for (start, end) in points.iter().tuples::<(_, _)>() {
-                moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
-                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill} );
+                moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel,width: 0.0} );
+                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill,width: settings.layer_width} );
             }
         }
         else{
             for (start, end) in points.iter().rev().tuples::<(_, _)>() {
-                moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
-                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill} );
+                moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel,width: 0.0} );
+                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill,width: settings.layer_width} );
             }
         }
 
@@ -322,26 +322,26 @@ fn partial_fill_polygon( poly: &Polygon<f64>, settings : &Settings, fill_ratio: 
 
         start_point = start_point.or(Some(Coordinate{x: points[0], y: current_y}));
 
-        moves.push(Move{ end: Coordinate{x: points[0], y: current_y},move_type: MoveType::Travel});
+        moves.push(Move{ end: Coordinate{x: points[0], y: current_y},move_type: MoveType::Travel,width: settings.layer_width});
 
         if orient {
             for (start, end) in points.iter().tuples::<(_, _)>() {
                 if !line_change{
-                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::SolidInfill} );
+                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::SolidInfill,width: settings.layer_width} );
                 } else{
-                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
+                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel,width: settings.layer_width} );
                 }
-                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill} );
+                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill,width: settings.layer_width} );
             }
         }
         else{
             for (start, end) in points.iter().rev().tuples::<(_, _)>() {
                 if !line_change{
-                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::SolidInfill} );
+                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::SolidInfill,width: settings.layer_width} );
                 } else{
-                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel} );
+                    moves.push(Move{ end: Coordinate { x: *start, y: current_y },move_type: MoveType::Travel, width: 0.0} );
                 }
-                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill} );
+                moves.push(Move{ end: Coordinate { x: *end, y: current_y }  ,move_type: MoveType::SolidInfill,width: settings.layer_width} );
             }
         }
 

@@ -90,6 +90,7 @@ pub struct IndexedLine{
 
 pub struct Move{
     pub end: Coordinate<f64>,
+    pub width: f64,
     pub move_type: MoveType
 }
 
@@ -113,7 +114,7 @@ pub enum MoveType{
 
 impl MoveChain{
 
-    pub fn create_commands(self, settings: &Settings) -> Vec<Command> {
+    pub fn create_commands(self, settings: &Settings,thickness: f64,) -> Vec<Command> {
 
         let mut cmds = vec![];
         let mut current_type = MoveType::Travel;
@@ -150,7 +151,7 @@ impl MoveChain{
                 current_loc = m.end;
             }
             else{
-                cmds.push(Command::MoveAndExtrude {start: current_loc, end: m.end});
+                cmds.push(Command::MoveAndExtrude {start: current_loc, end: m.end,thickness, width: m.width});
                 current_loc = m.end;
 
             }
@@ -180,11 +181,11 @@ impl MoveChain{
 #[derive( Clone,  Debug,PartialEq)]
 pub enum Command{
     MoveTo{end: Coordinate<f64>},
-    MoveAndExtrude{start: Coordinate<f64>, end: Coordinate<f64>},
+    MoveAndExtrude{start: Coordinate<f64>, end: Coordinate<f64>,thickness: f64, width: f64},
     LayerChange{z: f64},
     SetState{new_state: StateChange},
     Delay{msec: u64},
-    Arc{start: Coordinate<f64>, end: Coordinate<f64>, center: Coordinate<f64>, clockwise: bool},
+    Arc{start: Coordinate<f64>, end: Coordinate<f64>, center: Coordinate<f64>, clockwise: bool,thickness: f64, width: f64},
     //Used in optimization , should be optimized out
     NoAction
 

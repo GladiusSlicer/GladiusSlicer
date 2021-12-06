@@ -35,7 +35,7 @@ pub fn unary_optimizer(cmds: &mut Vec<Command> ){
 
         match cmd{
             Command::MoveTo { .. } => { true }
-            Command::MoveAndExtrude { start, end } => { start != end }
+            Command::MoveAndExtrude { start, end ,..} => { start != end }
             Command::LayerChange { .. } => {true }
             Command::SetState { new_state } => {
                 !(new_state.ExtruderTemp.is_none() && new_state.MovementSpeed.is_none() && new_state.Retract.is_none() && new_state.ExtruderTemp.is_none() && new_state.BedTemp.is_none() )
@@ -56,16 +56,16 @@ pub fn binary_optimizer(cmds: &mut Vec<Command> , settings: &Settings){
     *cmds = cmds.drain(..).coalesce(move |first,second|{
 
         match (first.clone(),second.clone()){
-            (Command::MoveAndExtrude {start: f_start,end: f_end}, Command::MoveAndExtrude {start : s_start,end:s_end}) => {
+            (Command::MoveAndExtrude {start: f_start,end: f_end,thickness: f_thick, width: f_width}, Command::MoveAndExtrude {start : s_start,end:s_end , thickness: s_thick, width: s_width}) => {
                 current_pos = s_end;
 
-                if f_end == s_start {
+                if f_end == s_start && s_width == f_width && s_thick == f_thick{
                     let det = (((f_start.x - s_start.x)*(s_start.y-s_end.y)) - ((f_start.y - s_start.y)*(s_start.x-s_end.x)) ).abs();
 
                     if det < 0.00001{
                         //Colinear
 
-                        return Ok(Command::MoveAndExtrude { start: f_start, end: s_end });
+                        return Ok(Command::MoveAndExtrude { start: f_start, end: s_end , thickness: f_thick, width: s_width});
                     }
                 }
             }
@@ -87,7 +87,7 @@ pub fn binary_optimizer(cmds: &mut Vec<Command> , settings: &Settings){
                     current_pos = end;
                 }
             }
-            (_, Command::MoveAndExtrude {start : s_start,end:s_end}) => {
+            (_, Command::MoveAndExtrude {start : s_start,end:s_end,..}) => {
                 current_pos = s_end;
             }
             (_, Command::MoveTo {end:s_end}) => {
@@ -117,7 +117,7 @@ pub fn state_optomizer(cmds: &mut Vec<Command> ){
 }
 
 
-
+/*
 pub fn arc_optomizer(cmds: &mut Vec<Command> ){
     let mut ranges = vec![];
 
@@ -227,7 +227,7 @@ pub fn arc_optomizer(cmds: &mut Vec<Command> ){
     }
 
 }
-
+*/
 
 
 fn line_bisector(p0: &Coordinate<f64>,p1: &Coordinate<f64>,p2: &Coordinate<f64>, ) -> (Coordinate<f64>,Coordinate<f64>){

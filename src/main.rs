@@ -155,9 +155,12 @@ fn main() {
     }
     //Convert all commands into
     println!("Convert into Commnds");
+    let mut last_layer = 0.0;
     for (layer,slice) in slices.iter_mut(){
         moves.push(Command::LayerChange {z: *layer});
-        slice.slice_into_commands(&settings,&mut moves);
+        slice.slice_into_commands(&settings,&mut moves, *layer - last_layer);
+
+        last_layer = *layer;
     }
 
 
@@ -202,12 +205,12 @@ fn convert( cmds: &Vec<Command>, settings: Settings, write:&mut impl Write) ->  
             Command::MoveTo { end,..} => {
                 writeln!(write,"G1 X{:.5} Y{:.5}",end.x,end.y )?
             },
-            Command::MoveAndExtrude {start,end} => {
+            Command::MoveAndExtrude {start,end,width, thickness} => {
                 let x_diff = end.x-start.x;
                 let y_diff = end.y-start.y;
                 let length = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
 
-                let extrude = ((4.0 * settings.layer_height * settings.layer_width) /(std::f64::consts::PI*settings.filament.diameter*settings.filament.diameter)) *length;
+                let extrude = ((4.0 * thickness * width) /(std::f64::consts::PI*settings.filament.diameter*settings.filament.diameter)) *length;
 
                 writeln!(write,"G1 X{:.5} Y{:.5} E{:.5}",end.x ,end.y,extrude)?;
             }
@@ -239,7 +242,7 @@ fn convert( cmds: &Vec<Command>, settings: Settings, write:&mut impl Write) ->  
             {
                 writeln!(write,"G4 P{:.5}",msec )?;
             }
-            Command::Arc { start,end,center,clockwise} => {
+            Command::Arc { start,end,center,clockwise,width, thickness} => {
                 let x_diff = end.x-start.x;
                 let y_diff = end.y-start.y;
                 let cord_length = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
@@ -257,7 +260,7 @@ fn convert( cmds: &Vec<Command>, settings: Settings, write:&mut impl Write) ->  
                 let extrusion_length  = central * radius;
 
                 //println!("{}",extrusion_length);
-                let extrude = (4.0 * settings.layer_height * settings.layer_width*extrusion_length) /(std::f64::consts::PI*settings.filament.diameter*settings.filament.diameter);
+                let extrude = (4.0 * thickness * width*extrusion_length) /(std::f64::consts::PI*settings.filament.diameter*settings.filament.diameter);
                 writeln!(write,"{} X{:.5} Y{:.5} I{:.5} J{:.5} E{:.5}",if *clockwise { "G2"} else{"G3"},end.x ,end.y,center.x, center.y, extrude)?;
 
 
