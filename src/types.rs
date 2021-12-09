@@ -190,21 +190,9 @@ pub enum Command{
     NoAction
 
 }
-/*
-impl Command{
-    fn get_time(&self,state : &mut StateChange,location: &mut Coordinate<f64>) -> f32{
-        match self {
-            Command::MoveTo { end } => {0.0}
-            Command::MoveAndExtrude { start, end } => {}
-            Command::LayerChange { .. } => {0.0}
-            Command::SetState { new_state } => {state.state_diff(new_state)}
-            Command::Delay { msec } => { msec as f32/ 1000.0 }
-            Command::Arc { start, end, center, clockwise } => {0.0}
-            Command::NoAction => { 0.0}
-        }
-    }
-}
-*/
+
+
+
 #[derive( Clone, Debug,Default,PartialEq)]
 pub struct StateChange{
     pub ExtruderTemp : Option<f64>,

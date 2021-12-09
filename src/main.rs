@@ -163,6 +163,54 @@ fn main() {
         last_layer = *layer;
     }
 
+    let mut plastic_used = 0.0;
+    let mut total_time = 0.0;
+    let mut current_speed = 0.0;
+    let mut current_pos = Coordinate{x: 0.0,y :0.0};
+
+    for cmd in &moves{
+
+        match cmd {
+            Command::MoveTo { end } => {
+                let x_diff = end.x-current_pos.x;
+                let y_diff = end.y-current_pos.y;
+                let d = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
+                 current_pos = *end;
+                if current_speed != 0.0 {
+                    total_time += d / current_speed;
+                }
+
+            }
+            Command::MoveAndExtrude { start, end,width,thickness } => {
+
+                let x_diff = end.x-start.x;
+                let y_diff = end.y-start.y;
+                let d = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
+                current_pos = *end;
+                total_time += d / current_speed;
+
+
+
+                plastic_used += width * thickness *d;
+            }
+            Command::LayerChange { .. } => {}
+            Command::SetState { new_state } => {
+                if let Some(speed) = new_state.MovementSpeed{
+                    current_speed = speed
+                }
+            }
+            Command::Delay { msec } => {
+                total_time += *msec as f64/ 1000.0;
+            }
+            Command::Arc { .. } => {unimplemented!()}
+            Command::NoAction => { }
+        }
+
+    }
+
+    println!("Total Time: {} second", total_time);
+    println!("Total Filament: {} mm^3",plastic_used );
+
 
     //Output the GCode
     if let Some(file_path ) = matches.value_of("OUTPUT"){

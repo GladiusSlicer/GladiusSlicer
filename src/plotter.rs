@@ -149,7 +149,7 @@ impl Slice{
 fn inset_polygon( poly: &MultiPolygon<f64>, settings : &Settings) -> (MultiPolygon<f64>,Vec<MoveChain>){
 
     let mut move_chains =  vec![];
-    let inset_poly = poly.offset(-settings.layer_width/2.0,JoinType::Square,EndType::ClosedPolygon,1000000.0);
+    let inset_poly = poly.offset(-settings.layer_width/2.0,JoinType::Square,EndType::ClosedPolygon,100000000.0);
 
     for polygon in inset_poly.0.iter()
     {
@@ -172,7 +172,7 @@ fn inset_polygon( poly: &MultiPolygon<f64>, settings : &Settings) -> (MultiPolyg
 
     }
 
-    (inset_poly.offset(-settings.layer_width/2.0,JoinType::Square,EndType::ClosedPolygon,1000000.0),move_chains)
+    (inset_poly.offset(-settings.layer_width/2.0,JoinType::Square,EndType::ClosedPolygon,100000000.0),move_chains)
 }
 
 fn solid_fill_polygon( poly: &Polygon<f64>, settings : &Settings) -> Option<MoveChain> {
