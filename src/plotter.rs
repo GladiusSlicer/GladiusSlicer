@@ -2,7 +2,7 @@ use geo::*;
 use geo_clipper::*;
 use geo::prelude::*;
 use crate::types::{Command, StateChange, Move, MoveType, MoveChain};
-use crate::settings::Settings;
+use crate::settings::{Settings, LayerSettings};
 use itertools::{Itertools, chain};
 use std::iter::FromIterator;
 use std::collections::{VecDeque, BinaryHeap};
@@ -60,7 +60,7 @@ impl Slice{
         &self.MainPolygon
     }
 
-    pub fn slice_perimeters_into_chains(&mut self,settings : &Settings){
+    pub fn slice_perimeters_into_chains(&mut self,settings : &LayerSettings){
         //Create the outer shells
         for _ in 0..3{
             let (m,mut new_chains) =  inset_polygon(&self.remaining_area,settings);
@@ -70,7 +70,7 @@ impl Slice{
 
     }
 
-    pub fn fill_remaining_area(&mut self,settings:&Settings, solid: bool, layer_count: usize){
+    pub fn fill_remaining_area(&mut self,settings:&LayerSettings, solid: bool, layer_count: usize){
         //For each region still available fill wih infill
         for poly in &self.remaining_area
         {
@@ -99,7 +99,7 @@ impl Slice{
         }
     }
 
-    pub fn fill_solid_subtracted_area(&mut self,other: &MultiPolygon<f64>, settings:&Settings, layer_count: usize){
+    pub fn fill_solid_subtracted_area(&mut self,other: &MultiPolygon<f64>, settings:&LayerSettings, layer_count: usize){
         //For each area not in this slice that is in the other polygon, fill solid
 
         let solid_area = self.remaining_area.difference(&other.offset(-settings.layer_width*2.0,JoinType::Square,EndType::ClosedPolygon,100000.0),100000.0);
@@ -121,7 +121,7 @@ impl Slice{
         self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
     }
 
-    pub fn slice_into_commands(&mut self,settings:&Settings, commands: &mut Vec<Command>, layer_thickness: f64) {
+    pub fn slice_into_commands(&mut self,settings:&LayerSettings, commands: &mut Vec<Command>, layer_thickness: f64) {
 
         //Order Chains for fastest print
         if self.chains.len() >0 {
@@ -146,7 +146,7 @@ impl Slice{
 }
 
 
-fn inset_polygon( poly: &MultiPolygon<f64>, settings : &Settings) -> (MultiPolygon<f64>,Vec<MoveChain>){
+fn inset_polygon( poly: &MultiPolygon<f64>, settings : &LayerSettings) -> (MultiPolygon<f64>,Vec<MoveChain>){
 
     let mut move_chains =  vec![];
     let inset_poly = poly.offset(-settings.layer_width/2.0,JoinType::Square,EndType::ClosedPolygon,100000000.0);
@@ -175,7 +175,7 @@ fn inset_polygon( poly: &MultiPolygon<f64>, settings : &Settings) -> (MultiPolyg
     (inset_poly.offset(-settings.layer_width/2.0,JoinType::Square,EndType::ClosedPolygon,100000000.0),move_chains)
 }
 
-fn solid_fill_polygon( poly: &Polygon<f64>, settings : &Settings) -> Option<MoveChain> {
+fn solid_fill_polygon( poly: &Polygon<f64>, settings : &LayerSettings) -> Option<MoveChain> {
     let mut moves =  vec![];
 
     let mut lines : Vec<(Coordinate<f64>,Coordinate<f64>)> = poly.exterior().0.iter().map(|c| *c).circular_tuple_windows::<(_, _)>().collect();
@@ -259,7 +259,7 @@ fn solid_fill_polygon( poly: &Polygon<f64>, settings : &Settings) -> Option<Move
 
 }
 
-fn partial_fill_polygon( poly: &Polygon<f64>, settings : &Settings, fill_ratio: f64) -> Option<MoveChain> {
+fn partial_fill_polygon( poly: &Polygon<f64>, settings : &LayerSettings, fill_ratio: f64) -> Option<MoveChain> {
     let mut moves =  vec![];
 
     let mut lines : Vec<(Coordinate<f64>,Coordinate<f64>)> = poly.exterior().0.iter().map(|c| *c).circular_tuple_windows::<(_, _)>().collect();

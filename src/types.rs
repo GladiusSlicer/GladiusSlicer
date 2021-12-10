@@ -2,7 +2,8 @@ use std::cmp::Ordering;
 use nalgebra::{Vector3,Point3};
 use geo::Coordinate;
 use serde::{Serialize, Deserialize};
-use crate::settings::Settings;
+use crate::settings::*;
+
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct Vertex{
@@ -114,7 +115,7 @@ pub enum MoveType{
 
 impl MoveChain{
 
-    pub fn create_commands(self, settings: &Settings,thickness: f64,) -> Vec<Command> {
+    pub fn create_commands(self, settings: &LayerSettings,thickness: f64,) -> Vec<Command> {
 
         let mut cmds = vec![];
         let mut current_type = MoveType::Travel;

@@ -128,8 +128,8 @@ fn main() {
 
     //Handle Perimeters
     println!("Generating Moves: Perimeters");
-    for (layer,slice) in slices.iter_mut(){
-        slice.slice_perimeters_into_chains(&settings);
+    for (layer_num,(layer,slice) )in slices.iter_mut().enumerate(){
+        slice.slice_perimeters_into_chains(&settings.get_layer_settings(layer_num));
     }
 
     //Combine layer to form support
@@ -145,20 +145,20 @@ fn main() {
             .fold(slices.get(q+1).unwrap().1.get_entire_slice_polygon().clone(),(|a,b| a.intersection(b,10000.0)));
         let intersection  = below.intersection(&above,10000.0);
 
-        slices.get_mut(q).unwrap().1.fill_solid_subtracted_area(&intersection,&settings,q)
+        slices.get_mut(q).unwrap().1.fill_solid_subtracted_area(&intersection,&settings.get_layer_settings(q),q)
     }
     println!("Generating Moves: Fill Areas");
     //Fill all remaining areas
-    for (layer,slice) in slices.iter_mut(){
-        slice.fill_remaining_area(&settings,layer_count < 3 || layer_count+ 3 +1>slice_count ,layer_count);
+    for (layer_num,(layer,slice) )in slices.iter_mut().enumerate(){
+        slice.fill_remaining_area(&settings.get_layer_settings(layer_num),layer_count < 3 || layer_count+ 3 +1>slice_count ,layer_count);
         layer_count +=1;
     }
     //Convert all commands into
     println!("Convert into Commnds");
     let mut last_layer = 0.0;
-    for (layer,slice) in slices.iter_mut(){
+    for (layer_num,(layer,slice) )in slices.iter_mut().enumerate(){
         moves.push(Command::LayerChange {z: *layer});
-        slice.slice_into_commands(&settings,&mut moves, *layer - last_layer);
+        slice.slice_into_commands(&settings.get_layer_settings(layer_num),&mut moves, *layer - last_layer);
 
         last_layer = *layer;
     }
@@ -211,7 +211,9 @@ fn main() {
     let total_time = total_time.floor() as u32;
 
     println!("Total Time: {} hours {} minutes {} seconds", total_time /3600, (total_time%3600) / 60, total_time % 60);
-    println!("Total Filament: {} mm^3",plastic_used );
+    println!("Total Filament Volume: {} cm^3",plastic_used / 1000.0 );
+    println!("Total Filament Mass: {} grams",(plastic_used /1000.0) * settings.filament.density);
+    println!("Total Filament Cost: {} $",(((plastic_used /1000.0) * settings.filament.density) /1000.0) * settings.filament.cost);
 
 
     //Output the GCode

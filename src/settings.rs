@@ -3,7 +3,6 @@ use serde::{Serialize, Deserialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings{
     pub layer_height: f64,
-    pub first_layer_height: f64,
     pub layer_width: f64,
 
     pub filament: FilamentSettings,
@@ -18,6 +17,12 @@ pub struct Settings{
     pub infill_speed:  f64,
     pub infill_percentage:  f64,
     pub travel_speed: f64,
+
+    pub first_layer_height: f64,
+    pub first_layer_perimeter_speed: f64,
+    pub first_layer_infill_speed:  f64,
+    pub first_layer_travel_speed: f64,
+    pub first_layer_width: f64,
 
     pub print_x : f64,
     pub print_y : f64,
@@ -34,6 +39,9 @@ impl Default for Settings{
         Settings{
             layer_height: 0.1,
             first_layer_height: 0.3,
+            first_layer_perimeter_speed: 5.0,
+            first_layer_infill_speed: 20.0,
+            first_layer_travel_speed: 50.0,
             layer_width: 0.6,
             filament: FilamentSettings::default(),
 
@@ -70,11 +78,45 @@ impl Default for Settings{
                                 M140 S0 ; turn off heatbed \n\
                                 G1 X0 F3000 ; home X axis \n\
                                 M84 ; disable motors\n\
-                                M107 ; disable fan\n".to_string()
+                                M107 ; disable fan\n".to_string(),
+            first_layer_width: 0.6
         }
     }
 }
 
+impl Settings{
+    pub fn get_layer_settings(&self, layer: usize) -> LayerSettings{
+        if layer ==0{
+            LayerSettings{
+                layer_height: self.first_layer_height,
+                perimeter_speed: self.first_layer_perimeter_speed,
+                infill_speed: self.first_layer_infill_speed,
+                travel_speed: self.first_layer_travel_speed,
+                layer_width: self.layer_width,
+                infill_percentage: self.infill_percentage
+            }
+        }
+        else{
+             LayerSettings{
+                layer_height: self.layer_height,
+                perimeter_speed: self.perimeter_speed,
+                infill_speed: self.infill_speed,
+                travel_speed: self.travel_speed,
+                 layer_width: self.layer_width,
+                 infill_percentage: self.infill_percentage
+             }
+        }
+    }
+}
+
+pub struct LayerSettings{
+    pub layer_height: f64,
+    pub perimeter_speed: f64,
+    pub infill_speed:  f64,
+    pub travel_speed: f64,
+    pub layer_width: f64,
+    pub infill_percentage:  f64,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FilamentSettings{
