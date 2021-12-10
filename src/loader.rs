@@ -23,9 +23,25 @@ impl Loader for STLLoader {
         {
             let normal : [f32;3] =  triangle.normal().into();
             let mut converted_tri = IndexedTriangle{verts:[triangle.vertices_indices()[0],triangle.vertices_indices()[1],triangle.vertices_indices()[2]],normal: normal.into()};
-            let v0 = vertices[converted_tri.verts[0]];
-            let v1 = vertices[converted_tri.verts[1]];
-            let v2 = vertices[converted_tri.verts[2]];
+            let mut v0 = vertices[converted_tri.verts[0]];
+            let mut v1 = vertices[converted_tri.verts[1]];
+            let mut v2 = vertices[converted_tri.verts[2]];
+/*
+            let A = v1.x * v0.y + v2.x * v1.y + v0.x * v2.y;
+            let B = v0.x * v1.y + v1.x * v2.y + v2.x * v0.y;
+
+            if  A < B
+            {
+                let temp = converted_tri.verts[0];
+                converted_tri.verts[0] = converted_tri.verts[1];
+                converted_tri.verts[1] = temp;
+                std::mem::swap(&mut v0, &mut v1);
+            }
+*/
+            let mut v0 = vertices[converted_tri.verts[0]];
+            let mut v1 = vertices[converted_tri.verts[1]];
+            let mut v2 = vertices[converted_tri.verts[2]];
+
 
             if v0 <v1 && v0 < v2 {
                 triangles.push(converted_tri);

@@ -208,7 +208,9 @@ fn main() {
 
     }
 
-    println!("Total Time: {} second", total_time);
+    let total_time = total_time.floor() as u32;
+
+    println!("Total Time: {} hours {} minutes {} seconds", total_time /3600, (total_time%3600) / 60, total_time % 60);
     println!("Total Filament: {} mm^3",plastic_used );
 
 

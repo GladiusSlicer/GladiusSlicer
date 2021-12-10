@@ -1,5 +1,5 @@
 {
-  "layer_height":0.1,
+  "layer_height":0.2,
   "first_layer_height":0.3,
   "layer_width":0.45,
   "filament":{
@@ -15,7 +15,7 @@
   "retract_speed":35.0,
   "perimeter_speed":30.0,
   "infill_speed":45.0,
-  "infill_percentage":0.5,
+  "infill_percentage":0.2,
   "travel_speed": 180.0,
   "print_x": 210,
   "print_y": 210,

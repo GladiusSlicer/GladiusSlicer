@@ -6,6 +6,7 @@ use std::fmt::{Display, Formatter};
 use std::collections::{ HashMap};
 use std::hash::{Hash, Hasher};
 
+
 #[inline]
 fn line_z_intersection(z: f64, v_start : Vertex, v_end : Vertex) -> Vertex{
 
@@ -125,8 +126,8 @@ impl TowerRing{
 
     fn split_on_edge(mut self, edge: usize) -> Vec<Self>{
 
-
         let mut frags = vec![];
+
 
         let mut ring_ptr = self.first_element.clone();
         let mut last_ptr = self.last_element.clone();
@@ -144,14 +145,13 @@ impl TowerRing{
                 if end_index == edge{
                     last_ptr.borrow_mut().set_next(None);
                     temp_frag.last_element = last_ptr.clone();
+
                     frags.push(std::mem::replace(&mut temp_frag,TowerRing{first_element: ring_ptr.borrow().next_clone().unwrap(), last_element: self.last_element.clone()} ));
                     self.first_element = ring_ptr.borrow().next_clone().unwrap();
 
                     found = true;
 
                 }
-            } else {
-
             }
 
             *ring_ptr.borrow() != *self.last_element.borrow()
@@ -164,10 +164,10 @@ impl TowerRing{
             self.last_element = frag.last_element;
         }
 
+
         frags.push(self);
 
         frags.retain(|frag| frag.first_element.borrow().next().is_some());
-
         frags
 
     }
@@ -228,6 +228,17 @@ impl Display for TowerRing{
 enum TowerRingElement{
     Face{ triangle_index: usize, next: Option<Rc<RefCell<TowerRingElement>>>  },
     Edge{ start_index: usize, end_index: usize,next: Option<Rc<RefCell<TowerRingElement>>> },
+}
+
+
+impl Display for TowerRingElement{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+
+        match *self{
+            TowerRingElement::Face { triangle_index,.. } => {write!(f,"F{} ",triangle_index)}
+            TowerRingElement::Edge { end_index,.. } => {write!(f,"E{} ",end_index)}
+        }
+    }
 }
 
 impl TowerRingElement{
@@ -353,6 +364,8 @@ fn joinTriangleEvent(events: Vec<TriangleEvent>, starting_point: usize) -> Vec<T
 
 }
 
+
+
 /*
 fn join_fragments(fragments: &mut Vec<TowerRing>) {
 
@@ -393,7 +406,12 @@ fn join_fragments(fragments: &mut Vec<TowerRing>) {
 }
 */
 fn join_fragments(fragments: &mut Vec<TowerRing>) {
+/*
 
+    for frag in &*fragments{
+        println!("fragment {}",frag);
+    }
+*/
     'outer: loop
     {
         for first_pos in 0..fragments.len() {
@@ -435,6 +453,8 @@ impl<'s> TriangleTowerIterator<'s>{
 
     pub fn advance_to_height(&mut self , z:f64) {
 
+        //println!("Advance to height {} {} {}", self.tower.get_height_of_vertex(self.tower_vert_index), z, self.tower.tower_vertices[self.tower_vert_index].start_index);
+
         while  self.tower.tower_vertices.len() +1 != self.tower_vert_index &&  self.tower.get_height_of_vertex(self.tower_vert_index ) < z
         {
 
@@ -448,6 +468,7 @@ impl<'s> TriangleTowerIterator<'s>{
                 }).flatten().collect();
 
             //Add the new fragments
+
             frags.extend(pop_tower_vert.next_ring_fragments.clone().into_iter() );
 
             join_fragments(&mut frags);
