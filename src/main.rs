@@ -14,6 +14,9 @@ use geo::Coordinate;
 use itertools::Itertools;
 use geo_clipper::*;
 
+use std::path::Path;
+use std::ffi::OsStr;
+
 
 mod loader;
 mod types;
@@ -51,8 +54,15 @@ fn main() {
 
     println!("Loading Input");
 
-    let loader = STLLoader{};
-    let (mut vertices,triangles)  =loader.load(matches.value_of("INPUT").unwrap()).unwrap();
+    let model_path = Path::new(matches.value_of("INPUT").unwrap());
+
+    let extension = model_path.extension().and_then(OsStr::to_str).expect("File Parse Issue");
+
+    let (mut vertices,triangles) = match extension {
+        "stl" => STLLoader{}.load(matches.value_of("INPUT").unwrap()).unwrap(),
+        "3MF" => ThreeMFLoader{}.load(matches.value_of("INPUT").unwrap()).unwrap(),
+        _ => panic!("File Format {} not supported", extension)
+    };
 
 
     let transform = if let Some(transform_str) = matches.value_of("MANUALTRANFORM") {

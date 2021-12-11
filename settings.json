@@ -19,7 +19,7 @@
   "travel_speed": 180.0,
   "first_layer_perimeter_speed":5.0,
   "first_layer_infill_speed":20.0,
-  "first_layer_travel_speed":50.0,
+  "first_layer_travel_speed":180.0,
   "first_layer_width":30.0,
   "print_x": 210,
   "print_y": 210,

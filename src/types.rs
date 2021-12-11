@@ -5,7 +5,8 @@ use serde::{Serialize, Deserialize};
 use crate::settings::*;
 
 
-#[derive(Default, Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq,Deserialize)]
+#[serde(rename = "vertex")]
 pub struct Vertex{
     pub x : f64,
     pub y : f64,
@@ -81,7 +82,6 @@ pub struct Transform([[f64;4];4]);
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct IndexedTriangle{
     pub verts : [usize ;3],
-    pub normal :Vector3<f32>,
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]

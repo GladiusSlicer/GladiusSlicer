@@ -76,7 +76,7 @@ impl Slice{
         {
             if solid{
 
-                let angle = (120 as f64) * layer_count as f64;
+                let angle = 45.0 + (120 as f64) * layer_count as f64;
 
                 let rotate_poly = poly.rotate_around_point(angle,Point(Coordinate::zero()));
 
