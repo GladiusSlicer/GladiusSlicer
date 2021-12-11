@@ -117,6 +117,7 @@ impl MoveChain {
                             new_state: StateChange {
                                 bed_temp: None,
                                 extruder_temp: None,
+                                fan_speed: None,
                                 movement_speed: Some(settings.infill_speed),
                                 retract: Some(false),
                             },
@@ -127,6 +128,7 @@ impl MoveChain {
                             new_state: StateChange {
                                 bed_temp: None,
                                 extruder_temp: None,
+                                fan_speed: None,
                                 movement_speed: Some(settings.infill_speed),
                                 retract: Some(false),
                             },
@@ -137,6 +139,7 @@ impl MoveChain {
                             new_state: StateChange {
                                 bed_temp: None,
                                 extruder_temp: None,
+                                fan_speed: None,
                                 movement_speed: Some(settings.perimeter_speed),
                                 retract: Some(false),
                             },
@@ -147,6 +150,7 @@ impl MoveChain {
                             new_state: StateChange {
                                 bed_temp: None,
                                 extruder_temp: None,
+                                fan_speed: None,
                                 movement_speed: Some(settings.perimeter_speed),
                                 retract: Some(false),
                             },
@@ -161,6 +165,7 @@ impl MoveChain {
                             new_state: StateChange {
                                 bed_temp: None,
                                 extruder_temp: None,
+                                fan_speed: None,
                                 movement_speed: Some(settings.travel_speed),
                                 retract: Some(true),
                             },
@@ -241,6 +246,7 @@ pub enum Command {
 pub struct StateChange {
     pub extruder_temp: Option<f64>,
     pub bed_temp: Option<f64>,
+    pub fan_speed: Option<f64>,
     pub movement_speed: Option<f64>,
     pub retract: Option<bool>,
 }
@@ -262,6 +268,14 @@ impl StateChange {
                 } else {
                     self.bed_temp = other.bed_temp.or(self.bed_temp);
                     other.bed_temp
+                }
+            },
+            fan_speed: {
+                if self.fan_speed == other.fan_speed {
+                    None
+                } else {
+                    self.fan_speed = other.fan_speed.or(self.fan_speed);
+                    other.fan_speed
                 }
             },
             movement_speed: {
@@ -287,6 +301,7 @@ impl StateChange {
         StateChange {
             extruder_temp: { other.extruder_temp.or(self.extruder_temp) },
             bed_temp: { other.bed_temp.or(self.bed_temp) },
+            fan_speed: { other.fan_speed.or(self.fan_speed) },
             movement_speed: { other.movement_speed.or(self.movement_speed) },
             retract: { other.retract.or(self.retract) },
         }
