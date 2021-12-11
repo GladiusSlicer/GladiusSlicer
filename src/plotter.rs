@@ -206,7 +206,7 @@ fn solid_fill_polygon( poly: &Polygon<f64>, settings : &LayerSettings) -> Option
 
     let mut line_change = false;
 
-    while !lines.is_empty(){
+    while !lines.is_empty() || !current_lines.is_empty(){
         line_change = false;
         while !lines.is_empty() && lines[lines.len() -1].0.y < current_y{
 
@@ -215,13 +215,13 @@ fn solid_fill_polygon( poly: &Polygon<f64>, settings : &LayerSettings) -> Option
         }
 
 
-        if lines.is_empty(){
-            break;
-        }
 
         current_lines.retain(|(s,e)| e.y > current_y );
 
 
+        if current_lines.is_empty(){
+            break;
+        }
 
         //current_lines.sort_by(|a,b| b.0.x.partial_cmp(&x.0.y).unwrap().then(b.1.x.partial_cmp(&a.1.x).unwrap()) )
 
@@ -294,7 +294,7 @@ fn partial_fill_polygon( poly: &Polygon<f64>, settings : &LayerSettings, fill_ra
 
     let distance = settings.layer_width / fill_ratio;
 
-    while !lines.is_empty(){
+    while !lines.is_empty() || !current_lines.is_empty(){
         line_change = false;
         while !lines.is_empty() && lines[lines.len() -1].0.y < current_y{
 
@@ -303,12 +303,11 @@ fn partial_fill_polygon( poly: &Polygon<f64>, settings : &LayerSettings, fill_ra
         }
 
 
-        if lines.is_empty(){
-            break;
-        }
-
         current_lines.retain(|(s,e)| e.y > current_y );
 
+        if current_lines.is_empty(){
+            break;
+        }
 
 
         //current_lines.sort_by(|a,b| b.0.x.partial_cmp(&x.0.y).unwrap().then(b.1.x.partial_cmp(&a.1.x).unwrap()) )
