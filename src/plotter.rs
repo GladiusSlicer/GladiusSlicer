@@ -78,9 +78,9 @@ impl Slice {
         &self.MainPolygon
     }
 
-    pub fn slice_perimeters_into_chains(&mut self, settings: &LayerSettings) {
+    pub fn slice_perimeters_into_chains(&mut self, settings: &LayerSettings, number_of_perimeters: usize) {
         //Create the outer shells
-        for _ in 0..3 {
+        for _ in 0..number_of_perimeters {
             let (m, mut new_chains) = inset_polygon(&self.remaining_area, settings);
             self.remaining_area = m;
             self.chains.append(&mut new_chains);

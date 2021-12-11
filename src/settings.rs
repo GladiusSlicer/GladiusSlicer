@@ -6,6 +6,7 @@ pub struct Settings {
     pub layer_width: f64,
 
     pub filament: FilamentSettings,
+    pub fan: FanSettings,
 
     pub nozzle_diameter: f64,
 
@@ -23,6 +24,8 @@ pub struct Settings {
     pub first_layer_infill_speed: f64,
     pub first_layer_travel_speed: f64,
     pub first_layer_width: f64,
+
+    pub number_of_perimeters: usize,
 
     pub print_x: f64,
     pub print_y: f64,
@@ -42,9 +45,10 @@ impl Default for Settings {
             first_layer_perimeter_speed: 5.0,
             first_layer_infill_speed: 20.0,
             first_layer_travel_speed: 50.0,
+            number_of_perimeters: 3,
             layer_width: 0.6,
             filament: FilamentSettings::default(),
-
+            fan: FanSettings::default(),
             nozzle_diameter: 0.4,
             retract_length: 0.8,
             retract_lift_z: 0.6,
@@ -125,7 +129,16 @@ pub struct FilamentSettings {
     pub density: f64,
     pub cost: f64,
     pub extruder_temp: f64,
+    pub first_layer_extruder_temp: f64,
     pub bed_temp: f64,
+    pub first_layer_bed_temp: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FanSettings {
+    pub fan_speed: f64,
+    pub disable_fan_for_layers: usize,
+    pub slow_down_threshold: usize,
 }
 
 impl Default for FilamentSettings {
@@ -134,8 +147,20 @@ impl Default for FilamentSettings {
             diameter: 1.75,
             density: 1.24,
             cost: 24.99,
-            extruder_temp: 215.0,
+            extruder_temp: 210.0,
+            first_layer_extruder_temp: 215.0,
             bed_temp: 60.0,
+            first_layer_bed_temp: 60.0,
+        }
+    }
+}
+
+impl Default for FanSettings {
+    fn default() -> Self {
+        FanSettings {
+            fan_speed: 100.0,
+            disable_fan_for_layers: 1,
+            slow_down_threshold: 15
         }
     }
 }

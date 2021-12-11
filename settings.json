@@ -6,8 +6,15 @@
     "diameter":1.75,
     "density":1.24,
     "cost":24.99,
-    "extruder_temp":215.0,
-    "bed_temp":60.0
+    "extruder_temp":210.0,
+    "first_layer_extruder_temp":215.0,
+    "bed_temp":60.0,
+    "first_layer_bed_temp":60.0
+  },
+  "fan":{
+    "fan_speed": 100.0,
+    "disable_fan_for_layers": 1,
+    "slow_down_threshold": 15
   },
   "nozzle_diameter":0.4,
   "retract_length":0.8,
@@ -24,6 +31,7 @@
   "print_x": 250,
   "print_y": 210,
   "print_z": 210,
+  "number_of_perimeters": 2,
   "minimum_retract_distance": 1,
   "starting_gcode":"G90 ; use absolute coordinates \nM83 ; extruder relative mode\nM106 S255 ; FANNNNN\nM104 S[First Layer Extruder Temp] ; set extruder temp\nM140 S[First Layer Bed Temp] ; set bed temp\nM190 S[First Layer Bed Temp]; wait for bed temp\nM109 S[First Layer Extruder Temp] ; wait for extruder temp\nG28 W ; home all without mesh bed level\nG80 ; mesh bed leveling\nG1 Y-3.0 F1000.0 ; go outside print area\nG92 E0.0\nG1 X60.0 E9.0 F1000.0 ; intro line\nG1 X100.0 E12.5 F1000.0 ; intro line\nG92 E0.0;\n",
   "ending_gcode":"G4 ; wait\nM221 S100 \nM104 S0 ; turn off temperature \nM140 S0 ; turn off heatbed \nG1 X0 F3000 ; home X axis \nM84 ; disable motors\nM107 ; disable fan\n"

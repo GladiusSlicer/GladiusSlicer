@@ -179,7 +179,7 @@ fn main() {
     //Handle Perimeters
     println!("Generating Moves: Perimeters");
     for (layer_num, (_layer, slice)) in slices.iter_mut().enumerate() {
-        slice.slice_perimeters_into_chains(&settings.get_layer_settings(layer_num));
+        slice.slice_perimeters_into_chains(&settings.get_layer_settings(layer_num),settings.number_of_perimeters);
     }
 
     //Combine layer to form support
@@ -235,6 +235,15 @@ fn main() {
     let mut last_layer = 0.0;
     for (layer_num, (layer, slice)) in slices.iter_mut().enumerate() {
         moves.push(Command::LayerChange { z: *layer });
+        moves.push(Command::SetState {
+            new_state: StateChange{
+                extruder_temp:Some( if layer_num ==0 {settings.filament.first_layer_extruder_temp} else{settings.filament.extruder_temp}),
+                bed_temp: Some( if layer_num ==0 {settings.filament.first_layer_bed_temp} else{settings.filament.bed_temp}),
+                fan_speed: Some( if layer_num <settings.fan.disable_fan_for_layers {0.0} else{settings.fan.fan_speed}),
+                movement_speed: None,
+                retract: None
+            }
+        });
         slice.slice_into_commands(
             &settings.get_layer_settings(layer_num),
             &mut moves,
@@ -390,6 +399,9 @@ fn convert(
                 }
                 if let Some(bed_temp) = new_state.bed_temp {
                     writeln!(write, "M140 S{:.1} ; set bed temp", bed_temp)?;
+                }
+                if let Some(fan_speed) = new_state.fan_speed {
+                    writeln!(write, "M106 S{} ; set fan speed", (2.550 * fan_speed).round() as usize )?;
                 }
             }
             Command::LayerChange { z } => {
