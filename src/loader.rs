@@ -138,24 +138,19 @@ impl Loader for ThreeMFLoader {
 
 
 
-
-        let ModelPath = {
-             let mut rel_file = match archive.by_name("_rels/.rels") {
-                Ok(file) => file,
-                Err(..) => {
-                    println!("File not found");
-                    return None;
-                }
-            };
-            let mut rel_str = String::new();
-            rel_file.read_to_string(&mut rel_str);
-
-            let rel: Relationships = quick_xml::de::from_str(&rel_str).unwrap();
-
-            let ModelPath = rel.Relationship[0].Target.clone();
-            println!("Model Path: {}", ModelPath);
-            ModelPath
+         let mut rel_file = match archive.by_name("_rels/.rels") {
+            Ok(file) => file,
+            Err(..) => {
+                println!("File not found");
+                return None;
+            }
         };
+
+        let rel: Relationships = serde_xml_rs::de::from_reader(rel_file).unwrap();
+
+        let ModelPath = rel.Relationship[0].Target.clone();
+        println!("Model Path: {}", ModelPath);
+
 
         let mut model_file = match archive.by_name(&ModelPath[1..]) {
             Ok(file) => file,
@@ -165,9 +160,7 @@ impl Loader for ThreeMFLoader {
             }
         };
 
-        let mut model_str = String::new();
-        model_file.read_to_string(&mut model_str);
-        let model :ThreeMFModel = quick_xml::de::from_str(&model_str).unwrap();
+        let model :ThreeMFModel = serde_xml_rs::de::from_reader(model_file).unwrap();
 
 
         let mut triangles = vec![];
