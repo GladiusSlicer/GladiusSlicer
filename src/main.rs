@@ -70,7 +70,7 @@ fn main() {
     }
     else{
         let (min_x,max_x,min_y,max_y,min_z) = vertices.iter().fold((f64::INFINITY,f64::NEG_INFINITY,f64::INFINITY,f64::NEG_INFINITY,f64::INFINITY), |a,b| (a.0.min(b.x),a.1.max(b.x),a.2.min(b.y),a.3.max(b.y),a.4.min(b.z), ));
-        Transform::new_translation_transform( (settings.print_x +max_x+min_x) /2.,(settings.print_y+ max_y+min_y) /2.,-min_z)
+        Transform::new_translation_transform( (settings.print_x -(max_x+min_x)) /2.,(settings.print_y-( max_y+min_y)) /2.,-min_z)
     };
 
     let trans_str = serde_json::to_string(&transform).unwrap();
