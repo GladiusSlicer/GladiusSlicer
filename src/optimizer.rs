@@ -1,121 +1,136 @@
-use crate::types::{Command, StateChange};
-use itertools::{Itertools, Group,Groups};
-use geo::{Line, Coordinate};
-use geo::algorithm::euclidean_length::EuclideanLength;
 use crate::settings::Settings;
+use crate::types::{Command, StateChange};
+use geo::algorithm::euclidean_length::EuclideanLength;
 use geo::euclidean_distance::EuclideanDistance;
+use geo::{Coordinate, Line};
+use itertools::Itertools;
 
-pub fn optimize_commands(cmds: &mut Vec<Command> ,settings:& Settings) {
-
-    let mut size  = cmds.len();
+pub fn optimize_commands(cmds: &mut Vec<Command>, settings: &Settings) {
+    let mut size = cmds.len();
     //arc_optomizer(cmds);
     while {
-
-
         state_optomizer(cmds);
         unary_optimizer(cmds);
-        binary_optimizer(cmds,settings);
+        binary_optimizer(cmds, settings);
 
-
-
-         cmds.len() != size
-
-    }{
+        cmds.len() != size
+    } {
         size = cmds.len()
     }
-
 }
 
-
-pub fn unary_optimizer(cmds: &mut Vec<Command> ){
-
-
-
-    cmds.retain(|cmd|{
-
-        match cmd{
-            Command::MoveTo { .. } => { true }
-            Command::MoveAndExtrude { start, end ,..} => { start != end }
-            Command::LayerChange { .. } => {true }
-            Command::SetState { new_state } => {
-                !(new_state.ExtruderTemp.is_none() && new_state.MovementSpeed.is_none() && new_state.Retract.is_none() && new_state.ExtruderTemp.is_none() && new_state.BedTemp.is_none() )
-            }
-            Command::Delay { msec } => { *msec !=0}
-            Command::Arc { start, end,.. } => {start != end}
-            Command::NoAction => {false}
+pub fn unary_optimizer(cmds: &mut Vec<Command>) {
+    cmds.retain(|cmd| match cmd {
+        Command::MoveTo { .. } => true,
+        Command::MoveAndExtrude { start, end, .. } => start != end,
+        Command::LayerChange { .. } => true,
+        Command::SetState { new_state } => {
+            !(new_state.extruder_temp.is_none()
+                && new_state.movement_speed.is_none()
+                && new_state.retract.is_none()
+                && new_state.extruder_temp.is_none()
+                && new_state.bed_temp.is_none())
         }
-
+        Command::Delay { msec } => *msec != 0,
+        Command::Arc { start, end, .. } => start != end,
+        Command::NoAction => false,
     });
-
 }
 
-pub fn binary_optimizer(cmds: &mut Vec<Command> , settings: &Settings){
-
+pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
     let mut current_pos = Coordinate::zero();
 
-    *cmds = cmds.drain(..).coalesce(move |first,second|{
+    *cmds = cmds
+        .drain(..)
+        .coalesce(move |first, second| {
+            match (first.clone(), second.clone()) {
+                (
+                    Command::MoveAndExtrude {
+                        start: f_start,
+                        end: f_end,
+                        thickness: f_thick,
+                        width: f_width,
+                    },
+                    Command::MoveAndExtrude {
+                        start: s_start,
+                        end: s_end,
+                        thickness: s_thick,
+                        width: s_width,
+                    },
+                ) => {
+                    current_pos = s_end;
 
-        match (first.clone(),second.clone()){
-            (Command::MoveAndExtrude {start: f_start,end: f_end,thickness: f_thick, width: f_width}, Command::MoveAndExtrude {start : s_start,end:s_end , thickness: s_thick, width: s_width}) => {
-                current_pos = s_end;
+                    if f_end == s_start && s_width == f_width && s_thick == f_thick {
+                        let det = (((f_start.x - s_start.x) * (s_start.y - s_end.y))
+                            - ((f_start.y - s_start.y) * (s_start.x - s_end.x)))
+                            .abs();
 
-                if f_end == s_start && s_width == f_width && s_thick == f_thick{
-                    let det = (((f_start.x - s_start.x)*(s_start.y-s_end.y)) - ((f_start.y - s_start.y)*(s_start.x-s_end.x)) ).abs();
+                        if det < 0.00001 {
+                            //Colinear
 
-                    if det < 0.00001{
-                        //Colinear
-
-                        return Ok(Command::MoveAndExtrude { start: f_start, end: s_end , thickness: f_thick, width: s_width});
+                            return Ok(Command::MoveAndExtrude {
+                                start: f_start,
+                                end: s_end,
+                                thickness: f_thick,
+                                width: s_width,
+                            });
+                        }
                     }
                 }
-            }
-            (Command::MoveTo {..}, Command::MoveTo {end:s_end}) => {
-                current_pos = s_end;
-                return Ok(Command::MoveTo { end: s_end });
-            }
-
-            (Command::SetState {new_state:f_state}, Command::SetState {new_state:s_state}) => {
-
-                return Ok(Command::SetState {new_state: f_state.combine(&s_state)} );
-            }
-            (Command::SetState {new_state:f_state},Command::MoveTo {end}) => {
-                if f_state.Retract == Some(true) && Line::new(current_pos,end).euclidean_length() < settings.minimum_retract_distance{
-                    current_pos = end;
-                    return Ok(Command::MoveTo {end} );
+                (Command::MoveTo { .. }, Command::MoveTo { end: s_end }) => {
+                    current_pos = s_end;
+                    return Ok(Command::MoveTo { end: s_end });
                 }
-                else{
-                    current_pos = end;
+
+                (
+                    Command::SetState { new_state: f_state },
+                    Command::SetState { new_state: s_state },
+                ) => {
+                    return Ok(Command::SetState {
+                        new_state: f_state.combine(&s_state),
+                    });
                 }
+                (Command::SetState { new_state: f_state }, Command::MoveTo { end }) => {
+                    if f_state.retract == Some(true)
+                        && Line::new(current_pos, end).euclidean_length()
+                            < settings.minimum_retract_distance
+                    {
+                        current_pos = end;
+                        return Ok(Command::MoveTo { end });
+                    } else {
+                        current_pos = end;
+                    }
+                }
+                (
+                    _,
+                    Command::MoveAndExtrude {
+                        start: _s_start,
+                        end: s_end,
+                        ..
+                    },
+                ) => {
+                    current_pos = s_end;
+                }
+                (_, Command::MoveTo { end: s_end }) => {
+                    current_pos = s_end;
+                }
+                (_, _) => {}
             }
-            (_, Command::MoveAndExtrude {start : s_start,end:s_end,..}) => {
-                current_pos = s_end;
-            }
-            (_, Command::MoveTo {end:s_end}) => {
-                current_pos = s_end;
-            }
-            (_, _) => {}
-        }
 
-        Err((first,second))
-    }).collect();
-
+            Err((first, second))
+        })
+        .collect();
 }
 
+pub fn state_optomizer(cmds: &mut Vec<Command>) {
+    let mut current_state = StateChange::default();
 
-
-pub fn state_optomizer(cmds: &mut Vec<Command> ){
-
-    let mut current_state =StateChange::default();
-
-    for cmd_ptr in  cmds{
-        if let Command::SetState {new_state} =cmd_ptr{
+    for cmd_ptr in cmds {
+        if let Command::SetState { new_state } = cmd_ptr {
             *new_state = current_state.state_diff(&new_state);
         }
-    };
-
-
+    }
 }
-
 
 /*
 pub fn arc_optomizer(cmds: &mut Vec<Command> ){
@@ -229,8 +244,11 @@ pub fn arc_optomizer(cmds: &mut Vec<Command> ){
 }
 */
 
-
-fn line_bisector(p0: &Coordinate<f64>,p1: &Coordinate<f64>,p2: &Coordinate<f64>, ) -> (Coordinate<f64>,Coordinate<f64>){
+fn line_bisector(
+    p0: &Coordinate<f64>,
+    p1: &Coordinate<f64>,
+    p2: &Coordinate<f64>,
+) -> (Coordinate<f64>, Coordinate<f64>) {
     let ray_start = *p1;
 
     let l1_len = p0.euclidean_distance(p1);
@@ -241,23 +259,28 @@ fn line_bisector(p0: &Coordinate<f64>,p1: &Coordinate<f64>,p2: &Coordinate<f64>,
 
     let dir = l1_unit + l2_unit;
 
-    (ray_start,dir)
+    (ray_start, dir)
 }
 
-fn ray_ray_intersection(s0: &Coordinate<f64>,d0: &Coordinate<f64>,s1: &Coordinate<f64>,d1: &Coordinate<f64> ) -> Option<Coordinate<f64>>{
+fn ray_ray_intersection(
+    s0: &Coordinate<f64>,
+    d0: &Coordinate<f64>,
+    s1: &Coordinate<f64>,
+    d1: &Coordinate<f64>,
+) -> Option<Coordinate<f64>> {
     let dx = s1.x - s0.x;
     let dy = s1.y - s0.y;
 
-    let det = d1.x * d0.y -   d1.y * d0.x;
+    let det = d1.x * d0.y - d1.y * d0.x;
     let u = (dy * d1.x - dx * d1.y) / det;
     let v = (dy * d0.x - dx * d0.y) / det;
     if (u > 0.0) && (v > 0.0) {
         //println!("({},{}) ", p1.x,p1.y, );
-        let p1End = *s0 + *d0; // another point in line p1->n1
-        let p2End = *s1 + *d1; // another point in line p2->n2
+        let p1_end = *s0 + *d0; // another point in line p1->n1
+        let p2_end = *s1 + *d1; // another point in line p2->n2
 
-        let m1 = (p1End.y - s0.y) / (p1End.x - s0.x); // slope of line p1->n1
-        let m2 = (p2End.y - s1.y) / (p2End.x - s1.x); // slope of line p2->n2
+        let m1 = (p1_end.y - s0.y) / (p1_end.x - s0.x); // slope of line p1->n1
+        let m2 = (p2_end.y - s1.y) / (p2_end.x - s1.x); // slope of line p2->n2
 
         let b1 = s0.y - m1 * s0.x; // y-intercept of line p1->n1
         let b2 = s1.y - m2 * s1.x; // y-intercept of line p2->n2
@@ -265,14 +288,11 @@ fn ray_ray_intersection(s0: &Coordinate<f64>,d0: &Coordinate<f64>,s1: &Coordinat
         let px = (b2 - b1) / (m1 - m2); // collision x
         let py = m1 * px + b1; // collision y
 
-
-        Some(Coordinate{x:px, y: py})
+        Some(Coordinate { x: px, y: py })
     } else {
         None
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -280,69 +300,110 @@ mod tests {
 
     #[test]
     fn basic_line_bisector() {
+        let (center, dir) = line_bisector(
+            &Coordinate { x: 0.0, y: 0.0 },
+            &Coordinate { x: 1.0, y: 1.0 },
+            &Coordinate { x: 2.0, y: 0.0 },
+        );
 
-        let (center,dir) = line_bisector(&Coordinate{x: 0.0,y:0.0},&Coordinate{x: 1.0,y:1.0},&Coordinate{x: 2.0,y:0.0});
-
-        assert_eq!(center, Coordinate{x: 1.0,y:1.0});
+        assert_eq!(center, Coordinate { x: 1.0, y: 1.0 });
         assert_eq!(dir.x, 0.0);
         assert!(dir.y < 0.0);
 
-        let (center,dir) = line_bisector(&Coordinate{x: 2.0,y:0.0},&Coordinate{x: 1.0,y:1.0},&Coordinate{x: 0.0,y:0.0});
+        let (center, dir) = line_bisector(
+            &Coordinate { x: 2.0, y: 0.0 },
+            &Coordinate { x: 1.0, y: 1.0 },
+            &Coordinate { x: 0.0, y: 0.0 },
+        );
 
-        assert_eq!(center, Coordinate{x: 1.0,y:1.0});
+        assert_eq!(center, Coordinate { x: 1.0, y: 1.0 });
         assert_eq!(dir.x, 0.0);
         assert!(dir.y < 0.0);
 
-        let (center,dir) = line_bisector(&Coordinate{x: 0.0,y:0.0},&Coordinate{x: 1.0,y:1.0},&Coordinate{x: -2.0,y:4.0});
+        let (center, dir) = line_bisector(
+            &Coordinate { x: 0.0, y: 0.0 },
+            &Coordinate { x: 1.0, y: 1.0 },
+            &Coordinate { x: -2.0, y: 4.0 },
+        );
 
-        assert_eq!(center, Coordinate{x: 1.0,y:1.0});
+        assert_eq!(center, Coordinate { x: 1.0, y: 1.0 });
         assert_eq!(dir.y, 0.0);
         assert!(dir.x < 0.0);
 
-        let (center,dir) = line_bisector(&Coordinate{x: 0.0,y:0.0},&Coordinate{x: 1.0,y:0.0},&Coordinate{x: 1.0,y:1.0});
+        let (center, dir) = line_bisector(
+            &Coordinate { x: 0.0, y: 0.0 },
+            &Coordinate { x: 1.0, y: 0.0 },
+            &Coordinate { x: 1.0, y: 1.0 },
+        );
 
-        assert_eq!(center, Coordinate{x: 1.0,y:0.0});
+        assert_eq!(center, Coordinate { x: 1.0, y: 0.0 });
         assert_eq!(dir.y, -dir.x);
     }
 
     #[test]
     fn basic_ray_ray() {
-        let center = ray_ray_intersection(&Coordinate{x: 0.0,y:0.0},&Coordinate{x: 1.0,y:1.0},&Coordinate{x: 2.0,y:0.0},&Coordinate{x: -1.0,y:1.0});
-        assert_eq!(center, Some(Coordinate{x: 1.0,y:1.0}));
+        let center = ray_ray_intersection(
+            &Coordinate { x: 0.0, y: 0.0 },
+            &Coordinate { x: 1.0, y: 1.0 },
+            &Coordinate { x: 2.0, y: 0.0 },
+            &Coordinate { x: -1.0, y: 1.0 },
+        );
+        assert_eq!(center, Some(Coordinate { x: 1.0, y: 1.0 }));
 
-        let center = ray_ray_intersection(&Coordinate{x: 0.0,y:3.0},&Coordinate{x: 5.0,y:1.0},&Coordinate{x: 2.0,y:0.0},&Coordinate{x: 3.0,y:4.0});
-        assert_eq!(center, Some(Coordinate{x: 5.0,y:4.0}));
+        let center = ray_ray_intersection(
+            &Coordinate { x: 0.0, y: 3.0 },
+            &Coordinate { x: 5.0, y: 1.0 },
+            &Coordinate { x: 2.0, y: 0.0 },
+            &Coordinate { x: 3.0, y: 4.0 },
+        );
+        assert_eq!(center, Some(Coordinate { x: 5.0, y: 4.0 }));
 
-        let center = ray_ray_intersection(&Coordinate{x: 1.0,y:3.0},&Coordinate{x: 0.10,y:-0.20},&Coordinate{x: 0.0,y:-2.0},&Coordinate{x: 2.0,y:3.0});
-        assert_eq!(center, Some(Coordinate{x: 2.0,y:1.0}));
+        let center = ray_ray_intersection(
+            &Coordinate { x: 1.0, y: 3.0 },
+            &Coordinate { x: 0.10, y: -0.20 },
+            &Coordinate { x: 0.0, y: -2.0 },
+            &Coordinate { x: 2.0, y: 3.0 },
+        );
+        assert_eq!(center, Some(Coordinate { x: 2.0, y: 1.0 }));
 
-        let center = ray_ray_intersection(&Coordinate{x: 1112.4,y:35345.0},&Coordinate{x: -0.11124,y:-3.53450},&Coordinate{x: 546456.1,y:544456.1},&Coordinate{x: -0.5464561,y:-0.5444561});
+        let center = ray_ray_intersection(
+            &Coordinate {
+                x: 1112.4,
+                y: 35345.0,
+            },
+            &Coordinate {
+                x: -0.11124,
+                y: -3.53450,
+            },
+            &Coordinate {
+                x: 546456.1,
+                y: 544456.1,
+            },
+            &Coordinate {
+                x: -0.5464561,
+                y: -0.5444561,
+            },
+        );
         //assert_eq!(center, Some(Coordinate{x: 0.0,y:0.0}));
     }
 
     #[test]
     fn arc_optomizer_test() {
-
-        let mut commands = (0..600).into_iter()
-            .map(| a| {
+        let mut commands = (0..600)
+            .into_iter()
+            .map(|a| {
                 let r = a as f64 / 100.0;
                 let x = r.cos();
                 let y = r.sin();
-                Coordinate{x,y}
+                Coordinate { x, y }
             })
-            .tuple_windows::<(Coordinate<f64>,Coordinate<f64>)>()
-            .map(|(start,end)|{
-                Command::MoveAndExtrude {start,end}
-            })
+            .tuple_windows::<(Coordinate<f64>, Coordinate<f64>)>()
+            .map(|(start, end)| Command::MoveAndExtrude { start, end })
             .collect::<Vec<Command>>();
 
         arc_optomizer(&mut commands);
         unary_optimizer(&mut commands);
 
-        assert_eq!(commands,vec![])
-
-
-
-
+        assert_eq!(commands, vec![])
     }
 }

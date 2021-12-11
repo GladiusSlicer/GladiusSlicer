@@ -1,7 +1,7 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Settings{
+pub struct Settings {
     pub layer_height: f64,
     pub layer_width: f64,
 
@@ -14,29 +14,29 @@ pub struct Settings{
     pub retract_speed: f64,
 
     pub perimeter_speed: f64,
-    pub infill_speed:  f64,
-    pub infill_percentage:  f64,
+    pub infill_speed: f64,
+    pub infill_percentage: f64,
     pub travel_speed: f64,
 
     pub first_layer_height: f64,
     pub first_layer_perimeter_speed: f64,
-    pub first_layer_infill_speed:  f64,
+    pub first_layer_infill_speed: f64,
     pub first_layer_travel_speed: f64,
     pub first_layer_width: f64,
 
-    pub print_x : f64,
-    pub print_y : f64,
-    pub print_z : f64,
+    pub print_x: f64,
+    pub print_y: f64,
+    pub print_z: f64,
 
-    pub minimum_retract_distance : f64,
+    pub minimum_retract_distance: f64,
 
     pub starting_gcode: String,
     pub ending_gcode: String,
 }
 
-impl Default for Settings{
+impl Default for Settings {
     fn default() -> Self {
-        Settings{
+        Settings {
             layer_height: 0.1,
             first_layer_height: 0.3,
             first_layer_perimeter_speed: 5.0,
@@ -58,7 +58,7 @@ impl Default for Settings{
             print_y: 210.0,
             print_z: 210.0,
             minimum_retract_distance: 1.0,
-            starting_gcode:     "G90 ; use absolute coordinates \n\
+            starting_gcode: "G90 ; use absolute coordinates \n\
                                 M83 ; extruder relative mode\n\
                                 M106 S255 ; FANNNNN\n\
                                 M104 S[First Layer Extruder Temp] ; set extruder temp\n\
@@ -71,71 +71,71 @@ impl Default for Settings{
                                 G92 E0.0\n\
                                 G1 X60.0 E9.0 F1000.0 ; intro line\n\
                                 G1 X100.0 E12.5 F1000.0 ; intro line\n\
-                                G92 E0.0;\n".to_string(),
-            ending_gcode:     "G4 ; wait\n\
+                                G92 E0.0;\n"
+                .to_string(),
+            ending_gcode: "G4 ; wait\n\
                                 M221 S100 \n\
                                 M104 S0 ; turn off temperature \n\
                                 M140 S0 ; turn off heatbed \n\
                                 G1 X0 F3000 ; home X axis \n\
                                 M84 ; disable motors\n\
-                                M107 ; disable fan\n".to_string(),
-            first_layer_width: 0.6
+                                M107 ; disable fan\n"
+                .to_string(),
+            first_layer_width: 0.6,
         }
     }
 }
 
-impl Settings{
-    pub fn get_layer_settings(&self, layer: usize) -> LayerSettings{
-        if layer ==0{
-            LayerSettings{
+impl Settings {
+    pub fn get_layer_settings(&self, layer: usize) -> LayerSettings {
+        if layer == 0 {
+            LayerSettings {
                 layer_height: self.first_layer_height,
                 perimeter_speed: self.first_layer_perimeter_speed,
                 infill_speed: self.first_layer_infill_speed,
                 travel_speed: self.first_layer_travel_speed,
                 layer_width: self.layer_width,
-                infill_percentage: self.infill_percentage
+                infill_percentage: self.infill_percentage,
             }
-        }
-        else{
-             LayerSettings{
+        } else {
+            LayerSettings {
                 layer_height: self.layer_height,
                 perimeter_speed: self.perimeter_speed,
                 infill_speed: self.infill_speed,
                 travel_speed: self.travel_speed,
-                 layer_width: self.layer_width,
-                 infill_percentage: self.infill_percentage
-             }
+                layer_width: self.layer_width,
+                infill_percentage: self.infill_percentage,
+            }
         }
     }
 }
 
-pub struct LayerSettings{
+pub struct LayerSettings {
     pub layer_height: f64,
     pub perimeter_speed: f64,
-    pub infill_speed:  f64,
+    pub infill_speed: f64,
     pub travel_speed: f64,
     pub layer_width: f64,
-    pub infill_percentage:  f64,
+    pub infill_percentage: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct FilamentSettings{
+pub struct FilamentSettings {
     pub diameter: f64,
     pub density: f64,
     pub cost: f64,
     pub extruder_temp: f64,
-    pub bed_temp: f64
+    pub bed_temp: f64,
 }
 
-impl Default for FilamentSettings{
+impl Default for FilamentSettings {
     fn default() -> Self {
-        FilamentSettings{
+        FilamentSettings {
             diameter: 1.75,
             density: 1.24,
             cost: 24.99,
             extruder_temp: 215.0,
-            bed_temp: 60.0
+            bed_temp: 60.0,
         }
     }
 }
-

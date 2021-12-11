@@ -1,62 +1,67 @@
 use crate::types::*;
-use std::io::prelude::*;
+use serde::Deserialize;
 use std::io::BufReader;
-use serde::{Serialize, Deserialize};
 
-pub trait Loader{
-    fn load(&self, filepath: &str) -> Option< (Vec<Vertex>, Vec<IndexedTriangle>)>;
-
+pub trait Loader {
+    fn load(&self, filepath: &str) -> Option<(Vec<Vertex>, Vec<IndexedTriangle>)>;
 }
 
 pub struct STLLoader {}
 
 impl Loader for STLLoader {
-    fn load(&self , filepath: &str) -> Option< (Vec<Vertex>, Vec<IndexedTriangle>)>{
-
-        let file = std::fs::OpenOptions::new().read(true).open(filepath).unwrap();
+    fn load(&self, filepath: &str) -> Option<(Vec<Vertex>, Vec<IndexedTriangle>)> {
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .open(filepath)
+            .unwrap();
 
         let mut root_vase = BufReader::new(&file);
         let mesh: nom_stl::IndexMesh = nom_stl::parse_stl(&mut root_vase).unwrap().into();
 
         let mut triangles = vec![];
-        let vertices = mesh.vertices().iter().map(|vert|Vertex{x: vert[0] as f64, y: vert[1] as f64, z: vert[2] as f64}).collect::<Vec<Vertex>>();
+        let vertices = mesh
+            .vertices()
+            .iter()
+            .map(|vert| Vertex {
+                x: vert[0] as f64,
+                y: vert[1] as f64,
+                z: vert[2] as f64,
+            })
+            .collect::<Vec<Vertex>>();
 
-        for triangle in mesh.triangles()
-        {
-            let normal : [f32;3] =  triangle.normal().into();
-            let mut converted_tri = IndexedTriangle{verts:[triangle.vertices_indices()[0],triangle.vertices_indices()[1],triangle.vertices_indices()[2]]};
-            let mut v0 = vertices[converted_tri.verts[0]];
-            let mut v1 = vertices[converted_tri.verts[1]];
-            let mut v2 = vertices[converted_tri.verts[2]];
-/*
-            let A = v1.x * v0.y + v2.x * v1.y + v0.x * v2.y;
-            let B = v0.x * v1.y + v1.x * v2.y + v2.x * v0.y;
+        for triangle in mesh.triangles() {
+            let mut converted_tri = IndexedTriangle {
+                verts: [
+                    triangle.vertices_indices()[0],
+                    triangle.vertices_indices()[1],
+                    triangle.vertices_indices()[2],
+                ],
+            };
+            /*
+                        let A = v1.x * v0.y + v2.x * v1.y + v0.x * v2.y;
+                        let B = v0.x * v1.y + v1.x * v2.y + v2.x * v0.y;
 
-            if  A < B
-            {
-                let temp = converted_tri.verts[0];
-                converted_tri.verts[0] = converted_tri.verts[1];
-                converted_tri.verts[1] = temp;
-                std::mem::swap(&mut v0, &mut v1);
-            }
-*/
-            let mut v0 = vertices[converted_tri.verts[0]];
-            let mut v1 = vertices[converted_tri.verts[1]];
-            let mut v2 = vertices[converted_tri.verts[2]];
+                        if  A < B
+                        {
+                            let temp = converted_tri.verts[0];
+                            converted_tri.verts[0] = converted_tri.verts[1];
+                            converted_tri.verts[1] = temp;
+                            std::mem::swap(&mut v0, &mut v1);
+                        }
+            */
+            let v0 = vertices[converted_tri.verts[0]];
+            let v1 = vertices[converted_tri.verts[1]];
+            let v2 = vertices[converted_tri.verts[2]];
 
-
-            if v0 <v1 && v0 < v2 {
+            if v0 < v1 && v0 < v2 {
                 triangles.push(converted_tri);
-            }
-
-            else if v1 <v2 && v1 < v0 {
+            } else if v1 < v2 && v1 < v0 {
                 let temp = converted_tri.verts[0];
                 converted_tri.verts[0] = converted_tri.verts[1];
                 converted_tri.verts[1] = converted_tri.verts[2];
                 converted_tri.verts[2] = temp;
                 triangles.push(converted_tri);
-            }
-            else{
+            } else {
                 let temp = converted_tri.verts[0];
                 converted_tri.verts[0] = converted_tri.verts[2];
                 converted_tri.verts[2] = converted_tri.verts[1];
@@ -65,80 +70,73 @@ impl Loader for STLLoader {
             }
         }
 
-
-        Some((vertices,triangles))
-
-
-     }
+        Some((vertices, triangles))
+    }
 }
 
 #[derive(Deserialize, Debug)]
-struct Relationships{
-    Relationship : Vec<Relationship>
+struct Relationships {
+    Relationship: Vec<Relationship>,
 }
 
 #[derive(Deserialize, Debug)]
-struct Relationship{
-    Type : String,
-    Target : String,
-    Id : String,
+struct Relationship {
+    Type: String,
+    Target: String,
+    Id: String,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename = "model")]
-struct ThreeMFModel{
-    resources : ThreeMFResource,
+struct ThreeMFModel {
+    resources: ThreeMFResource,
 }
 
 #[derive(Deserialize, Debug)]
-struct ThreeMFResource{
-    object : ThreeMFObject,
+struct ThreeMFResource {
+    object: ThreeMFObject,
 }
 
 #[derive(Deserialize, Debug)]
-struct ThreeMFObject{
-    mesh : ThreeMFMesh,
+struct ThreeMFObject {
+    mesh: ThreeMFMesh,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename = "triangle")]
-struct ThreeMFTriangle{
-    v1 : usize,
-    v2 : usize,
-    v3 : usize,
+struct ThreeMFTriangle {
+    v1: usize,
+    v2: usize,
+    v3: usize,
 }
 
 #[derive(Deserialize, Debug)]
-struct ThreeMFMesh{
-    vertices : ThreeMFVertices,
-    triangles : ThreeMFTriangles,
+struct ThreeMFMesh {
+    vertices: ThreeMFVertices,
+    triangles: ThreeMFTriangles,
 }
 
 #[derive(Deserialize, Debug)]
-struct ThreeMFVertices{
+struct ThreeMFVertices {
     #[serde(rename = "vertex", default)]
-    list : Vec<Vertex>,
+    list: Vec<Vertex>,
 }
 
 #[derive(Deserialize, Debug)]
-struct ThreeMFTriangles{
+struct ThreeMFTriangles {
     #[serde(rename = "triangle", default)]
-    list : Vec<ThreeMFTriangle>,
+    list: Vec<ThreeMFTriangle>,
 }
 
 pub struct ThreeMFLoader {}
 
 impl Loader for ThreeMFLoader {
-    fn load(&self , filepath: &str) -> Option< (Vec<Vertex>, Vec<IndexedTriangle>)>{
-
-
+    fn load(&self, filepath: &str) -> Option<(Vec<Vertex>, Vec<IndexedTriangle>)> {
         let zipfile = std::fs::File::open(filepath).unwrap();
 
         let mut archive = zip::ZipArchive::new(zipfile).unwrap();
 
-
-
-         let mut rel_file = match archive.by_name("_rels/.rels") {
+        let rel_file = match archive.by_name("_rels/.rels") {
             Ok(file) => file,
             Err(..) => {
                 println!("File not found");
@@ -151,8 +149,7 @@ impl Loader for ThreeMFLoader {
         let ModelPath = rel.Relationship[0].Target.clone();
         println!("Model Path: {}", ModelPath);
 
-
-        let mut model_file = match archive.by_name(&ModelPath[1..]) {
+        let model_file = match archive.by_name(&ModelPath[1..]) {
             Ok(file) => file,
             Err(..) => {
                 println!("File not found");
@@ -160,31 +157,28 @@ impl Loader for ThreeMFLoader {
             }
         };
 
-        let model :ThreeMFModel = serde_xml_rs::de::from_reader(model_file).unwrap();
-
+        let model: ThreeMFModel = serde_xml_rs::de::from_reader(model_file).unwrap();
 
         let mut triangles = vec![];
         let vertices = model.resources.object.mesh.vertices.list;
 
-        for triangle in model.resources.object.mesh.triangles.list
-        {
-            let mut converted_tri = IndexedTriangle{verts:[triangle.v1,triangle.v2,triangle.v3]};
-            let mut v0 = vertices[converted_tri.verts[0]];
-            let mut v1 = vertices[converted_tri.verts[1]];
-            let mut v2 = vertices[converted_tri.verts[2]];
+        for triangle in model.resources.object.mesh.triangles.list {
+            let mut converted_tri = IndexedTriangle {
+                verts: [triangle.v1, triangle.v2, triangle.v3],
+            };
+            let v0 = vertices[converted_tri.verts[0]];
+            let v1 = vertices[converted_tri.verts[1]];
+            let v2 = vertices[converted_tri.verts[2]];
 
-            if v0 <v1 && v0 < v2 {
+            if v0 < v1 && v0 < v2 {
                 triangles.push(converted_tri);
-            }
-
-            else if v1 <v2 && v1 < v0 {
+            } else if v1 < v2 && v1 < v0 {
                 let temp = converted_tri.verts[0];
                 converted_tri.verts[0] = converted_tri.verts[1];
                 converted_tri.verts[1] = converted_tri.verts[2];
                 converted_tri.verts[2] = temp;
                 triangles.push(converted_tri);
-            }
-            else{
+            } else {
                 let temp = converted_tri.verts[0];
                 converted_tri.verts[0] = converted_tri.verts[2];
                 converted_tri.verts[2] = converted_tri.verts[1];
@@ -193,8 +187,6 @@ impl Loader for ThreeMFLoader {
             }
         }
 
-
-        Some((vertices,triangles))
-
-     }
+        Some((vertices, triangles))
+    }
 }
