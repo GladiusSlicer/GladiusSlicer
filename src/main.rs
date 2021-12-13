@@ -75,15 +75,13 @@ fn main() {
         .and_then(OsStr::to_str)
         .expect("File Parse Issue");
 
-    let (mut vertices, triangles) = match extension {
-        "stl" => STLLoader {}
-            .load(matches.value_of("INPUT").unwrap())
-            .unwrap(),
-        "3MF" => ThreeMFLoader {}
-            .load(matches.value_of("INPUT").unwrap())
-            .unwrap(),
+     let loader : &dyn Loader = match extension {
+        "stl" => &STLLoader {},
+        "3MF" => &ThreeMFLoader {},
         _ => panic!("File Format {} not supported", extension),
     };
+
+    let (mut vertices, triangles) = loader .load(matches.value_of("INPUT").unwrap()).unwrap();
 
     let transform = if let Some(transform_str) = matches.value_of("MANUALTRANFORM") {
         serde_json::from_str(transform_str).unwrap()
