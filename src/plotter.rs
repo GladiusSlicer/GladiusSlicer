@@ -126,7 +126,7 @@ impl Slice {
 
         let solid_area = self.remaining_area.difference(
             &other.offset(
-                -settings.layer_width * 2.0,
+                -settings.layer_width * 1.0,
                 JoinType::Square,
                 EndType::ClosedPolygon,
                 100000.0,
@@ -301,9 +301,13 @@ fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings) -> Option<M
 
     let mut start_point = None;
 
+    let mut line_change;
+
     while !lines.is_empty() || !current_lines.is_empty() {
+        line_change = false;
         while !lines.is_empty() && lines[lines.len() - 1].0.y < current_y {
             current_lines.push(lines.pop().unwrap());
+            line_change = true;
         }
 
         current_lines.retain(|(_s, e)| e.y > current_y);
@@ -329,50 +333,56 @@ fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings) -> Option<M
             y: current_y,
         }));
 
+
         moves.push(Move {
             end: Coordinate {
-                x: points[0],
+                x: if orient { *points.first().unwrap() + settings.layer_width /2.0} else{*points.last().unwrap() - settings.layer_width /2.0},
                 y: current_y,
             },
-            move_type: MoveType::Travel,
-            width: 0.0,
+            move_type: if line_change { MoveType::Travel} else { MoveType::Infill},
+            width: settings.layer_width,
         });
 
         if orient {
             for (start, end) in points.iter().tuples::<(_, _)>() {
+
                 moves.push(Move {
                     end: Coordinate {
-                        x: *start,
+                        x: *start + settings.layer_width /2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Travel,
-                    width: 0.0,
+                    width: settings.layer_width,
                 });
+
                 moves.push(Move {
                     end: Coordinate {
-                        x: *end,
+                        x: *end - settings.layer_width /2.0,
                         y: current_y,
                     },
-                    move_type: MoveType::SolidInfill,
+                    move_type: MoveType::Infill,
                     width: settings.layer_width,
                 });
             }
         } else {
             for (start, end) in points.iter().rev().tuples::<(_, _)>() {
+
+
                 moves.push(Move {
                     end: Coordinate {
-                        x: *start,
+                        x: *start - settings.layer_width /2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Travel,
-                    width: 0.0,
+                    width: settings.layer_width,
                 });
+
                 moves.push(Move {
                     end: Coordinate {
-                        x: *end,
+                        x: *end + settings.layer_width /2.0,
                         y: current_y,
                     },
-                    move_type: MoveType::SolidInfill,
+                    move_type: MoveType::Infill,
                     width: settings.layer_width,
                 });
             }
@@ -464,39 +474,32 @@ fn partial_fill_polygon(
             y: current_y,
         }));
 
+
         moves.push(Move {
             end: Coordinate {
-                x: points[0],
+                x: if orient { *points.first().unwrap() + settings.layer_width /2.0} else{*points.last().unwrap() - settings.layer_width /2.0},
                 y: current_y,
             },
-            move_type: MoveType::Travel,
+            move_type: if line_change { MoveType::Travel} else { MoveType::Infill},
             width: settings.layer_width,
         });
 
+
         if orient {
             for (start, end) in points.iter().tuples::<(_, _)>() {
-                if !line_change {
-                    moves.push(Move {
-                        end: Coordinate {
-                            x: *start,
-                            y: current_y,
-                        },
-                        move_type: MoveType::Infill,
-                        width: settings.layer_width,
-                    });
-                } else {
-                    moves.push(Move {
-                        end: Coordinate {
-                            x: *start,
-                            y: current_y,
-                        },
-                        move_type: MoveType::Travel,
-                        width: settings.layer_width,
-                    });
-                }
+
                 moves.push(Move {
                     end: Coordinate {
-                        x: *end,
+                        x: *start + settings.layer_width /2.0,
+                        y: current_y,
+                    },
+                    move_type: MoveType::Travel,
+                    width: settings.layer_width,
+                });
+
+                moves.push(Move {
+                    end: Coordinate {
+                        x: *end - settings.layer_width /2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Infill,
@@ -505,28 +508,20 @@ fn partial_fill_polygon(
             }
         } else {
             for (start, end) in points.iter().rev().tuples::<(_, _)>() {
-                if !line_change {
-                    moves.push(Move {
-                        end: Coordinate {
-                            x: *start,
-                            y: current_y,
-                        },
-                        move_type: MoveType::Infill,
-                        width: settings.layer_width,
-                    });
-                } else {
-                    moves.push(Move {
-                        end: Coordinate {
-                            x: *start,
-                            y: current_y,
-                        },
-                        move_type: MoveType::Travel,
-                        width: 0.0,
-                    });
-                }
+
+
                 moves.push(Move {
                     end: Coordinate {
-                        x: *end,
+                        x: *start - settings.layer_width /2.0,
+                        y: current_y,
+                    },
+                    move_type: MoveType::Travel,
+                    width: settings.layer_width,
+                });
+
+                moves.push(Move {
+                    end: Coordinate {
+                        x: *end + settings.layer_width /2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Infill,
