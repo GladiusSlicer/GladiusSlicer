@@ -11,7 +11,7 @@ use crate::tower::*;
 use geo::Coordinate;
 use geo_clipper::*;
 use std::fs::File;
-use std::io::{Write, BufWriter};
+use std::io::{BufWriter, Write};
 
 use std::ffi::OsStr;
 use std::path::Path;
@@ -78,13 +78,13 @@ fn main() {
         .and_then(OsStr::to_str)
         .expect("File Parse Issue");
 
-     let loader : &dyn Loader = match extension {
+    let loader: &dyn Loader = match extension {
         "stl" => &STLLoader {},
         "3MF" => &ThreeMFLoader {},
         _ => panic!("File Format {} not supported", extension),
     };
 
-    let (mut vertices, triangles) = loader .load(matches.value_of("INPUT").unwrap()).unwrap();
+    let (mut vertices, triangles) = loader.load(matches.value_of("INPUT").unwrap()).unwrap();
 
     let transform = if let Some(transform_str) = matches.value_of("MANUALTRANFORM") {
         serde_json::from_str(transform_str).unwrap()
@@ -135,46 +135,41 @@ fn main() {
 
     let mut first_layer = true;
 
-    let mut slices : Vec<_> =
-    std::iter::repeat(())
-    .map(|_|{
-        //Advance to the correct height
-        let layer_height = if first_layer {
-            settings.first_layer_height
-        }
-        else {
-            settings.layer_height
-        };
+    let mut slices: Vec<_> = std::iter::repeat(())
+        .map(|_| {
+            //Advance to the correct height
+            let layer_height = if first_layer {
+                settings.first_layer_height
+            } else {
+                settings.layer_height
+            };
 
-        layer += layer_height / 2.0;
-        tower_iter.advance_to_height(layer);
-        layer += layer_height / 2.0;
+            layer += layer_height / 2.0;
+            tower_iter.advance_to_height(layer);
+            layer += layer_height / 2.0;
 
+            first_layer = false;
 
-        first_layer = false;
-
-        //Get the ordered lists of points
-        (layer,tower_iter.get_points())
-    }).take_while(|(_,layer_loops)|{
-        !layer_loops.is_empty()
-    })
-    .map(|(l, layer_loops)|{
-
-        //Add this slice to the
-        let slice = Slice::from_multiple_point_loop(
-            layer_loops
-                .iter()
-                .map(|verts| {
-                    verts
-                        .into_iter()
-                        .map(|v| Coordinate { x: v.x, y: v.y })
-                        .collect::<Vec<Coordinate<f64>>>()
-                })
-                .collect(),
-        );
-        (l, slice)
-
-    }).collect();
+            //Get the ordered lists of points
+            (layer, tower_iter.get_points())
+        })
+        .take_while(|(_, layer_loops)| !layer_loops.is_empty())
+        .map(|(l, layer_loops)| {
+            //Add this slice to the
+            let slice = Slice::from_multiple_point_loop(
+                layer_loops
+                    .iter()
+                    .map(|verts| {
+                        verts
+                            .into_iter()
+                            .map(|v| Coordinate { x: v.x, y: v.y })
+                            .collect::<Vec<Coordinate<f64>>>()
+                    })
+                    .collect(),
+            );
+            (l, slice)
+        })
+        .collect();
 
     println!("Generating Moves");
 
@@ -184,9 +179,15 @@ fn main() {
 
     //Handle Perimeters
     println!("Generating Moves: Perimeters");
-    slices.par_iter_mut().enumerate().for_each(|(layer_num, (_layer, slice))|  {
-        slice.slice_perimeters_into_chains(&settings.get_layer_settings(layer_num),settings.number_of_perimeters);
-    });
+    slices
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(layer_num, (_layer, slice))| {
+            slice.slice_perimeters_into_chains(
+                &settings.get_layer_settings(layer_num),
+                settings.number_of_perimeters,
+            );
+        });
 
     //Combine layer to form support
 
@@ -229,36 +230,54 @@ fn main() {
 
     println!("Generating Moves: Fill Areas");
     //Fill all remaining areas
-   slices.par_iter_mut().enumerate().for_each(|(layer_num, (_layer, slice)) | {
-        slice.fill_remaining_area(
-            &settings.get_layer_settings(layer_num),
-            layer_num < 3 || layer_num + 3 + 1 > slice_count,
-            layer_num,
-        );
-    });
+    slices
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(layer_num, (_layer, slice))| {
+            slice.fill_remaining_area(
+                &settings.get_layer_settings(layer_num),
+                layer_num < 3 || layer_num + 3 + 1 > slice_count,
+                layer_num,
+            );
+        });
 
     //Convert all commands into
     println!("Convert into Commnds");
     let mut last_layer = 0.0;
-    slices.iter_mut().enumerate().for_each(|(layer_num, (layer, slice))| {
-        moves.push(Command::LayerChange { z: *layer });
-        moves.push(Command::SetState {
-            new_state: StateChange{
-                extruder_temp:Some( if layer_num ==0 {settings.filament.first_layer_extruder_temp} else{settings.filament.extruder_temp}),
-                bed_temp: Some( if layer_num ==0 {settings.filament.first_layer_bed_temp} else{settings.filament.bed_temp}),
-                fan_speed: Some( if layer_num <settings.fan.disable_fan_for_layers {0.0} else{settings.fan.fan_speed}),
-                movement_speed: None,
-                retract: None
-            }
-        });
-        slice.slice_into_commands(
-            &settings.get_layer_settings(layer_num),
-            &mut moves,
-            *layer - last_layer,
-        );
+    slices
+        .iter_mut()
+        .enumerate()
+        .for_each(|(layer_num, (layer, slice))| {
+            moves.push(Command::LayerChange { z: *layer });
+            moves.push(Command::SetState {
+                new_state: StateChange {
+                    extruder_temp: Some(if layer_num == 0 {
+                        settings.filament.first_layer_extruder_temp
+                    } else {
+                        settings.filament.extruder_temp
+                    }),
+                    bed_temp: Some(if layer_num == 0 {
+                        settings.filament.first_layer_bed_temp
+                    } else {
+                        settings.filament.bed_temp
+                    }),
+                    fan_speed: Some(if layer_num < settings.fan.disable_fan_for_layers {
+                        0.0
+                    } else {
+                        settings.fan.fan_speed
+                    }),
+                    movement_speed: None,
+                    retract: None,
+                },
+            });
+            slice.slice_into_commands(
+                &settings.get_layer_settings(layer_num),
+                &mut moves,
+                *layer - last_layer,
+            );
 
-        last_layer = *layer;
-    });
+            last_layer = *layer;
+        });
 
     let mut plastic_used = 0.0;
     let mut total_time = 0.0;
@@ -350,8 +369,7 @@ fn convert(
     cmds: &Vec<Command>,
     settings: Settings,
     write: &mut impl Write,
-) -> Result<(), Box<dyn std::error::Error>>
-{
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut start = settings.starting_gcode.clone();
     let mut write_buf = BufWriter::new(write);
     start = start.replace(
@@ -409,7 +427,11 @@ fn convert(
                     writeln!(write_buf, "M140 S{:.1} ; set bed temp", bed_temp)?;
                 }
                 if let Some(fan_speed) = new_state.fan_speed {
-                    writeln!(write_buf, "M106 S{} ; set fan speed", (2.550 * fan_speed).round() as usize )?;
+                    writeln!(
+                        write_buf,
+                        "M106 S{} ; set fan speed",
+                        (2.550 * fan_speed).round() as usize
+                    )?;
                 }
             }
             Command::LayerChange { z } => {

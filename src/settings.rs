@@ -160,7 +160,7 @@ impl Default for FanSettings {
         FanSettings {
             fan_speed: 100.0,
             disable_fan_for_layers: 1,
-            slow_down_threshold: 15
+            slow_down_threshold: 15,
         }
     }
 }

@@ -3,10 +3,9 @@ use crate::types::{Command, Move, MoveChain, MoveType};
 use geo::prelude::*;
 use geo::*;
 use geo_clipper::*;
-use itertools::{Itertools, chain};
+use itertools::{chain, Itertools};
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
-
 
 use rayon;
 use rayon::prelude::*;
@@ -82,7 +81,11 @@ impl Slice {
         &self.MainPolygon
     }
 
-    pub fn slice_perimeters_into_chains(&mut self, settings: &LayerSettings, number_of_perimeters: usize) {
+    pub fn slice_perimeters_into_chains(
+        &mut self,
+        settings: &LayerSettings,
+        number_of_perimeters: usize,
+    ) {
         //Create the outer shells
         for _ in 0..number_of_perimeters {
             let (m, mut new_chains) = inset_polygon(&self.remaining_area, settings);
@@ -128,34 +131,32 @@ impl Slice {
     ) {
         //For each area not in this slice that is in the other polygon, fill solid
 
-        let solid_area =
-            self.remaining_area.difference(
-                other,
-                100000.0,
-            ).offset(
+        let solid_area = self
+            .remaining_area
+            .difference(other, 100000.0)
+            .offset(
                 settings.layer_width * 4.0,
                 JoinType::Square,
                 EndType::ClosedPolygon,
                 100000.0,
-            ).intersection (
-                &self.remaining_area,
-                100000.0,
-            );
-
-
+            )
+            .intersection(&self.remaining_area, 100000.0);
 
         self.chains.append(
-            &mut solid_area.0.par_iter().filter_map(|poly|  {
-                let angle = (120 as f64) * layer_count as f64;
+            &mut solid_area
+                .0
+                .par_iter()
+                .filter_map(|poly| {
+                    let angle = (120 as f64) * layer_count as f64;
 
-                let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+                    let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-                solid_fill_polygon(&rotate_poly, settings).map(|mut chain| {
-                    chain.rotate(-angle.to_radians());
-                    chain
+                    solid_fill_polygon(&rotate_poly, settings).map(|mut chain| {
+                        chain.rotate(-angle.to_radians());
+                        chain
+                    })
                 })
-
-            }).collect()
+                .collect(),
         );
 
         self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
@@ -232,14 +233,12 @@ fn inset_polygon(
             .0
             .iter()
             .circular_tuple_windows::<(_, _)>()
-            .map(|(&_start, &end)|
-        {
-            Move {
+            .map(|(&_start, &end)| Move {
                 end: end,
                 move_type: MoveType::OuterPerimeter,
                 width: settings.layer_width,
-            }
-        }).collect();
+            })
+            .collect();
 
         move_chains.push(MoveChain {
             start_point: polygon.exterior()[0],
@@ -344,22 +343,28 @@ fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings) -> Option<M
             y: current_y,
         }));
 
-
         moves.push(Move {
             end: Coordinate {
-                x: if orient { *points.first().unwrap() + settings.layer_width /2.0} else{*points.last().unwrap() - settings.layer_width /2.0},
+                x: if orient {
+                    *points.first().unwrap() + settings.layer_width / 2.0
+                } else {
+                    *points.last().unwrap() - settings.layer_width / 2.0
+                },
                 y: current_y,
             },
-            move_type: if line_change { MoveType::Travel} else { MoveType::Infill},
+            move_type: if line_change {
+                MoveType::Travel
+            } else {
+                MoveType::Infill
+            },
             width: settings.layer_width,
         });
 
         if orient {
             for (start, end) in points.iter().tuples::<(_, _)>() {
-
                 moves.push(Move {
                     end: Coordinate {
-                        x: *start + settings.layer_width /2.0,
+                        x: *start + settings.layer_width / 2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Travel,
@@ -368,7 +373,7 @@ fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings) -> Option<M
 
                 moves.push(Move {
                     end: Coordinate {
-                        x: *end - settings.layer_width /2.0,
+                        x: *end - settings.layer_width / 2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Infill,
@@ -377,11 +382,9 @@ fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings) -> Option<M
             }
         } else {
             for (start, end) in points.iter().rev().tuples::<(_, _)>() {
-
-
                 moves.push(Move {
                     end: Coordinate {
-                        x: *start - settings.layer_width /2.0,
+                        x: *start - settings.layer_width / 2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Travel,
@@ -390,7 +393,7 @@ fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings) -> Option<M
 
                 moves.push(Move {
                     end: Coordinate {
-                        x: *end + settings.layer_width /2.0,
+                        x: *end + settings.layer_width / 2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Infill,
@@ -410,8 +413,7 @@ fn partial_fill_polygon(
     poly: &Polygon<f64>,
     settings: &LayerSettings,
     fill_ratio: f64,
-) -> Option<MoveChain>
-{
+) -> Option<MoveChain> {
     let mut moves = vec![];
 
     let mut lines: Vec<(Coordinate<f64>, Coordinate<f64>)> = poly
@@ -486,23 +488,28 @@ fn partial_fill_polygon(
             y: current_y,
         }));
 
-
         moves.push(Move {
             end: Coordinate {
-                x: if orient { *points.first().unwrap() + settings.layer_width /2.0} else{*points.last().unwrap() - settings.layer_width /2.0},
+                x: if orient {
+                    *points.first().unwrap() + settings.layer_width / 2.0
+                } else {
+                    *points.last().unwrap() - settings.layer_width / 2.0
+                },
                 y: current_y,
             },
-            move_type: if line_change { MoveType::Travel} else { MoveType::Infill},
+            move_type: if line_change {
+                MoveType::Travel
+            } else {
+                MoveType::Infill
+            },
             width: settings.layer_width,
         });
 
-
         if orient {
             for (start, end) in points.iter().tuples::<(_, _)>() {
-
                 moves.push(Move {
                     end: Coordinate {
-                        x: *start + settings.layer_width /2.0,
+                        x: *start + settings.layer_width / 2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Travel,
@@ -511,7 +518,7 @@ fn partial_fill_polygon(
 
                 moves.push(Move {
                     end: Coordinate {
-                        x: *end - settings.layer_width /2.0,
+                        x: *end - settings.layer_width / 2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Infill,
@@ -520,11 +527,9 @@ fn partial_fill_polygon(
             }
         } else {
             for (start, end) in points.iter().rev().tuples::<(_, _)>() {
-
-
                 moves.push(Move {
                     end: Coordinate {
-                        x: *start - settings.layer_width /2.0,
+                        x: *start - settings.layer_width / 2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Travel,
@@ -533,7 +538,7 @@ fn partial_fill_polygon(
 
                 moves.push(Move {
                     end: Coordinate {
-                        x: *end + settings.layer_width /2.0,
+                        x: *end + settings.layer_width / 2.0,
                         y: current_y,
                     },
                     move_type: MoveType::Infill,

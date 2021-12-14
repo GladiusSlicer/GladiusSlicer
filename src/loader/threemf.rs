@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use crate::loader::*;
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 struct Relationships {

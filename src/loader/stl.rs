@@ -1,5 +1,5 @@
-use std::io::BufReader;
 use crate::loader::*;
+use std::io::BufReader;
 
 pub struct STLLoader {}
 
