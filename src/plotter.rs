@@ -145,7 +145,10 @@ impl Slice {
 
                 let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-                solid_fill_polygon(&rotate_poly, settings)
+                solid_fill_polygon(&rotate_poly, settings).map(|mut chain| {
+                    chain.rotate(-angle.to_radians());
+                    chain
+                })
 
             }).collect()
         );
