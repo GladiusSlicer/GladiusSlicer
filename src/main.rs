@@ -350,7 +350,8 @@ fn convert(
     cmds: &Vec<Command>,
     settings: Settings,
     write: &mut impl Write,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>>
+{
     let mut start = settings.starting_gcode.clone();
     let mut write_buf = BufWriter::new(write);
     start = start.replace(
@@ -466,6 +467,8 @@ fn convert(
     let end = settings.ending_gcode.clone();
 
     writeln!(write_buf, "{}", end)?;
+
+    write_buf.flush();
 
     Ok(())
 }
