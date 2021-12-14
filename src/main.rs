@@ -11,7 +11,7 @@ use crate::tower::*;
 use geo::Coordinate;
 use geo_clipper::*;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Write, BufWriter};
 
 use std::ffi::OsStr;
 use std::path::Path;
@@ -352,7 +352,7 @@ fn convert(
     write: &mut impl Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut start = settings.starting_gcode.clone();
-
+    let mut write_buf = BufWriter::new(write);
     start = start.replace(
         "[First Layer Extruder Temp]",
         &format!("{:.1}", settings.filament.extruder_temp),
@@ -362,11 +362,11 @@ fn convert(
         &format!("{:.1}", settings.filament.bed_temp),
     );
 
-    writeln!(write, "{}", start)?;
+    writeln!(write_buf, "{}", start)?;
 
     for cmd in cmds {
         match cmd {
-            Command::MoveTo { end, .. } => writeln!(write, "G1 X{:.5} Y{:.5}", end.x, end.y)?,
+            Command::MoveTo { end, .. } => writeln!(write_buf, "G1 X{:.5} Y{:.5}", end.x, end.y)?,
             Command::MoveAndExtrude {
                 start,
                 end,
@@ -383,14 +383,14 @@ fn convert(
                         * settings.filament.diameter))
                     * length;
 
-                writeln!(write, "G1 X{:.5} Y{:.5} E{:.5}", end.x, end.y, extrude)?;
+                writeln!(write_buf, "G1 X{:.5} Y{:.5} E{:.5}", end.x, end.y, extrude)?;
             }
             Command::SetState { new_state } => {
                 match new_state.retract {
                     None => {}
                     Some(dir) => {
                         writeln!(
-                            write,
+                            write_buf,
                             "G1 E{} F{} ; Retract or unretract",
                             if dir { -1.0 } else { 1.0 } * settings.retract_length,
                             60.0 * settings.retract_speed
@@ -399,23 +399,23 @@ fn convert(
                 }
 
                 if let Some(speed) = new_state.movement_speed {
-                    writeln!(write, "G1 F{:.5}", speed * 60.0)?;
+                    writeln!(write_buf, "G1 F{:.5}", speed * 60.0)?;
                 }
                 if let Some(ext_temp) = new_state.extruder_temp {
-                    writeln!(write, "M104 S{:.1} ; set extruder temp", ext_temp)?;
+                    writeln!(write_buf, "M104 S{:.1} ; set extruder temp", ext_temp)?;
                 }
                 if let Some(bed_temp) = new_state.bed_temp {
-                    writeln!(write, "M140 S{:.1} ; set bed temp", bed_temp)?;
+                    writeln!(write_buf, "M140 S{:.1} ; set bed temp", bed_temp)?;
                 }
                 if let Some(fan_speed) = new_state.fan_speed {
-                    writeln!(write, "M106 S{} ; set fan speed", (2.550 * fan_speed).round() as usize )?;
+                    writeln!(write_buf, "M106 S{} ; set fan speed", (2.550 * fan_speed).round() as usize )?;
                 }
             }
             Command::LayerChange { z } => {
-                writeln!(write, "G1 Z{:.5}", z)?;
+                writeln!(write_buf, "G1 Z{:.5}", z)?;
             }
             Command::Delay { msec } => {
-                writeln!(write, "G4 P{:.5}", msec)?;
+                writeln!(write_buf, "G4 P{:.5}", msec)?;
             }
             Command::Arc {
                 start,
@@ -447,7 +447,7 @@ fn convert(
                         * settings.filament.diameter
                         * settings.filament.diameter);
                 writeln!(
-                    write,
+                    write_buf,
                     "{} X{:.5} Y{:.5} I{:.5} J{:.5} E{:.5}",
                     if *clockwise { "G2" } else { "G3" },
                     end.x,
@@ -465,7 +465,7 @@ fn convert(
 
     let end = settings.ending_gcode.clone();
 
-    writeln!(write, "{}", end)?;
+    writeln!(write_buf, "{}", end)?;
 
     Ok(())
 }
