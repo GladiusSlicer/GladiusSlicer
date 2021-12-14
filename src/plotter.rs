@@ -3,7 +3,7 @@ use crate::types::{Command, Move, MoveChain, MoveType};
 use geo::prelude::*;
 use geo::*;
 use geo_clipper::*;
-use itertools::Itertools;
+use itertools::{Itertools, chain};
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
 
@@ -128,15 +128,20 @@ impl Slice {
     ) {
         //For each area not in this slice that is in the other polygon, fill solid
 
-        let solid_area = self.remaining_area.difference(
-            &other.offset(
-                -settings.layer_width * 1.0,
+        let solid_area =
+            self.remaining_area.difference(
+                other,
+                100000.0,
+            ).offset(
+                settings.layer_width * 4.0,
                 JoinType::Square,
                 EndType::ClosedPolygon,
                 100000.0,
-            ),
-            100000.0,
-        );
+            ).intersection (
+                &self.remaining_area,
+                100000.0,
+            );
+
 
 
         self.chains.append(
