@@ -7,6 +7,10 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
 
+
+use rayon;
+use rayon::prelude::*;
+
 pub struct Slice {
     MainPolygon: MultiPolygon<f64>,
     remaining_area: MultiPolygon<f64>,
@@ -133,18 +137,18 @@ impl Slice {
             ),
             100000.0,
         );
-        for poly in &solid_area {
-            let angle = (120 as f64) * layer_count as f64;
 
-            let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-            let new_moves = solid_fill_polygon(&rotate_poly, settings);
+        self.chains.append(
+            &mut solid_area.0.par_iter().filter_map(|poly|  {
+                let angle = (120 as f64) * layer_count as f64;
 
-            if let Some(mut chain) = new_moves {
-                chain.rotate(-angle.to_radians());
-                self.chains.push(chain);
-            }
-        }
+                let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+
+                solid_fill_polygon(&rotate_poly, settings)
+
+            }).collect()
+        );
 
         self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
     }
@@ -215,20 +219,19 @@ fn inset_polygon(
     );
 
     for polygon in inset_poly.0.iter() {
-        let mut moves = vec![];
-
-        for (&_start, &end) in polygon
+        let mut moves = polygon
             .exterior()
             .0
             .iter()
             .circular_tuple_windows::<(_, _)>()
+            .map(|(&_start, &end)|
         {
-            moves.push(Move {
+            Move {
                 end: end,
                 move_type: MoveType::OuterPerimeter,
                 width: settings.layer_width,
-            });
-        }
+            }
+        }).collect();
 
         move_chains.push(MoveChain {
             start_point: polygon.exterior()[0],
@@ -399,7 +402,8 @@ fn partial_fill_polygon(
     poly: &Polygon<f64>,
     settings: &LayerSettings,
     fill_ratio: f64,
-) -> Option<MoveChain> {
+) -> Option<MoveChain>
+{
     let mut moves = vec![];
 
     let mut lines: Vec<(Coordinate<f64>, Coordinate<f64>)> = poly

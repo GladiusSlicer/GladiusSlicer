@@ -533,8 +533,8 @@ impl<'s> TriangleTowerIterator<'s> {
     pub fn advance_to_height(&mut self, z: f64) {
         //println!("Advance to height {} {} {}", self.tower.get_height_of_vertex(self.tower_vert_index), z, self.tower.tower_vertices[self.tower_vert_index].start_index);
 
-        while self.tower.tower_vertices.len() + 1 != self.tower_vert_index
-            && self.tower.get_height_of_vertex(self.tower_vert_index) < z
+        while  self.tower.get_height_of_vertex(self.tower_vert_index) < z
+            && self.tower.tower_vertices.len() + 1 != self.tower_vert_index
         {
             let pop_tower_vert = self.tower.tower_vertices[self.tower_vert_index].clone();
 

@@ -16,6 +16,9 @@ use std::io::Write;
 use std::ffi::OsStr;
 use std::path::Path;
 
+use rayon;
+use rayon::prelude::*;
+
 mod loader;
 mod optimizer;
 mod plotter;
@@ -129,44 +132,49 @@ fn main() {
 
     let mut moves = vec![];
     let mut layer = 0.0;
-    let mut more_lines = true;
 
-    let mut slices = vec![];
+    let mut first_layer = true;
 
-    while more_lines {
+    let mut slices : Vec<_> =
+    std::iter::repeat(())
+    .map(|_|{
         //Advance to the correct height
-        if slices.is_empty() {
-            //first layer
-            layer += settings.first_layer_height / 2.0;
-            tower_iter.advance_to_height(layer);
-            layer += settings.first_layer_height / 2.0;
-        } else {
-            layer += settings.layer_height / 2.0;
-            tower_iter.advance_to_height(layer);
-            layer += settings.layer_height / 2.0;
+        let layer_height = if first_layer {
+            settings.first_layer_height
         }
+        else {
+            settings.layer_height
+        };
+
+        layer += layer_height / 2.0;
+        tower_iter.advance_to_height(layer);
+        layer += layer_height / 2.0;
+
+
+        first_layer = false;
 
         //Get the ordered lists of points
-        let layer_loops = tower_iter.get_points();
+        (layer,tower_iter.get_points())
+    }).take_while(|(_,layer_loops)|{
+        !layer_loops.is_empty()
+    })
+    .map(|(l, layer_loops)|{
 
-        if layer_loops.is_empty() {
-            more_lines = false;
-        } else {
-            //Add this slice to the
-            let slice = Slice::from_multiple_point_loop(
-                layer_loops
-                    .iter()
-                    .map(|verts| {
-                        verts
-                            .into_iter()
-                            .map(|v| Coordinate { x: v.x, y: v.y })
-                            .collect::<Vec<Coordinate<f64>>>()
-                    })
-                    .collect(),
-            );
-            slices.push((layer, slice));
-        };
-    }
+        //Add this slice to the
+        let slice = Slice::from_multiple_point_loop(
+            layer_loops
+                .iter()
+                .map(|verts| {
+                    verts
+                        .into_iter()
+                        .map(|v| Coordinate { x: v.x, y: v.y })
+                        .collect::<Vec<Coordinate<f64>>>()
+                })
+                .collect(),
+        );
+        (l, slice)
+
+    }).collect();
 
     println!("Generating Moves");
 
@@ -176,16 +184,16 @@ fn main() {
 
     //Handle Perimeters
     println!("Generating Moves: Perimeters");
-    for (layer_num, (_layer, slice)) in slices.iter_mut().enumerate() {
+    slices.par_iter_mut().enumerate().for_each(|(layer_num, (_layer, slice))|  {
         slice.slice_perimeters_into_chains(&settings.get_layer_settings(layer_num),settings.number_of_perimeters);
-    }
+    });
 
     //Combine layer to form support
 
     println!("Generating Moves: Above and below support");
 
     let layers = 3;
-    for q in layers..slices.len() - layers {
+    (layers..slices.len() - layers).into_iter().for_each(|q| {
         let below = slices[(q - layers + 1)..q]
             .iter()
             .map(|m| m.1.get_entire_slice_polygon())
@@ -217,21 +225,22 @@ fn main() {
             &settings.get_layer_settings(q),
             q,
         )
-    }
+    });
+
     println!("Generating Moves: Fill Areas");
     //Fill all remaining areas
-    for (layer_num, (_layer, slice)) in slices.iter_mut().enumerate() {
+   slices.par_iter_mut().enumerate().for_each(|(layer_num, (_layer, slice)) | {
         slice.fill_remaining_area(
             &settings.get_layer_settings(layer_num),
-            layer_count < 3 || layer_count + 3 + 1 > slice_count,
-            layer_count,
+            layer_num < 3 || layer_num + 3 + 1 > slice_count,
+            layer_num,
         );
-        layer_count += 1;
-    }
+    });
+
     //Convert all commands into
     println!("Convert into Commnds");
     let mut last_layer = 0.0;
-    for (layer_num, (layer, slice)) in slices.iter_mut().enumerate() {
+    slices.iter_mut().enumerate().for_each(|(layer_num, (layer, slice))| {
         moves.push(Command::LayerChange { z: *layer });
         moves.push(Command::SetState {
             new_state: StateChange{
@@ -249,7 +258,7 @@ fn main() {
         );
 
         last_layer = *layer;
-    }
+    });
 
     let mut plastic_used = 0.0;
     let mut total_time = 0.0;
@@ -300,18 +309,18 @@ fn main() {
     let total_time = total_time.floor() as u32;
 
     println!(
-        "Total Time: {} hours {} minutes {} seconds",
+        "Total Time: {} hours {} minutes {:.3} seconds",
         total_time / 3600,
         (total_time % 3600) / 60,
         total_time % 60
     );
-    println!("Total Filament Volume: {} cm^3", plastic_used / 1000.0);
+    println!("Total Filament Volume: {:.3} cm^3", plastic_used / 1000.0);
     println!(
-        "Total Filament Mass: {} grams",
+        "Total Filament Mass: {:.3} grams",
         (plastic_used / 1000.0) * settings.filament.density
     );
     println!(
-        "Total Filament Cost: {} $",
+        "Total Filament Cost: {:.2} $",
         (((plastic_used / 1000.0) * settings.filament.density) / 1000.0) * settings.filament.cost
     );
 
