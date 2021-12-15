@@ -147,7 +147,46 @@ impl Slice {
                 .0
                 .par_iter()
                 .filter_map(|poly| {
-                    let angle = (120 as f64) * layer_count as f64;
+                    let angle = 45.0 + (120 as f64) * layer_count as f64;
+
+                    let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+
+                    solid_fill_polygon(&rotate_poly, settings).map(|mut chain| {
+                        chain.rotate(-angle.to_radians());
+                        chain
+                    })
+                })
+                .collect(),
+        );
+
+        self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
+    }
+
+    pub fn fill_solid_bridge_area(
+        &mut self,
+        layer_below: &MultiPolygon<f64>,
+        settings: &LayerSettings,
+        layer_count: usize,
+    ) {
+        //For each area not in this slice that is in the other polygon, fill solid
+
+        let solid_area = self
+            .remaining_area
+            .difference(layer_below, 100000.0)
+            .offset(
+                settings.layer_width * 4.0,
+                JoinType::Square,
+                EndType::ClosedPolygon,
+                100000.0,
+            )
+            .intersection(&self.remaining_area, 100000.0);
+
+        self.chains.append(
+            &mut solid_area
+                .0
+                .par_iter()
+                .filter_map(|poly| {
+                    let angle = 0.0;
 
                     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
