@@ -18,6 +18,7 @@ pub struct Settings {
     pub infill_speed: f64,
     pub infill_percentage: f64,
     pub travel_speed: f64,
+    pub bridge_speed: f64,
 
     pub first_layer_height: f64,
     pub first_layer_perimeter_speed: f64,
@@ -58,6 +59,7 @@ impl Default for Settings {
             infill_speed: 200.0,
             infill_percentage: 0.2,
             travel_speed: 180.0,
+            bridge_speed: 30.0,
             print_x: 210.0,
             print_y: 210.0,
             print_z: 210.0,
@@ -98,6 +100,7 @@ impl Settings {
                 perimeter_speed: self.first_layer_perimeter_speed,
                 infill_speed: self.first_layer_infill_speed,
                 travel_speed: self.first_layer_travel_speed,
+                bridge_speed: self.bridge_speed,
                 layer_width: self.layer_width,
                 infill_percentage: self.infill_percentage,
             }
@@ -107,6 +110,7 @@ impl Settings {
                 perimeter_speed: self.perimeter_speed,
                 infill_speed: self.infill_speed,
                 travel_speed: self.travel_speed,
+                bridge_speed: self.bridge_speed,
                 layer_width: self.layer_width,
                 infill_percentage: self.infill_percentage,
             }
@@ -119,6 +123,7 @@ pub struct LayerSettings {
     pub perimeter_speed: f64,
     pub infill_speed: f64,
     pub travel_speed: f64,
+    pub bridge_speed: f64,
     pub layer_width: f64,
     pub infill_percentage: f64,
 }

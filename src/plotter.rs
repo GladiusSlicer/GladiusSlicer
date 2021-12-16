@@ -107,7 +107,7 @@ impl Slice {
 
                 let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-                let new_moves = solid_fill_polygon(&rotate_poly, settings);
+                let new_moves = solid_fill_polygon(&rotate_poly, settings, MoveType::SolidInfill);
 
                 if let Some(mut chain) = new_moves {
                     chain.rotate(-angle.to_radians());
@@ -151,7 +151,7 @@ impl Slice {
 
                     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-                    solid_fill_polygon(&rotate_poly, settings).map(|mut chain| {
+                    solid_fill_polygon(&rotate_poly, settings, MoveType::SolidInfill).map(|mut chain| {
                         chain.rotate(-angle.to_radians());
                         chain
                     })
@@ -166,7 +166,6 @@ impl Slice {
         &mut self,
         layer_below: &MultiPolygon<f64>,
         settings: &LayerSettings,
-        layer_count: usize,
     ) {
         //For each area not in this slice that is in the other polygon, fill solid
 
@@ -190,7 +189,7 @@ impl Slice {
 
                     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-                    solid_fill_polygon(&rotate_poly, settings).map(|mut chain| {
+                    solid_fill_polygon(&rotate_poly, settings, MoveType::Bridging).map(|mut chain| {
                         chain.rotate(-angle.to_radians());
                         chain
                     })
@@ -311,7 +310,7 @@ fn inset_polygon(
     )
 }
 
-fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings) -> Option<MoveChain> {
+fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings, fill_type: MoveType) -> Option<MoveChain> {
     let mut moves = vec![];
 
     let mut lines: Vec<(Coordinate<f64>, Coordinate<f64>)> = poly
@@ -394,7 +393,7 @@ fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings) -> Option<M
             move_type: if line_change {
                 MoveType::Travel
             } else {
-                MoveType::Infill
+                fill_type
             },
             width: settings.layer_width,
         });
@@ -415,7 +414,7 @@ fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings) -> Option<M
                         x: *end - settings.layer_width / 2.0,
                         y: current_y,
                     },
-                    move_type: MoveType::Infill,
+                    move_type: fill_type,
                     width: settings.layer_width,
                 });
             }
@@ -435,7 +434,7 @@ fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings) -> Option<M
                         x: *end + settings.layer_width / 2.0,
                         y: current_y,
                     },
-                    move_type: MoveType::Infill,
+                    move_type: fill_type,
                     width: settings.layer_width,
                 });
             }

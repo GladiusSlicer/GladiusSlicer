@@ -99,6 +99,7 @@ pub enum MoveType {
     Infill,
     OuterPerimeter,
     InnerPerimeter,
+    Bridging,
     Support,
     Travel,
 }
@@ -130,6 +131,17 @@ impl MoveChain {
                                 extruder_temp: None,
                                 fan_speed: None,
                                 movement_speed: Some(settings.infill_speed),
+                                retract: Some(false),
+                            },
+                        });
+                    }
+                    MoveType::Bridging => {
+                        cmds.push(Command::SetState {
+                            new_state: StateChange {
+                                bed_temp: None,
+                                extruder_temp: None,
+                                fan_speed: None,
+                                movement_speed: Some(settings.bridge_speed),
                                 retract: Some(false),
                             },
                         });

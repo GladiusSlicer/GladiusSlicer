@@ -194,7 +194,7 @@ fn main() {
         .into_iter().for_each(|q| {
          let below = slices[q -1].1.get_entire_slice_polygon().clone();
 
-        slices[q].1.fill_solid_bridge_area(&below,&settings.get_layer_settings(q),q );
+        slices[q].1.fill_solid_bridge_area(&below,&settings.get_layer_settings(q) );
 
     });
     //Combine layer to form support
