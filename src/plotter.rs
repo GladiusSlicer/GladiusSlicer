@@ -151,10 +151,12 @@ impl Slice {
 
                     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-                    solid_fill_polygon(&rotate_poly, settings, MoveType::SolidInfill).map(|mut chain| {
-                        chain.rotate(-angle.to_radians());
-                        chain
-                    })
+                    solid_fill_polygon(&rotate_poly, settings, MoveType::SolidInfill).map(
+                        |mut chain| {
+                            chain.rotate(-angle.to_radians());
+                            chain
+                        },
+                    )
                 })
                 .collect(),
         );
@@ -189,10 +191,12 @@ impl Slice {
 
                     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-                    solid_fill_polygon(&rotate_poly, settings, MoveType::Bridging).map(|mut chain| {
-                        chain.rotate(-angle.to_radians());
-                        chain
-                    })
+                    solid_fill_polygon(&rotate_poly, settings, MoveType::Bridging).map(
+                        |mut chain| {
+                            chain.rotate(-angle.to_radians());
+                            chain
+                        },
+                    )
                 })
                 .collect(),
         );
@@ -310,7 +314,11 @@ fn inset_polygon(
     )
 }
 
-fn solid_fill_polygon(poly: &Polygon<f64>, settings: &LayerSettings, fill_type: MoveType) -> Option<MoveChain> {
+fn solid_fill_polygon(
+    poly: &Polygon<f64>,
+    settings: &LayerSettings,
+    fill_type: MoveType,
+) -> Option<MoveChain> {
     let mut moves = vec![];
 
     let mut lines: Vec<(Coordinate<f64>, Coordinate<f64>)> = poly

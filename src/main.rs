@@ -124,7 +124,9 @@ fn main() {
 
     println!("Creating Tower");
 
-    let tower = TriangleTower::from_triangles_and_vertices(&triangles, vertices);
+    let tower = TriangleTower::from_triangles_and_vertices(&triangles, vertices).expect(
+        "Error Creating Tower. Model most likely needs repair. Please Repair and run again.",
+    );
 
     let mut tower_iter = TriangleTowerIterator::new(&tower);
 
@@ -145,7 +147,7 @@ fn main() {
             };
 
             layer += layer_height / 2.0;
-            tower_iter.advance_to_height(layer);
+            tower_iter.advance_to_height(layer).expect("Error Creating Tower. Model most likely needs repair. Please Repair and run again.");
             layer += layer_height / 2.0;
 
             first_layer = false;
@@ -190,12 +192,12 @@ fn main() {
         });
 
     println!("Generating Moves: Bridging");
-    (1..slices.len())
-        .into_iter().for_each(|q| {
-         let below = slices[q -1].1.get_entire_slice_polygon().clone();
+    (1..slices.len()).into_iter().for_each(|q| {
+        let below = slices[q - 1].1.get_entire_slice_polygon().clone();
 
-        slices[q].1.fill_solid_bridge_area(&below,&settings.get_layer_settings(q) );
-
+        slices[q]
+            .1
+            .fill_solid_bridge_area(&below, &settings.get_layer_settings(q));
     });
     //Combine layer to form support
 
@@ -498,7 +500,9 @@ fn convert(
 
     writeln!(write_buf, "{}", end)?;
 
-    write_buf.flush();
+    write_buf
+        .flush()
+        .expect("File Closed Before CLosed. Gcode invalid.");
 
     Ok(())
 }

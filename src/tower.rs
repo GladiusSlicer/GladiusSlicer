@@ -27,7 +27,7 @@ impl TriangleTower {
     pub fn from_triangles_and_vertices(
         triangles: &Vec<IndexedTriangle>,
         vertices: Vec<Vertex>,
-    ) -> Self {
+    ) -> Result<Self, ()> {
         let mut future_tower_vert: Vec<Vec<TriangleEvent>> =
             (0..vertices.len()).map(|_| vec![]).collect();
 
@@ -53,25 +53,29 @@ impl TriangleTower {
             }
         }
 
-        let mut tower_vertices: Vec<TowerVertex> = future_tower_vert
+        let res_tower_vertices: Result<Vec<TowerVertex>, ()> = future_tower_vert
             .into_iter()
             .enumerate()
-            .map(|(index, events)| TowerVertex {
-                start_index: index,
-                next_ring_fragments: join_triangle_event(events, index),
+            .map(|(index, events)| {
+                join_triangle_event(events, index).map(|fragments| TowerVertex {
+                    start_index: index,
+                    next_ring_fragments: fragments,
+                })
             })
             .collect();
+
+        let mut tower_vertices = res_tower_vertices?;
 
         tower_vertices.sort_by(|a, b| {
             vertices[a.start_index]
                 .partial_cmp(&vertices[b.start_index])
-                .unwrap()
+                .expect("STL ERROR: No Points should have NAN values")
         });
 
-        Self {
+        Ok(Self {
             tower_vertices,
             vertices,
-        }
+        })
     }
 
     pub fn get_height_of_vertex(&self, index: usize) -> f64 {
@@ -95,24 +99,31 @@ struct TowerRing {
 }
 
 impl TowerRing {
-    fn repair_loop(&mut self) {
+    fn repair_loop(&mut self) -> Result<(), ()> {
         if *self.last_element.borrow() == *self.first_element.borrow() {
             let mut ring_ptr = self.first_element.clone();
 
             while {
-                let next = ring_ptr.borrow().next().unwrap().clone();
+                let next = if let Some(next) = ring_ptr.borrow().next().map(|n| n.clone()) {
+                    next
+                } else {
+                    return Err(());
+                };
+
                 ring_ptr = next;
 
-                *ring_ptr.borrow().next().unwrap().borrow() != *self.last_element.borrow()
+                ring_ptr.borrow().next() != Some(&self.last_element)
             } {}
             let mut borrow = ring_ptr.borrow_mut();
             borrow.set_next(Some(self.first_element.clone()));
 
             self.last_element = self.first_element.clone();
         }
+
+        Ok(())
     }
 
-    fn join_rings(first: TowerRing, second: TowerRing) -> Self {
+    fn join_rings(first: TowerRing, second: TowerRing) -> Result<Self, ()> {
         let second_next = second.first_element.borrow().next_clone();
 
         first.last_element.borrow_mut().set_next(second_next);
@@ -122,11 +133,11 @@ impl TowerRing {
             last_element: second.last_element,
         };
 
-        new_frag.repair_loop();
+        new_frag.repair_loop()?;
 
-        new_frag
+        Ok(new_frag)
     }
-
+    /*
     fn add_to_end(&mut self, second: TowerRing) {
         let second_next = second.first_element.borrow().next_clone();
 
@@ -134,9 +145,9 @@ impl TowerRing {
         self.last_element = second.last_element;
 
         self.repair_loop();
-    }
+    }*/
 
-    fn split_on_edge(mut self, edge: usize) -> Vec<Self> {
+    fn split_on_edge(mut self, edge: usize) -> Result<Vec<Self>, ()> {
         let mut frags = vec![];
 
         let mut ring_ptr = self.first_element.clone();
@@ -151,7 +162,7 @@ impl TowerRing {
 
         while {
             last_ptr = ring_ptr.clone();
-            let next = ring_ptr.borrow().next().unwrap().clone();
+            let next = ring_ptr.borrow().next().ok_or(())?.clone();
             ring_ptr = next;
             if let TowerRingElement::Edge { end_index, .. } = *ring_ptr.borrow() {
                 if end_index == edge {
@@ -161,11 +172,11 @@ impl TowerRing {
                     frags.push(std::mem::replace(
                         &mut temp_frag,
                         TowerRing {
-                            first_element: ring_ptr.borrow().next_clone().unwrap(),
+                            first_element: ring_ptr.borrow().next_clone().ok_or(())?,
                             last_element: self.last_element.clone(),
                         },
                     ));
-                    self.first_element = ring_ptr.borrow().next_clone().unwrap();
+                    self.first_element = ring_ptr.borrow().next_clone().ok_or(())?;
 
                     found = true;
                 }
@@ -182,7 +193,7 @@ impl TowerRing {
         frags.push(self);
 
         frags.retain(|frag| frag.first_element.borrow().next().is_some());
-        frags
+        Ok(frags)
     }
 }
 
@@ -222,7 +233,7 @@ impl Display for TowerRing {
                 }
             }?;
             write!(f, "-> ")?;
-            let next = ring_ptr.borrow().next_clone().unwrap();
+            let next = ring_ptr.borrow().next_clone().expect("Next Must Be valid");
             ring_ptr = next;
 
             *ring_ptr.borrow() != *self.last_element.borrow()
@@ -287,7 +298,7 @@ impl TowerRingElement {
             TowerRingElement::Face { ref mut next, .. } => *next = n,
         }
     }
-
+    /*
     fn deep_clone(&self) -> TowerRingElement {
         match self {
             TowerRingElement::Edge {
@@ -304,7 +315,7 @@ impl TowerRingElement {
                 next: None,
             },
         }
-    }
+    }*/
 }
 
 impl PartialEq for TowerRingElement {
@@ -368,7 +379,10 @@ pub enum TriangleEvent {
     },
 }
 
-fn join_triangle_event(events: Vec<TriangleEvent>, starting_point: usize) -> Vec<TowerRing> {
+fn join_triangle_event(
+    events: Vec<TriangleEvent>,
+    starting_point: usize,
+) -> Result<Vec<TowerRing>, ()> {
     //debug!("Tri events = {:?}",events);
     let mut element_list: Vec<TowerRing> = Vec::new();
     for event in events.iter() {
@@ -439,9 +453,9 @@ fn join_triangle_event(events: Vec<TriangleEvent>, starting_point: usize) -> Vec
         }
     }
 
-    join_fragments(&mut element_list);
+    join_fragments(&mut element_list)?;
 
-    element_list
+    Ok(element_list)
 }
 
 /*
@@ -483,7 +497,7 @@ fn join_fragments(fragments: &mut Vec<TowerRing>) {
 
 }
 */
-fn join_fragments(fragments: &mut Vec<TowerRing>) {
+fn join_fragments(fragments: &mut Vec<TowerRing>) -> Result<(), ()> {
     /*
 
         for frag in &*fragments{
@@ -493,14 +507,14 @@ fn join_fragments(fragments: &mut Vec<TowerRing>) {
     'outer: loop {
         for first_pos in 0..fragments.len() {
             for second_pos in (first_pos + 1)..fragments.len() {
-                let first = fragments.get(first_pos).unwrap();
-                let second = fragments.get(second_pos).unwrap();
+                let first = fragments.get(first_pos).ok_or(())?;
+                let second = fragments.get(second_pos).ok_or(())?;
 
                 if first.last_element == second.first_element {
                     let second_r = fragments.swap_remove(second_pos);
                     let first_r = fragments.swap_remove(first_pos);
 
-                    fragments.push(TowerRing::join_rings(first_r, second_r));
+                    fragments.push(TowerRing::join_rings(first_r, second_r)?);
 
                     continue 'outer;
                 }
@@ -508,7 +522,7 @@ fn join_fragments(fragments: &mut Vec<TowerRing>) {
         }
 
         //No more points to join
-        return;
+        return Ok(());
     }
 }
 
@@ -530,7 +544,7 @@ impl<'s> TriangleTowerIterator<'s> {
         }
     }
 
-    pub fn advance_to_height(&mut self, z: f64) {
+    pub fn advance_to_height(&mut self, z: f64) -> Result<(), ()> {
         //println!("Advance to height {} {} {}", self.tower.get_height_of_vertex(self.tower_vert_index), z, self.tower.tower_vertices[self.tower_vert_index].start_index);
 
         while self.tower.get_height_of_vertex(self.tower_vert_index) < z
@@ -539,14 +553,15 @@ impl<'s> TriangleTowerIterator<'s> {
             let pop_tower_vert = self.tower.tower_vertices[self.tower_vert_index].clone();
 
             //Create Frags from rings by removing current edges
-            let mut frags: Vec<TowerRing> = self
+            let mut vec_frag: Result<Vec<Vec<TowerRing>>, ()> = self
                 .active_rings
                 .drain(..)
-                .map(|tower_ring| {
-                    tower_ring
-                        .split_on_edge(pop_tower_vert.start_index)
-                        .into_iter()
-                })
+                .map(|tower_ring| tower_ring.split_on_edge(pop_tower_vert.start_index))
+                .collect();
+
+            let mut frags: Vec<TowerRing> = vec_frag?
+                .drain(..)
+                .map(|vec_frag| vec_frag.into_iter())
                 .flatten()
                 .collect();
 
@@ -554,12 +569,14 @@ impl<'s> TriangleTowerIterator<'s> {
 
             frags.extend(pop_tower_vert.next_ring_fragments.clone().into_iter());
 
-            join_fragments(&mut frags);
+            join_fragments(&mut frags)?;
             self.active_rings = frags;
             self.tower_vert_index += 1;
         }
 
         self.z_height = z;
+
+        Ok(())
     }
 
     pub fn get_points(&self) -> Vec<Vec<Vertex>> {
