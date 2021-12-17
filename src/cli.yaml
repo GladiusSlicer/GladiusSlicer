@@ -12,6 +12,7 @@ args:
     - INPUT:
         help: Sets the input file to use
         required: true
+        multiple: true
         index: 1
     - OUTPUT:
         help: Sets the output file to use

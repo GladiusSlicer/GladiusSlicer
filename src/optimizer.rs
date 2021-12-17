@@ -24,6 +24,7 @@ pub fn unary_optimizer(cmds: &mut Vec<Command>) {
         Command::MoveTo { .. } => true,
         Command::MoveAndExtrude { start, end, .. } => start != end,
         Command::LayerChange { .. } => true,
+        Command::ChangeObject { .. } => true,
         Command::SetState { new_state } => {
             !(new_state.extruder_temp.is_none()
                 && new_state.movement_speed.is_none()

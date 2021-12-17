@@ -8,7 +8,7 @@ use crate::optimizer::optimize_commands;
 use crate::plotter::Slice;
 use crate::settings::Settings;
 use crate::tower::*;
-use geo::Coordinate;
+use geo::{Coordinate, Triangle};
 use geo_clipper::*;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -26,7 +26,6 @@ mod settings;
 mod tower;
 mod types;
 
-
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
     let yaml = load_yaml!("cli.yaml");
@@ -40,8 +39,6 @@ fn main() {
     // Gets a value for config if supplied by user, or defaults to "default.conf"
     let config = matches.value_of("config").unwrap_or("default.conf");
     println!("Value for config: {}", config);
-
-
 
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'myprog -v -v -v' or 'myprog -vvv' vs 'myprog -v'
@@ -70,256 +67,302 @@ fn main() {
 
     println!("Loading Input");
 
+    let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>, Transform)> = matches
+        .values_of("INPUT")
+        .unwrap()
+        .map(|value| {
+            let obj: InputObject = serde_json::from_str(value).unwrap();
+            obj
+        })
+        .par_bridge()
+        .map(|object| {
+            let model_path = Path::new(object.get_model_path());
 
-    let model_path = Path::new(object.get_model_path());
+            // Calling .unwrap() is safe here because "INPUT" is required (if "INPUT" wasn't
+            // required we could have used an 'if let' to conditionally get the value)
+            println!("Using input file: {:?}", model_path);
 
-    // Calling .unwrap() is safe here because "INPUT" is required (if "INPUT" wasn't
-    // required we could have used an 'if let' to conditionally get the value)
-    println!("Using input file: {:?}", model_path);
+            let extension = model_path
+                .extension()
+                .and_then(OsStr::to_str)
+                .expect("File Parse Issue");
 
-    let extension = model_path
-        .extension()
-        .and_then(OsStr::to_str)
-        .expect("File Parse Issue");
-
-    let loader: &dyn Loader = match extension {
-        "stl" => &STLLoader {},
-        "3MF" => &ThreeMFLoader {},
-        _ => panic!("File Format {} not supported", extension),
-    };
-
-    let (mut vertices, triangles) = loader.load(model_path.to_str().unwrap()).unwrap();
-
-    let transform = match object{
-        InputObject::Raw(_, transform) => { transform}
-        InputObject::Auto(_) => {
-            let (min_x, max_x, min_y, max_y, min_z) = vertices.iter().fold(
-                (
-                    f64::INFINITY,
-                    f64::NEG_INFINITY,
-                    f64::INFINITY,
-                    f64::NEG_INFINITY,
-                    f64::INFINITY,
-                ),
-                |a, b| {
-                    (
-                        a.0.min(b.x),
-                        a.1.max(b.x),
-                        a.2.min(b.y),
-                        a.3.max(b.y),
-                        a.4.min(b.z),
-                    )
-                },
-            );
-            Transform::new_translation_transform(
-                (settings.print_x - (max_x + min_x)) / 2.,
-                (settings.print_y - (max_y + min_y)) / 2.,
-                -min_z,
-            )
-        }
-        InputObject::AutoTranslate(_, x, y) => {
-            let (min_x, max_x, min_y, max_y, min_z) = vertices.iter().fold(
-                (
-                    f64::INFINITY,
-                    f64::NEG_INFINITY,
-                    f64::INFINITY,
-                    f64::NEG_INFINITY,
-                    f64::INFINITY,
-                ),
-                |a, b| {
-                    (
-                        a.0.min(b.x),
-                        a.1.max(b.x),
-                        a.2.min(b.y),
-                        a.3.max(b.y),
-                        a.4.min(b.z),
-                    )
-                },
-            );
-            Transform::new_translation_transform(
-                (x+settings.print_x - (max_x + min_x)) / 2.,
-                (y+settings.print_y - (max_y + min_y)) / 2.,
-                -min_z,
-            )
-        }
-    };
-
-
-    let trans_str = serde_json::to_string(&transform).unwrap();
-
-    println!("Using Transform {}", trans_str);
-
-    for vert in vertices.iter_mut() {
-        *vert = &transform * *vert;
-    }
-
-    println!("Creating Tower");
-
-    let tower = TriangleTower::from_triangles_and_vertices(&triangles, vertices).expect(
-        "Error Creating Tower. Model most likely needs repair. Please Repair and run again.",
-    );
-
-    let mut tower_iter = TriangleTowerIterator::new(&tower);
-
-    println!("Slicing");
-
-    let mut moves = vec![];
-    let mut layer = 0.0;
-
-    let mut first_layer = true;
-
-    let mut slices: Vec<_> = std::iter::repeat(())
-        .map(|_| {
-            //Advance to the correct height
-            let layer_height = if first_layer {
-                settings.first_layer_height
-            } else {
-                settings.layer_height
+            let loader: &dyn Loader = match extension {
+                "stl" => &STLLoader {},
+                "3MF" => &ThreeMFLoader {},
+                _ => panic!("File Format {} not supported", extension),
             };
 
-            layer += layer_height / 2.0;
-            tower_iter.advance_to_height(layer).expect("Error Creating Tower. Model most likely needs repair. Please Repair and run again.");
-            layer += layer_height / 2.0;
+            let (mut vertices, triangles) = loader.load(model_path.to_str().unwrap()).unwrap();
 
-            first_layer = false;
+            let transform = match object {
+                InputObject::Raw(_, transform) => transform,
+                InputObject::Auto(_) => {
+                    let (min_x, max_x, min_y, max_y, min_z) = vertices.iter().fold(
+                        (
+                            f64::INFINITY,
+                            f64::NEG_INFINITY,
+                            f64::INFINITY,
+                            f64::NEG_INFINITY,
+                            f64::INFINITY,
+                        ),
+                        |a, b| {
+                            (
+                                a.0.min(b.x),
+                                a.1.max(b.x),
+                                a.2.min(b.y),
+                                a.3.max(b.y),
+                                a.4.min(b.z),
+                            )
+                        },
+                    );
+                    Transform::new_translation_transform(
+                        (settings.print_x - (max_x + min_x)) / 2.,
+                        (settings.print_y - (max_y + min_y)) / 2.,
+                        -min_z,
+                    )
+                }
+                InputObject::AutoTranslate(_, x, y) => {
+                    let (min_x, max_x, min_y, max_y, min_z) = vertices.iter().fold(
+                        (
+                            f64::INFINITY,
+                            f64::NEG_INFINITY,
+                            f64::INFINITY,
+                            f64::NEG_INFINITY,
+                            f64::INFINITY,
+                        ),
+                        |a, b| {
+                            (
+                                a.0.min(b.x),
+                                a.1.max(b.x),
+                                a.2.min(b.y),
+                                a.3.max(b.y),
+                                a.4.min(b.z),
+                            )
+                        },
+                    );
+                    Transform::new_translation_transform(
+                        (x + settings.print_x - (max_x + min_x)) / 2.,
+                        (y + settings.print_y - (max_y + min_y)) / 2.,
+                        -min_z,
+                    )
+                }
+            };
 
-            //Get the ordered lists of points
-            (layer, tower_iter.get_points())
-        })
-        .take_while(|(_, layer_loops)| !layer_loops.is_empty())
-        .map(|(l, layer_loops)| {
-            //Add this slice to the
-            let slice = Slice::from_multiple_point_loop(
-                layer_loops
-                    .iter()
-                    .map(|verts| {
-                        verts
-                            .into_iter()
-                            .map(|v| Coordinate { x: v.x, y: v.y })
-                            .collect::<Vec<Coordinate<f64>>>()
-                    })
-                    .collect(),
-            );
-            (l, slice)
+            let trans_str = serde_json::to_string(&transform).unwrap();
+
+            println!("Using Transform {}", trans_str);
+
+            for vert in vertices.iter_mut() {
+                *vert = &transform * *vert;
+            }
+
+            (vertices, triangles, transform)
         })
         .collect();
 
+    println!("Creating Towers");
+    let towers : Vec<TriangleTower>= converted_inputs.into_iter().map(|( vertices, triangles, transform)|{
+        if let Ok(tower) = TriangleTower::from_triangles_and_vertices(&triangles, vertices){
+            tower
+        }
+        else{
+            println!("Error Creating Tower. Model most likely needs repair. Please Repair and run again.");
+            std::process::exit(-1);
+        }
+    }).collect();
+
+    println!("Slicing");
+
+    let mut objects: Vec<Object> = towers.into_iter().map(|tower| {
+
+        let mut tower_iter = TriangleTowerIterator::new(&tower);
+
+        let mut layer = 0.0;
+
+        let mut first_layer = true;
+
+        let mut slices: Vec<_> = std::iter::repeat(())
+            .map(|_| {
+                //Advance to the correct height
+                let layer_height = if first_layer {
+                    settings.first_layer_height
+                } else {
+                    settings.layer_height
+                };
+
+                layer += layer_height / 2.0;
+                tower_iter.advance_to_height(layer).expect("Error Creating Tower. Model most likely needs repair. Please Repair and run again.");
+                layer += layer_height / 2.0;
+
+                first_layer = false;
+
+                //Get the ordered lists of points
+                (layer, tower_iter.get_points())
+            })
+            .take_while(|(_, layer_loops)| !layer_loops.is_empty())
+            .map(|(l, layer_loops)| {
+                //Add this slice to the
+                let slice = Slice::from_multiple_point_loop(
+                    layer_loops
+                        .iter()
+                        .map(|verts| {
+                            verts
+                                .into_iter()
+                                .map(|v| Coordinate { x: v.x, y: v.y })
+                                .collect::<Vec<Coordinate<f64>>>()
+                        })
+                        .collect(),
+                );
+                (l, slice)
+            })
+            .collect();
+
+        Object{layers:slices}
+    }).collect();
+
     println!("Generating Moves");
 
-    let mut layer_count = 0;
+    objects.par_iter_mut().for_each(|object| {
+        let mut slices = &mut object.layers;
 
-    let slice_count = slices.len();
+        let mut layer_count = 0;
 
-    //Handle Perimeters
-    println!("Generating Moves: Perimeters");
-    slices
-        .par_iter_mut()
-        .enumerate()
-        .for_each(|(layer_num, (_layer, slice))| {
-            slice.slice_perimeters_into_chains(
-                &settings.get_layer_settings(layer_num),
-                settings.number_of_perimeters,
-            );
+        let slice_count = slices.len();
+
+        //Handle Perimeters
+        println!("Generating Moves: Perimeters");
+        slices
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(layer_num, (_layer, slice))| {
+                slice.slice_perimeters_into_chains(
+                    &settings.get_layer_settings(layer_num),
+                    settings.number_of_perimeters,
+                );
+            });
+
+        println!("Generating Moves: Bridging");
+        (1..slices.len()).into_iter().for_each(|q| {
+            let below = slices[q - 1].1.get_entire_slice_polygon().clone();
+
+            slices[q]
+                .1
+                .fill_solid_bridge_area(&below, &settings.get_layer_settings(q));
+        });
+        //Combine layer to form support
+
+        println!("Generating Moves: Above and below support");
+
+        let layers = 3;
+        (layers..slices.len() - layers).into_iter().for_each(|q| {
+            let below = slices[(q - layers + 1)..q]
+                .iter()
+                .map(|m| m.1.get_entire_slice_polygon())
+                .fold(
+                    slices
+                        .get(q - layers)
+                        .unwrap()
+                        .1
+                        .get_entire_slice_polygon()
+                        .clone(),
+                    |a, b| a.intersection(b, 10000.0),
+                );
+            let above = slices[q + 2..q + layers]
+                .iter()
+                .map(|m| m.1.get_entire_slice_polygon())
+                .fold(
+                    slices
+                        .get(q + 1)
+                        .unwrap()
+                        .1
+                        .get_entire_slice_polygon()
+                        .clone(),
+                    |a, b| a.intersection(b, 10000.0),
+                );
+            let intersection = below.intersection(&above, 10000.0);
+
+            slices.get_mut(q).unwrap().1.fill_solid_subtracted_area(
+                &intersection,
+                &settings.get_layer_settings(q),
+                q,
+            )
         });
 
-    println!("Generating Moves: Bridging");
-    (1..slices.len()).into_iter().for_each(|q| {
-        let below = slices[q - 1].1.get_entire_slice_polygon().clone();
-
-        slices[q]
-            .1
-            .fill_solid_bridge_area(&below, &settings.get_layer_settings(q));
-    });
-    //Combine layer to form support
-
-    println!("Generating Moves: Above and below support");
-
-    let layers = 3;
-    (layers..slices.len() - layers).into_iter().for_each(|q| {
-        let below = slices[(q - layers + 1)..q]
-            .iter()
-            .map(|m| m.1.get_entire_slice_polygon())
-            .fold(
-                slices
-                    .get(q - layers)
-                    .unwrap()
-                    .1
-                    .get_entire_slice_polygon()
-                    .clone(),
-                |a, b| a.intersection(b, 10000.0),
-            );
-        let above = slices[q + 2..q + layers]
-            .iter()
-            .map(|m| m.1.get_entire_slice_polygon())
-            .fold(
-                slices
-                    .get(q + 1)
-                    .unwrap()
-                    .1
-                    .get_entire_slice_polygon()
-                    .clone(),
-                |a, b| a.intersection(b, 10000.0),
-            );
-        let intersection = below.intersection(&above, 10000.0);
-
-        slices.get_mut(q).unwrap().1.fill_solid_subtracted_area(
-            &intersection,
-            &settings.get_layer_settings(q),
-            q,
-        )
+        println!("Generating Moves: Fill Areas");
+        //Fill all remaining areas
+        slices
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(layer_num, (_layer, slice))| {
+                slice.fill_remaining_area(
+                    &settings.get_layer_settings(layer_num),
+                    layer_num < 3 || layer_num + 3 + 1 > slice_count,
+                    layer_num,
+                );
+            });
     });
 
-    println!("Generating Moves: Fill Areas");
-    //Fill all remaining areas
-    slices
-        .par_iter_mut()
+    println!("Convert into Commnds");
+    let mut layer_moves: Vec<(f64, Vec<Command>)> = objects
+        .into_iter()
         .enumerate()
-        .for_each(|(layer_num, (_layer, slice))| {
-            slice.fill_remaining_area(
-                &settings.get_layer_settings(layer_num),
-                layer_num < 3 || layer_num + 3 + 1 > slice_count,
-                layer_num,
-            );
-        });
+        .map(|(object_num, object)| {
+            let mut last_layer = 0.0;
+
+            object
+                .layers
+                .into_iter()
+                .enumerate()
+                .map(|(layer_num, (layer, mut slice))| {
+                    let mut moves = vec![];
+                    moves.push(Command::ChangeObject { object: object_num });
+                    moves.push(Command::LayerChange { z: layer });
+                    moves.push(Command::SetState {
+                        new_state: StateChange {
+                            extruder_temp: Some(if layer_num == 0 {
+                                settings.filament.first_layer_extruder_temp
+                            } else {
+                                settings.filament.extruder_temp
+                            }),
+                            bed_temp: Some(if layer_num == 0 {
+                                settings.filament.first_layer_bed_temp
+                            } else {
+                                settings.filament.bed_temp
+                            }),
+                            fan_speed: Some(if layer_num < settings.fan.disable_fan_for_layers {
+                                0.0
+                            } else {
+                                settings.fan.fan_speed
+                            }),
+                            movement_speed: None,
+                            retract: None,
+                        },
+                    });
+                    slice.slice_into_commands(
+                        &settings.get_layer_settings(layer_num),
+                        &mut moves,
+                        layer - last_layer,
+                    );
+
+                    last_layer = layer;
+                    (layer, moves)
+                })
+                .collect::<Vec<(f64, Vec<Command>)>>()
+        })
+        .map(|a| a.into_iter())
+        .flatten()
+        .collect();
+
+    layer_moves.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
+
+    let mut moves: Vec<_> = layer_moves
+        .into_iter()
+        .map(|(_, layer_moves)| layer_moves)
+        .flatten()
+        .collect();
 
     //Convert all commands into
-    println!("Convert into Commnds");
-    let mut last_layer = 0.0;
-    slices
-        .iter_mut()
-        .enumerate()
-        .for_each(|(layer_num, (layer, slice))| {
-            moves.push(Command::LayerChange { z: *layer });
-            moves.push(Command::SetState {
-                new_state: StateChange {
-                    extruder_temp: Some(if layer_num == 0 {
-                        settings.filament.first_layer_extruder_temp
-                    } else {
-                        settings.filament.extruder_temp
-                    }),
-                    bed_temp: Some(if layer_num == 0 {
-                        settings.filament.first_layer_bed_temp
-                    } else {
-                        settings.filament.bed_temp
-                    }),
-                    fan_speed: Some(if layer_num < settings.fan.disable_fan_for_layers {
-                        0.0
-                    } else {
-                        settings.fan.fan_speed
-                    }),
-                    movement_speed: None,
-                    retract: None,
-                },
-            });
-            slice.slice_into_commands(
-                &settings.get_layer_settings(layer_num),
-                &mut moves,
-                *layer - last_layer,
-            );
-
-            last_layer = *layer;
-        });
-
     let mut plastic_used = 0.0;
     let mut total_time = 0.0;
     let mut current_speed = 0.0;
@@ -362,7 +405,7 @@ fn main() {
             Command::Arc { .. } => {
                 unimplemented!()
             }
-            Command::NoAction => {}
+            Command::NoAction | Command::LayerChange { .. } | Command::ChangeObject { .. } => {}
         }
     }
 
@@ -520,6 +563,9 @@ fn convert(
                     center.y,
                     extrude
                 )?;
+            }
+            Command::ChangeObject { object } => {
+                writeln!(write_buf, "; Change Object to {}", object)?;
             }
             Command::NoAction => {
                 panic!("Converter reached a No Action Command, Optimization Failure")
