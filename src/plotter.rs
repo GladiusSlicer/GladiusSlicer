@@ -3,11 +3,10 @@ use crate::types::{Command, Move, MoveChain, MoveType};
 use geo::prelude::*;
 use geo::*;
 use geo_clipper::*;
-use itertools::{chain, Itertools};
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
 
-use rayon;
 use rayon::prelude::*;
 
 pub struct Slice {
@@ -103,7 +102,7 @@ impl Slice {
         //For each region still available fill wih infill
         for poly in &self.remaining_area {
             if solid {
-                let angle = 45.0 + (120 as f64) * layer_count as f64;
+                let angle = 45.0 + (120_f64) * layer_count as f64;
 
                 let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
@@ -147,7 +146,7 @@ impl Slice {
                 .0
                 .par_iter()
                 .filter_map(|poly| {
-                    let angle = 45.0 + (120 as f64) * layer_count as f64;
+                    let angle = 45.0 + (120_f64) * layer_count as f64;
 
                     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
@@ -211,7 +210,7 @@ impl Slice {
         layer_thickness: f64,
     ) {
         //Order Chains for fastest print
-        if self.chains.len() > 0 {
+        if !self.chains.is_empty() {
             let mut ordered_chains = vec![self.chains.swap_remove(0)];
 
             while !self.chains.is_empty() {
@@ -270,13 +269,13 @@ fn inset_polygon(
     );
 
     for polygon in inset_poly.0.iter() {
-        let mut moves = polygon
+        let moves = polygon
             .exterior()
             .0
             .iter()
             .circular_tuple_windows::<(_, _)>()
             .map(|(&_start, &end)| Move {
-                end: end,
+                end,
                 move_type: MoveType::OuterPerimeter,
                 width: settings.layer_width,
             })
@@ -291,7 +290,7 @@ fn inset_polygon(
             let mut moves = vec![];
             for (&_start, &end) in interior.0.iter().circular_tuple_windows::<(_, _)>() {
                 moves.push(Move {
-                    end: end,
+                    end,
                     move_type: MoveType::OuterPerimeter,
                     width: settings.layer_width,
                 });
@@ -325,7 +324,7 @@ fn solid_fill_polygon(
         .exterior()
         .0
         .iter()
-        .map(|c| *c)
+        .copied()
         .circular_tuple_windows::<(_, _)>()
         .collect();
 
@@ -333,7 +332,7 @@ fn solid_fill_polygon(
         let mut new_lines = interior
             .0
             .iter()
-            .map(|c| *c)
+            .copied()
             .circular_tuple_windows::<(_, _)>()
             .collect();
         lines.append(&mut new_lines);
@@ -377,8 +376,7 @@ fn solid_fill_polygon(
         let mut points = current_lines
             .iter()
             .map(|(start, end)| {
-                let x = ((current_y - start.y) * ((end.x - start.x) / (end.y - start.y))) + start.x;
-                x
+                ((current_y - start.y) * ((end.x - start.x) / (end.y - start.y))) + start.x
             })
             .collect::<Vec<_>>();
 
@@ -452,7 +450,7 @@ fn solid_fill_polygon(
         current_y += settings.layer_width;
     }
 
-    start_point.map(|start_point| MoveChain { moves, start_point })
+    start_point.map(|start_point| MoveChain { start_point, moves })
 }
 
 fn partial_fill_polygon(
@@ -466,7 +464,7 @@ fn partial_fill_polygon(
         .exterior()
         .0
         .iter()
-        .map(|c| *c)
+        .copied()
         .circular_tuple_windows::<(_, _)>()
         .collect();
 
@@ -474,7 +472,7 @@ fn partial_fill_polygon(
         let mut new_lines = interior
             .0
             .iter()
-            .map(|c| *c)
+            .copied()
             .circular_tuple_windows::<(_, _)>()
             .collect();
         lines.append(&mut new_lines);
@@ -522,8 +520,7 @@ fn partial_fill_polygon(
         let mut points = current_lines
             .iter()
             .map(|(start, end)| {
-                let x = ((current_y - start.y) * ((end.x - start.x) / (end.y - start.y))) + start.x;
-                x
+                ((current_y - start.y) * ((end.x - start.x) / (end.y - start.y))) + start.x
             })
             .collect::<Vec<_>>();
 
@@ -597,7 +594,7 @@ fn partial_fill_polygon(
         current_y += distance;
     }
 
-    start_point.map(|start_point| MoveChain { moves, start_point })
+    start_point.map(|start_point| MoveChain { start_point, moves })
 }
 /*
 struct MonotoneSection{

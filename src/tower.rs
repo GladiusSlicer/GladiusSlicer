@@ -25,7 +25,7 @@ pub struct TriangleTower {
 
 impl TriangleTower {
     pub fn from_triangles_and_vertices(
-        triangles: &Vec<IndexedTriangle>,
+        triangles: &[IndexedTriangle],
         vertices: Vec<Vertex>,
     ) -> Result<Self, ()> {
         let mut future_tower_vert: Vec<Vec<TriangleEvent>> =
@@ -73,8 +73,8 @@ impl TriangleTower {
         });
 
         Ok(Self {
-            tower_vertices,
             vertices,
+            tower_vertices,
         })
     }
 
@@ -104,7 +104,7 @@ impl TowerRing {
             let mut ring_ptr = self.first_element.clone();
 
             while {
-                let next = if let Some(next) = ring_ptr.borrow().next().map(|n| n.clone()) {
+                let next = if let Some(next) = ring_ptr.borrow().next().cloned() {
                     next
                 } else {
                     return Err(());
@@ -553,7 +553,7 @@ impl<'s> TriangleTowerIterator<'s> {
             let pop_tower_vert = self.tower.tower_vertices[self.tower_vert_index].clone();
 
             //Create Frags from rings by removing current edges
-            let mut vec_frag: Result<Vec<Vec<TowerRing>>, ()> = self
+            let vec_frag: Result<Vec<Vec<TowerRing>>, ()> = self
                 .active_rings
                 .drain(..)
                 .map(|tower_ring| tower_ring.split_on_edge(pop_tower_vert.start_index))

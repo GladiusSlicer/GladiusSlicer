@@ -8,7 +8,7 @@ use crate::optimizer::optimize_commands;
 use crate::plotter::Slice;
 use crate::settings::Settings;
 use crate::tower::*;
-use geo::{Coordinate, Triangle};
+use geo::Coordinate;
 use geo_clipper::*;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -16,7 +16,6 @@ use std::io::{BufWriter, Write};
 use std::ffi::OsStr;
 use std::path::Path;
 
-use rayon;
 use rayon::prelude::*;
 
 mod loader;
@@ -59,7 +58,7 @@ fn main() {
             .with_level(LevelFilter::Debug)
             .init()
             .unwrap(),
-        4 | _ => SimpleLogger::new()
+        _ => SimpleLogger::new()
             .with_level(LevelFilter::Trace)
             .init()
             .unwrap(),
@@ -67,7 +66,7 @@ fn main() {
 
     println!("Loading Input");
 
-    let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>, Transform)> = matches
+    let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>)> = matches
         .values_of("INPUT")
         .unwrap()
         .map(|value| {
@@ -157,12 +156,12 @@ fn main() {
                 *vert = &transform * *vert;
             }
 
-            (vertices, triangles, transform)
+            (vertices, triangles)
         })
         .collect();
 
     println!("Creating Towers");
-    let towers : Vec<TriangleTower>= converted_inputs.into_iter().map(|( vertices, triangles, transform)|{
+    let towers : Vec<TriangleTower>= converted_inputs.into_iter().map(|( vertices, triangles)|{
         if let Ok(tower) = TriangleTower::from_triangles_and_vertices(&triangles, vertices){
             tower
         }
@@ -182,7 +181,7 @@ fn main() {
 
         let mut first_layer = true;
 
-        let mut slices: Vec<_> = std::iter::repeat(())
+        let slices: Vec<_> = std::iter::repeat(())
             .map(|_| {
                 //Advance to the correct height
                 let layer_height = if first_layer {
@@ -208,7 +207,7 @@ fn main() {
                         .iter()
                         .map(|verts| {
                             verts
-                                .into_iter()
+                                .iter()
                                 .map(|v| Coordinate { x: v.x, y: v.y })
                                 .collect::<Vec<Coordinate<f64>>>()
                         })
@@ -224,9 +223,7 @@ fn main() {
     println!("Generating Moves");
 
     objects.par_iter_mut().for_each(|object| {
-        let mut slices = &mut object.layers;
-
-        let mut layer_count = 0;
+        let slices = &mut object.layers;
 
         let slice_count = slices.len();
 
@@ -393,7 +390,6 @@ fn main() {
 
                 plastic_used += width * thickness * d;
             }
-            Command::LayerChange { .. } => {}
             Command::SetState { new_state } => {
                 if let Some(speed) = new_state.movement_speed {
                     current_speed = speed
@@ -450,7 +446,7 @@ fn main() {
 }
 
 fn convert(
-    cmds: &Vec<Command>,
+    cmds: &[Command],
     settings: Settings,
     write: &mut impl Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -573,7 +569,7 @@ fn convert(
         }
     }
 
-    let end = settings.ending_gcode.clone();
+    let end = settings.ending_gcode;
 
     writeln!(write_buf, "{}", end)?;
 
