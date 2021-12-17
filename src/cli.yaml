@@ -27,20 +27,3 @@ args:
         required: false
         takes_value: true
         short: s
-    - AUTOTRANFORM:
-          help: automatically center the model (x,y) and raise it above 0 (z)
-          short: a
-
-    - MANUALTRANFORM:
-          help: transform vertices by supplied transform
-          short: m
-          takes_value: true
-
-groups:
-    # the name of the ArgGoup is specified here
-    - transforms:
-        required: true
-        # All args and groups that are a part of this group are set here
-        args:
-            - MANUALTRANFORM
-            - AUTOTRANFORM

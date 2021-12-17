@@ -26,6 +26,7 @@ mod settings;
 mod tower;
 mod types;
 
+
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
     let yaml = load_yaml!("cli.yaml");
@@ -40,9 +41,7 @@ fn main() {
     let config = matches.value_of("config").unwrap_or("default.conf");
     println!("Value for config: {}", config);
 
-    // Calling .unwrap() is safe here because "INPUT" is required (if "INPUT" wasn't
-    // required we could have used an 'if let' to conditionally get the value)
-    println!("Using input file: {}", matches.value_of("INPUT").unwrap());
+
 
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'myprog -v -v -v' or 'myprog -vvv' vs 'myprog -v'
@@ -71,7 +70,12 @@ fn main() {
 
     println!("Loading Input");
 
-    let model_path = Path::new(matches.value_of("INPUT").unwrap());
+
+    let model_path = Path::new(object.get_model_path());
+
+    // Calling .unwrap() is safe here because "INPUT" is required (if "INPUT" wasn't
+    // required we could have used an 'if let' to conditionally get the value)
+    println!("Using input file: {:?}", model_path);
 
     let extension = model_path
         .extension()
@@ -84,35 +88,62 @@ fn main() {
         _ => panic!("File Format {} not supported", extension),
     };
 
-    let (mut vertices, triangles) = loader.load(matches.value_of("INPUT").unwrap()).unwrap();
+    let (mut vertices, triangles) = loader.load(model_path.to_str().unwrap()).unwrap();
 
-    let transform = if let Some(transform_str) = matches.value_of("MANUALTRANFORM") {
-        serde_json::from_str(transform_str).unwrap()
-    } else {
-        let (min_x, max_x, min_y, max_y, min_z) = vertices.iter().fold(
-            (
-                f64::INFINITY,
-                f64::NEG_INFINITY,
-                f64::INFINITY,
-                f64::NEG_INFINITY,
-                f64::INFINITY,
-            ),
-            |a, b| {
+    let transform = match object{
+        InputObject::Raw(_, transform) => { transform}
+        InputObject::Auto(_) => {
+            let (min_x, max_x, min_y, max_y, min_z) = vertices.iter().fold(
                 (
-                    a.0.min(b.x),
-                    a.1.max(b.x),
-                    a.2.min(b.y),
-                    a.3.max(b.y),
-                    a.4.min(b.z),
-                )
-            },
-        );
-        Transform::new_translation_transform(
-            (settings.print_x - (max_x + min_x)) / 2.,
-            (settings.print_y - (max_y + min_y)) / 2.,
-            -min_z,
-        )
+                    f64::INFINITY,
+                    f64::NEG_INFINITY,
+                    f64::INFINITY,
+                    f64::NEG_INFINITY,
+                    f64::INFINITY,
+                ),
+                |a, b| {
+                    (
+                        a.0.min(b.x),
+                        a.1.max(b.x),
+                        a.2.min(b.y),
+                        a.3.max(b.y),
+                        a.4.min(b.z),
+                    )
+                },
+            );
+            Transform::new_translation_transform(
+                (settings.print_x - (max_x + min_x)) / 2.,
+                (settings.print_y - (max_y + min_y)) / 2.,
+                -min_z,
+            )
+        }
+        InputObject::AutoTranslate(_, x, y) => {
+            let (min_x, max_x, min_y, max_y, min_z) = vertices.iter().fold(
+                (
+                    f64::INFINITY,
+                    f64::NEG_INFINITY,
+                    f64::INFINITY,
+                    f64::NEG_INFINITY,
+                    f64::INFINITY,
+                ),
+                |a, b| {
+                    (
+                        a.0.min(b.x),
+                        a.1.max(b.x),
+                        a.2.min(b.y),
+                        a.3.max(b.y),
+                        a.4.min(b.z),
+                    )
+                },
+            );
+            Transform::new_translation_transform(
+                (x+settings.print_x - (max_x + min_x)) / 2.,
+                (y+settings.print_y - (max_y + min_y)) / 2.,
+                -min_z,
+            )
+        }
     };
+
 
     let trans_str = serde_json::to_string(&transform).unwrap();
 

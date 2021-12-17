@@ -69,6 +69,24 @@ impl std::ops::Mul<Transform> for Transform{
     }
 }
 */
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum InputObject{
+    Raw(String,Transform),
+    Auto(String),
+    AutoTranslate(String,f64,f64),
+}
+
+impl InputObject{
+    pub fn get_model_path(&self) -> &str{
+        match self{
+            InputObject::Raw(str, _) => {str}
+            InputObject::Auto(str) => {str}
+            InputObject::AutoTranslate(str, _, _) => {str}
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Transform([[f64; 4]; 4]);
 
