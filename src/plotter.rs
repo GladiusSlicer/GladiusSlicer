@@ -6,7 +6,8 @@ use geo_clipper::*;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
-
+use geo::coordinate_position::CoordPos;
+use geo::coordinate_position::CoordinatePosition;
 use rayon::prelude::*;
 
 pub struct Slice {
@@ -186,7 +187,9 @@ impl Slice {
                 .0
                 .par_iter()
                 .filter_map(|poly| {
-                    let angle = 0.0;
+
+                    let unsupported_area :MultiPolygon<f64 >= poly.difference(layer_below,100000.0);
+                    let angle = get_optimal_bridge_angle(poly,&unsupported_area);
 
                     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
@@ -595,6 +598,64 @@ fn partial_fill_polygon(
     }
 
     start_point.map(|start_point| MoveChain { start_point, moves })
+}
+
+fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPolygon<f64>) ->f64
+{
+    let archor_area =  fill_area.difference(unsupported_area,100000.0)
+        .offset(0.0001,JoinType::Square,EndType::ClosedPolygon,100000.0);
+
+
+    let unsuported_lines :Vec<_>= unsupported_area.iter()
+        .map(|poly| std::iter::once(poly.exterior() ).chain(poly.interiors().iter()))
+        .flatten()
+        .map(|line_string| {
+            line_string.0.iter().circular_tuple_windows::<(&Coordinate<f64>,&Coordinate<f64>)>()
+
+        })
+        .flatten()
+        .filter(|(&s,&f)|{
+            //test the midpoint if it supported
+            let mid_point = (s+f )/2.0;
+            let supported = archor_area.coordinate_position(&mid_point) == CoordPos::Inside;
+            //if midpoint is in the fill area, then it is supported
+            !supported
+        }).collect();
+
+    println!("unsupported lines {}", unsuported_lines.len());
+    unsuported_lines.iter()
+        .map(|(line_start,line_end)|
+        {
+            let projection_sum =0.0;
+            let x_diff = line_end.x - line_start.x;
+            let y_diff = line_end.y - line_start.y;
+
+            let per_vec = (y_diff,-x_diff);
+            let per_vec_len = ((x_diff)*(x_diff)+(y_diff)*(y_diff)).sqrt();
+
+            let projection_sum: f64 = if(per_vec_len !=0.0) {
+                unsuported_lines.iter()
+                    .map(|(inner_start, inner_end)| {
+                        let x_diff = inner_end.x - inner_start.x;
+                        let y_diff = inner_end.y - inner_start.y;
+
+                        let inner_vec = (x_diff, y_diff);
+
+                        let dot = inner_vec.0 * per_vec.0 + inner_vec.1 * per_vec.1;
+
+                        (dot / per_vec_len).abs()
+                    })
+                    .sum()
+            }
+            else{
+                0.0
+            };
+
+            (per_vec,projection_sum)
+        }).min_by(|(_,l_sum),(_,r_sum) |l_sum.partial_cmp(r_sum).unwrap())
+        .map(|((x,y),_)| {
+            -90.0 - (y).atan2(x).to_degrees()
+        }).unwrap_or(0.0)
 }
 /*
 struct MonotoneSection{
