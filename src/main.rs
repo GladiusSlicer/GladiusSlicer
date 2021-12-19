@@ -461,11 +461,11 @@ fn convert(
     let mut write_buf = BufWriter::new(write);
     start = start.replace(
         "[First Layer Extruder Temp]",
-        &format!("{:.1}", settings.filament.extruder_temp),
+        &format!("{:.1}", settings.filament.first_layer_extruder_temp),
     );
     start = start.replace(
         "[First Layer Bed Temp]",
-        &format!("{:.1}", settings.filament.bed_temp),
+        &format!("{:.1}", settings.filament.first_layer_bed_temp),
     );
 
     writeln!(write_buf, "{}", start)?;
