@@ -9,6 +9,7 @@ use std::iter::FromIterator;
 use geo::coordinate_position::CoordPos;
 use geo::coordinate_position::CoordinatePosition;
 use rayon::prelude::*;
+use geo_svg::{ToSvgStr, ToSvg, Color};
 
 pub struct Slice {
     MainPolygon: MultiPolygon<f64>,
@@ -189,7 +190,12 @@ impl Slice {
                 .filter_map(|poly| {
 
                     let unsupported_area :MultiPolygon<f64 >= poly.difference(layer_below,100000.0);
-                    let angle = get_optimal_bridge_angle(poly,&unsupported_area);
+                    let mut angle = get_optimal_bridge_angle(poly,&unsupported_area);
+
+                    if angle < 0.0{
+                        angle += 180.0;
+                    }
+                    //println!("angle {}", angle);
 
                     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
@@ -603,9 +609,23 @@ fn partial_fill_polygon(
 fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPolygon<f64>) ->f64
 {
     let archor_area =  fill_area.difference(unsupported_area,100000.0)
-        .offset(0.0001,JoinType::Square,EndType::ClosedPolygon,100000.0);
+        .offset(-0.001,JoinType::Square,EndType::ClosedPolygon,100000.0)
+        .offset(0.01,JoinType::Square,EndType::ClosedPolygon,100000.0);
 
+    let svg = unsupported_area.to_svg()
+        .with_stroke_width(0.001)
+        .with_fill_color(Color::Named("red"))
+        .with_stroke_color(Color::Rgb(200, 0, 100))
+        .with_fill_opacity(0.5)
+        .and(archor_area.to_svg()
+            .with_stroke_width(0.001)
+            .with_fill_color(Color::Named("blue"))
+            .with_stroke_color(Color::Rgb(100, 0, 200))
+            .with_fill_opacity(0.5)
 
+        );
+
+    println!("fill area {}", svg);
     let unsuported_lines :Vec<_>= unsupported_area.iter()
         .map(|poly| std::iter::once(poly.exterior() ).chain(poly.interiors().iter()))
         .flatten()
@@ -617,7 +637,7 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
         .filter(|(&s,&f)|{
             //test the midpoint if it supported
             let mid_point = (s+f )/2.0;
-            let supported = archor_area.coordinate_position(&mid_point) == CoordPos::Inside;
+            let supported = archor_area.coordinate_position(&mid_point) != CoordPos::Outside;
             //if midpoint is in the fill area, then it is supported
             !supported
         }).collect();
@@ -631,7 +651,7 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
             let y_diff = line_end.y - line_start.y;
 
             let per_vec = (y_diff,-x_diff);
-            let per_vec_len = ((x_diff)*(x_diff)+(y_diff)*(y_diff)).sqrt();
+            let per_vec_len = (((x_diff)*(x_diff))+((y_diff)*(y_diff))).sqrt();
 
             let projection_sum: f64 = if(per_vec_len !=0.0) {
                 unsuported_lines.iter()
@@ -639,20 +659,25 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
                         let x_diff = inner_end.x - inner_start.x;
                         let y_diff = inner_end.y - inner_start.y;
 
+                        //println!("vec ({},{})", x_diff, y_diff);
+
                         let inner_vec = (x_diff, y_diff);
 
-                        let dot = inner_vec.0 * per_vec.0 + inner_vec.1 * per_vec.1;
+                        let dot = (inner_vec.0 * per_vec.0) + (inner_vec.1 * per_vec.1);
 
                         (dot / per_vec_len).abs()
                     })
                     .sum()
             }
             else{
-                0.0
+                1000000000000000.0
             };
-
+            println!("sum {}", projection_sum);
             (per_vec,projection_sum)
-        }).min_by(|(_,l_sum),(_,r_sum) |l_sum.partial_cmp(r_sum).unwrap())
+        }).min_by(|(_,l_sum),(_,r_sum) |{
+
+            l_sum.partial_cmp(r_sum).unwrap()
+        })
         .map(|((x,y),_)| {
             -90.0 - (y).atan2(x).to_degrees()
         }).unwrap_or(0.0)

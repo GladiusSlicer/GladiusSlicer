@@ -9,6 +9,7 @@ dependencies = [
  "clap",
  "geo",
  "geo-clipper",
+ "geo-svg",
  "itertools",
  "log",
  "nalgebra",
@@ -371,6 +372,16 @@ checksum = "a38202ec4552aab26d6167921151379881ed889aa63a78b043bb4675d1ed127b"
 dependencies = [
  "clipper-sys",
  "geo-types",
+]
+
+[[package]]
+name = "geo-svg"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d273cfe8a1b77d621a8c7be137ee04b384e098d569ce0d96041cb64eb0c90ab"
+dependencies = [
+ "geo-types",
+ "num-traits",
 ]
 
 [[package]]

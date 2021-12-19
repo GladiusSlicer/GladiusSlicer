@@ -41,7 +41,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            layer_height: 0.1,
+            layer_height: 0.15,
             first_layer_height: 0.3,
             first_layer_perimeter_speed: 5.0,
             first_layer_infill_speed: 20.0,
