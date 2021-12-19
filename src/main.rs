@@ -394,6 +394,10 @@ fn main() {
                 if let Some(speed) = new_state.movement_speed {
                     current_speed = speed
                 }
+                if let Some(direction) = new_state.retract{
+                    total_time += settings.retract_length / settings.retract_speed ;
+                    total_time += settings.retract_lift_z/ settings.travel_speed ;
+                }
             }
             Command::Delay { msec } => {
                 total_time += *msec as f64 / 1000.0;
@@ -450,6 +454,9 @@ fn convert(
     settings: Settings,
     write: &mut impl Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
+
+    let mut current_z = 0.0;
+
     let mut start = settings.starting_gcode.clone();
     let mut write_buf = BufWriter::new(write);
     start = start.replace(
@@ -462,6 +469,8 @@ fn convert(
     );
 
     writeln!(write_buf, "{}", start)?;
+
+
 
     for cmd in cmds {
         match cmd {
@@ -487,12 +496,35 @@ fn convert(
             Command::SetState { new_state } => {
                 match new_state.retract {
                     None => {}
-                    Some(dir) => {
+                    Some(true) => {
+
+                        //retract
                         writeln!(
                             write_buf,
-                            "G1 E{} F{} ; Retract or unretract",
-                            if dir { -1.0 } else { 1.0 } * settings.retract_length,
-                            60.0 * settings.retract_speed
+                            "G1 E{:.5} F{:.5}; Retract or unretract",
+                            -settings.retract_length,
+                            60.0 * settings.retract_speed,
+                        )?;
+
+                        writeln!(
+                            write_buf,
+                            "G1 Z{:.5} F{:.5}; z Lift",
+                            current_z + settings.retract_lift_z,
+                            60.0 * settings.travel_speed,
+                        )?;
+                    }
+                    Some(false) =>{
+                        //unretract
+                        writeln!(
+                            write_buf,
+                            "G1 Z{:.5}; z unlift",
+                            current_z ,
+                        )?;
+                        writeln!(
+                            write_buf,
+                            "G1 E{:.5} F{:.5}; Retract or unretract",
+                            settings.retract_length,
+                            60.0 * settings.retract_speed,
                         )?;
                     }
                 }
@@ -515,6 +547,7 @@ fn convert(
                 }
             }
             Command::LayerChange { z } => {
+                current_z = *z;
                 writeln!(write_buf, "G1 Z{:.5}", z)?;
             }
             Command::Delay { msec } => {
