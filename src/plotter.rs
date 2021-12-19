@@ -1,15 +1,15 @@
 use crate::settings::LayerSettings;
 use crate::types::{Command, Move, MoveChain, MoveType};
+use geo::coordinate_position::CoordPos;
+use geo::coordinate_position::CoordinatePosition;
 use geo::prelude::*;
 use geo::*;
 use geo_clipper::*;
+use geo_svg::{Color, ToSvg, ToSvgStr};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use std::iter::FromIterator;
-use geo::coordinate_position::CoordPos;
-use geo::coordinate_position::CoordinatePosition;
 use rayon::prelude::*;
-use geo_svg::{ToSvgStr, ToSvg, Color};
+use std::iter::FromIterator;
 
 pub struct Slice {
     MainPolygon: MultiPolygon<f64>,
@@ -188,11 +188,11 @@ impl Slice {
                 .0
                 .par_iter()
                 .filter_map(|poly| {
+                    let unsupported_area: MultiPolygon<f64> =
+                        poly.difference(layer_below, 100000.0);
+                    let mut angle = get_optimal_bridge_angle(poly, &unsupported_area);
 
-                    let unsupported_area :MultiPolygon<f64 >= poly.difference(layer_below,100000.0);
-                    let mut angle = get_optimal_bridge_angle(poly,&unsupported_area);
-
-                    if angle < 0.0{
+                    if angle < 0.0 {
                         angle += 180.0;
                     }
                     //println!("angle {}", angle);
@@ -606,81 +606,62 @@ fn partial_fill_polygon(
     start_point.map(|start_point| MoveChain { start_point, moves })
 }
 
-fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPolygon<f64>) ->f64
-{
-    let archor_area =  fill_area.difference(unsupported_area,100000.0)
-        .offset(-0.001,JoinType::Square,EndType::ClosedPolygon,100000.0)
-        .offset(0.01,JoinType::Square,EndType::ClosedPolygon,100000.0);
-
-    let svg = unsupported_area.to_svg()
-        .with_stroke_width(0.001)
-        .with_fill_color(Color::Named("red"))
-        .with_stroke_color(Color::Rgb(200, 0, 100))
-        .with_fill_opacity(0.5)
-        .and(archor_area.to_svg()
-            .with_stroke_width(0.001)
-            .with_fill_color(Color::Named("blue"))
-            .with_stroke_color(Color::Rgb(100, 0, 200))
-            .with_fill_opacity(0.5)
-
-        );
-
-    println!("fill area {}", svg);
-    let unsuported_lines :Vec<_>= unsupported_area.iter()
-        .map(|poly| std::iter::once(poly.exterior() ).chain(poly.interiors().iter()))
+fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPolygon<f64>) -> f64 {
+    let unsuported_lines: Vec<_> = unsupported_area
+        .iter()
+        .map(|poly| std::iter::once(poly.exterior()).chain(poly.interiors().iter()))
         .flatten()
         .map(|line_string| {
-            line_string.0.iter().circular_tuple_windows::<(&Coordinate<f64>,&Coordinate<f64>)>()
-
+            line_string
+                .0
+                .iter()
+                .circular_tuple_windows::<(&Coordinate<f64>, &Coordinate<f64>)>()
         })
         .flatten()
-        .filter(|(&s,&f)|{
+        .filter(|(&s, &f)| {
             //test the midpoint if it supported
-            let mid_point = (s+f )/2.0;
-            let supported = archor_area.coordinate_position(&mid_point) != CoordPos::Outside;
+            let mid_point = (s + f) / 2.0;
+            let supported = fill_area.coordinate_position(&mid_point) == CoordPos::Inside;
             //if midpoint is in the fill area, then it is supported
             !supported
-        }).collect();
+        })
+        .collect();
 
-    println!("unsupported lines {}", unsuported_lines.len());
-    unsuported_lines.iter()
-        .map(|(line_start,line_end)|
-        {
-            let projection_sum =0.0;
+    unsuported_lines
+        .iter()
+        .filter_map(|(line_start, line_end)| {
             let x_diff = line_end.x - line_start.x;
             let y_diff = line_end.y - line_start.y;
 
-            let per_vec = (y_diff,-x_diff);
-            let per_vec_len = (((x_diff)*(x_diff))+((y_diff)*(y_diff))).sqrt();
+            let per_vec = (y_diff, -x_diff);
+            let per_vec_len = (((x_diff) * (x_diff)) + ((y_diff) * (y_diff))).sqrt();
 
-            let projection_sum: f64 = if(per_vec_len !=0.0) {
-                unsuported_lines.iter()
-                    .map(|(inner_start, inner_end)| {
-                        let x_diff = inner_end.x - inner_start.x;
-                        let y_diff = inner_end.y - inner_start.y;
+            if per_vec_len != 0.0 {
+                Some(
+                    unsuported_lines
+                        .iter()
+                        .map(|(inner_start, inner_end)| {
+                            let x_diff = inner_end.x - inner_start.x;
+                            let y_diff = inner_end.y - inner_start.y;
 
-                        //println!("vec ({},{})", x_diff, y_diff);
+                            //println!("vec ({},{})", x_diff, y_diff);
 
-                        let inner_vec = (x_diff, y_diff);
+                            let inner_vec = (x_diff, y_diff);
 
-                        let dot = (inner_vec.0 * per_vec.0) + (inner_vec.1 * per_vec.1);
+                            let dot = (inner_vec.0 * per_vec.0) + (inner_vec.1 * per_vec.1);
 
-                        (dot / per_vec_len).abs()
-                    })
-                    .sum()
+                            (dot / per_vec_len).abs()
+                        })
+                        .sum(),
+                )
+            } else {
+                None
             }
-            else{
-                1000000000000000.0
-            };
-            println!("sum {}", projection_sum);
-            (per_vec,projection_sum)
-        }).min_by(|(_,l_sum),(_,r_sum) |{
-
-            l_sum.partial_cmp(r_sum).unwrap()
+            .map(|projection_sum: f64| (per_vec, projection_sum))
         })
-        .map(|((x,y),_)| {
-            -90.0 - (y).atan2(x).to_degrees()
-        }).unwrap_or(0.0)
+        .min_by(|(_, l_sum), (_, r_sum)| l_sum.partial_cmp(r_sum).unwrap())
+        .map(|((x, y), _)| -90.0 - (y).atan2(x).to_degrees())
+        .unwrap_or(0.0)
 }
 /*
 struct MonotoneSection{
