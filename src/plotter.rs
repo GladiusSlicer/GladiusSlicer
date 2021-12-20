@@ -87,18 +87,21 @@ impl Slice {
         settings: &LayerSettings,
         number_of_perimeters: usize,
     ) {
-
-        if let Some(mc) = inset_polygon_recursive(&self.remaining_area, settings,true,number_of_perimeters-1 ) {
+        if let Some(mc) = inset_polygon_recursive(
+            &self.remaining_area,
+            settings,
+            true,
+            number_of_perimeters - 1,
+        ) {
             self.chains.push(mc);
         }
 
         self.remaining_area = self.remaining_area.offset(
-                -settings.layer_width * number_of_perimeters as f64,
-                JoinType::Square,
-                EndType::ClosedPolygon,
-                100000000.0,
-            );
-
+            -settings.layer_width * number_of_perimeters as f64,
+            JoinType::Square,
+            EndType::ClosedPolygon,
+            100000000.0,
+        );
     }
 
     pub fn fill_remaining_area(
@@ -218,7 +221,6 @@ impl Slice {
         self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
     }
 
-
     pub fn fill_solid_top_layer(
         &mut self,
         layer_above: &MultiPolygon<f64>,
@@ -260,16 +262,14 @@ impl Slice {
         settings: &LayerSettings,
         skirt_settings: &SkirtSettings,
     ) {
-        let offset_hull_multi = convex_polygon
-            .offset(
-                skirt_settings.distance,
-                JoinType::Square,
-                EndType::ClosedPolygon,
-                100000.0,
-            );
+        let offset_hull_multi = convex_polygon.offset(
+            skirt_settings.distance,
+            JoinType::Square,
+            EndType::ClosedPolygon,
+            100000.0,
+        );
 
-        assert_eq!(offset_hull_multi.0.len(),1);
-
+        assert_eq!(offset_hull_multi.0.len(), 1);
 
         let moves = offset_hull_multi.0[0]
             .exterior()
@@ -278,7 +278,7 @@ impl Slice {
             .circular_tuple_windows::<(_, _)>()
             .map(|(&_start, &end)| Move {
                 end,
-                move_type: MoveType::OuterPerimeter ,
+                move_type: MoveType::OuterPerimeter,
                 width: settings.layer_width,
             })
             .collect();
@@ -346,7 +346,7 @@ fn inset_polygon_recursive(
     poly: &MultiPolygon<f64>,
     settings: &LayerSettings,
     outer_perimeter: bool,
-    layer_left: usize
+    layer_left: usize,
 ) -> Option<MoveChain> {
     let mut move_chains = vec![];
     let inset_poly = poly.offset(
@@ -364,7 +364,11 @@ fn inset_polygon_recursive(
             .circular_tuple_windows::<(_, _)>()
             .map(|(&_start, &end)| Move {
                 end,
-                move_type: if outer_perimeter { MoveType::OuterPerimeter } else { MoveType::InnerPerimeter },
+                move_type: if outer_perimeter {
+                    MoveType::OuterPerimeter
+                } else {
+                    MoveType::InnerPerimeter
+                },
                 width: settings.layer_width,
             })
             .collect();
@@ -379,7 +383,11 @@ fn inset_polygon_recursive(
             for (&_start, &end) in interior.0.iter().circular_tuple_windows::<(_, _)>() {
                 moves.push(Move {
                     end,
-                    move_type: if outer_perimeter { MoveType::OuterPerimeter } else { MoveType::InnerPerimeter },
+                    move_type: if outer_perimeter {
+                        MoveType::OuterPerimeter
+                    } else {
+                        MoveType::InnerPerimeter
+                    },
                     width: settings.layer_width,
                 });
             }
@@ -398,7 +406,12 @@ fn inset_polygon_recursive(
             );
 
             for polygon_rec in rec_inset_poly {
-                if let Some(mc) = inset_polygon_recursive(&MultiPolygon::from(polygon_rec), settings, false, layer_left - 1) {
+                if let Some(mc) = inset_polygon_recursive(
+                    &MultiPolygon::from(polygon_rec),
+                    settings,
+                    false,
+                    layer_left - 1,
+                ) {
                     move_chains.push(mc);
                 }
             }
@@ -406,7 +419,8 @@ fn inset_polygon_recursive(
     }
 
     let mut full_moves = vec![];
-    move_chains.get(0)
+    move_chains
+        .get(0)
         .map(|mc| mc.start_point)
         .map(|starting_point| {
             for mut chain in move_chains {
@@ -423,7 +437,6 @@ fn inset_polygon_recursive(
                 start_point: starting_point,
             }
         })
-
 }
 
 fn solid_fill_polygon(

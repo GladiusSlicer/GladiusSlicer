@@ -90,7 +90,7 @@ fn main() {
 
             let loader: &dyn Loader = match extension {
                 "stl" => &STLLoader {},
-                "3MF" | "3mf"=> &ThreeMFLoader {},
+                "3MF" | "3mf" => &ThreeMFLoader {},
                 _ => panic!("File Format {} not supported", extension),
             };
 
@@ -224,44 +224,43 @@ fn main() {
 
     println!("Generating Moves");
 
-        //Handle Perimeters
+    //Handle Perimeters
     if let Some(skirt) = &settings.skirt {
         println!("Generating Moves: Skirt");
-        let convex_hull =
-            objects.iter()
-                .map(|object|{
-                    object.layers
-                        .iter()
-                        .take(skirt.layers)
-                        .map(|m| m.1.get_entire_slice_polygon())
-                })
-                .flatten()
-                .fold(
-                    objects
-                        .get(0)
-                        .expect("Needs an object")
-                        .layers
-                        .get(0)
-                        .unwrap()
-                        .1
-                        .get_entire_slice_polygon()
-                        .clone(),
-                    |a, b| a.union(b, 1000000.0),
-                ).convex_hull();
+        let convex_hull = objects
+            .iter()
+            .map(|object| {
+                object
+                    .layers
+                    .iter()
+                    .take(skirt.layers)
+                    .map(|m| m.1.get_entire_slice_polygon())
+            })
+            .flatten()
+            .fold(
+                objects
+                    .get(0)
+                    .expect("Needs an object")
+                    .layers
+                    .get(0)
+                    .unwrap()
+                    .1
+                    .get_entire_slice_polygon()
+                    .clone(),
+                |a, b| a.union(b, 1000000.0),
+            )
+            .convex_hull();
 
         //Add to first object
-        objects.get_mut(0)
+        objects
+            .get_mut(0)
             .expect("Needs an object")
             .layers
             .iter_mut()
             .take(skirt.layers)
             .enumerate()
-            .for_each(|(layer_num, (_layer, slice))|{
-                slice.generate_skirt(
-                    &convex_hull,
-                    &settings.get_layer_settings(layer_num),
-                    skirt
-                )
+            .for_each(|(layer_num, (_layer, slice))| {
+                slice.generate_skirt(&convex_hull, &settings.get_layer_settings(layer_num), skirt)
             })
     }
 
@@ -269,7 +268,6 @@ fn main() {
         let slices = &mut object.layers;
 
         let slice_count = slices.len();
-
 
         //Handle Perimeters
         println!("Generating Moves: Perimeters");
@@ -292,14 +290,13 @@ fn main() {
                 .fill_solid_bridge_area(&below, &settings.get_layer_settings(q));
         });
 
-
         println!("Generating Moves: Top Layer");
-        (0..slices.len()-1).into_iter().for_each(|q| {
+        (0..slices.len() - 1).into_iter().for_each(|q| {
             let above = slices[q + 1].1.get_entire_slice_polygon().clone();
 
             slices[q]
                 .1
-                .fill_solid_top_layer(&above, &settings.get_layer_settings(q),q);
+                .fill_solid_top_layer(&above, &settings.get_layer_settings(q), q);
         });
         //Combine layer to form support
 
@@ -448,9 +445,9 @@ fn main() {
                 if let Some(speed) = new_state.movement_speed {
                     current_speed = speed
                 }
-                if let Some(direction) = new_state.retract{
-                    total_time += settings.retract_length / settings.retract_speed ;
-                    total_time += settings.retract_lift_z/ settings.travel_speed ;
+                if let Some(_) = new_state.retract {
+                    total_time += settings.retract_length / settings.retract_speed;
+                    total_time += settings.retract_lift_z / settings.travel_speed;
                 }
             }
             Command::Delay { msec } => {
@@ -508,7 +505,6 @@ fn convert(
     settings: Settings,
     write: &mut impl Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
-
     let mut current_z = 0.0;
 
     let mut start = settings.starting_gcode.clone();
@@ -523,8 +519,6 @@ fn convert(
     );
 
     writeln!(write_buf, "{}", start)?;
-
-
 
     for cmd in cmds {
         match cmd {
@@ -551,7 +545,6 @@ fn convert(
                 match new_state.retract {
                     None => {}
                     Some(true) => {
-
                         //retract
                         writeln!(
                             write_buf,
@@ -567,13 +560,9 @@ fn convert(
                             60.0 * settings.travel_speed,
                         )?;
                     }
-                    Some(false) =>{
+                    Some(false) => {
                         //unretract
-                        writeln!(
-                            write_buf,
-                            "G1 Z{:.5}; z unlift",
-                            current_z ,
-                        )?;
+                        writeln!(write_buf, "G1 Z{:.5}; z unlift", current_z,)?;
                         writeln!(
                             write_buf,
                             "G1 E{:.5} F{:.5}; Retract or unretract",

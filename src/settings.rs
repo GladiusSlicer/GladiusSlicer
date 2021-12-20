@@ -187,7 +187,6 @@ impl Default for FanSettings {
     }
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SkirtSettings {
     pub layers: usize,
