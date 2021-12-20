@@ -87,12 +87,18 @@ impl Slice {
         settings: &LayerSettings,
         number_of_perimeters: usize,
     ) {
-        //Create the outer shells
-        for _ in 0..number_of_perimeters {
-            let (m, mut new_chains) = inset_polygon(&self.remaining_area, settings);
-            self.remaining_area = m;
-            self.chains.append(&mut new_chains);
+
+        if let Some(mc) = inset_polygon_recursive(&self.remaining_area, settings,true,number_of_perimeters-1 ) {
+            self.chains.push(mc);
         }
+
+        self.remaining_area = self.remaining_area.offset(
+                -settings.layer_width * number_of_perimeters as f64,
+                JoinType::Square,
+                EndType::ClosedPolygon,
+                100000000.0,
+            );
+
     }
 
     pub fn fill_remaining_area(
@@ -265,10 +271,12 @@ impl Slice {
     }
 }
 
-fn inset_polygon(
+fn inset_polygon_recursive(
     poly: &MultiPolygon<f64>,
     settings: &LayerSettings,
-) -> (MultiPolygon<f64>, Vec<MoveChain>) {
+    outer_perimeter: bool,
+    layer_left: usize
+) -> Option<MoveChain> {
     let mut move_chains = vec![];
     let inset_poly = poly.offset(
         -settings.layer_width / 2.0,
@@ -285,7 +293,7 @@ fn inset_polygon(
             .circular_tuple_windows::<(_, _)>()
             .map(|(&_start, &end)| Move {
                 end,
-                move_type: MoveType::OuterPerimeter,
+                move_type: if outer_perimeter { MoveType::OuterPerimeter } else { MoveType::InnerPerimeter },
                 width: settings.layer_width,
             })
             .collect();
@@ -300,7 +308,7 @@ fn inset_polygon(
             for (&_start, &end) in interior.0.iter().circular_tuple_windows::<(_, _)>() {
                 moves.push(Move {
                     end,
-                    move_type: MoveType::OuterPerimeter,
+                    move_type: if outer_perimeter { MoveType::OuterPerimeter } else { MoveType::InnerPerimeter },
                     width: settings.layer_width,
                 });
             }
@@ -309,17 +317,42 @@ fn inset_polygon(
                 moves,
             });
         }
+
+        if layer_left != 0 {
+            let rec_inset_poly = polygon.offset(
+                -settings.layer_width / 2.0,
+                JoinType::Square,
+                EndType::ClosedPolygon,
+                100000000.0,
+            );
+
+            for polygon_rec in rec_inset_poly {
+                if let Some(mc) = inset_polygon_recursive(&MultiPolygon::from(polygon_rec), settings, false, layer_left - 1) {
+                    move_chains.push(mc);
+                }
+            }
+        }
     }
 
-    (
-        inset_poly.offset(
-            -settings.layer_width / 2.0,
-            JoinType::Square,
-            EndType::ClosedPolygon,
-            100000000.0,
-        ),
-        move_chains,
-    )
+    let mut full_moves = vec![];
+    move_chains.get(0)
+        .map(|mc| mc.start_point)
+        .map(|starting_point| {
+            for mut chain in move_chains {
+                full_moves.push(Move {
+                    end: chain.start_point,
+                    move_type: MoveType::Travel,
+                    width: 0.0,
+                });
+                full_moves.append(&mut chain.moves)
+            }
+
+            MoveChain {
+                moves: full_moves,
+                start_point: starting_point,
+            }
+        })
+
 }
 
 fn solid_fill_polygon(

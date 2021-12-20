@@ -14,7 +14,8 @@ pub struct Settings {
     pub retract_lift_z: f64,
     pub retract_speed: f64,
 
-    pub perimeter_speed: f64,
+    pub inner_perimeter_speed: f64,
+    pub outer_perimeter_speed: f64,
     pub infill_speed: f64,
     pub infill_percentage: f64,
     pub travel_speed: f64,
@@ -55,7 +56,8 @@ impl Default for Settings {
             retract_lift_z: 0.6,
             retract_speed: 35.0,
 
-            perimeter_speed: 5.0,
+            inner_perimeter_speed: 5.0,
+            outer_perimeter_speed: 5.0,
             infill_speed: 200.0,
             infill_percentage: 0.2,
             travel_speed: 180.0,
@@ -97,7 +99,8 @@ impl Settings {
         if layer == 0 {
             LayerSettings {
                 layer_height: self.first_layer_height,
-                perimeter_speed: self.first_layer_perimeter_speed,
+                inner_perimeter_speed: self.first_layer_perimeter_speed,
+                outer_perimeter_speed: self.first_layer_perimeter_speed,
                 infill_speed: self.first_layer_infill_speed,
                 travel_speed: self.first_layer_travel_speed,
                 bridge_speed: self.bridge_speed,
@@ -107,7 +110,8 @@ impl Settings {
         } else {
             LayerSettings {
                 layer_height: self.layer_height,
-                perimeter_speed: self.perimeter_speed,
+                inner_perimeter_speed: self.inner_perimeter_speed,
+                outer_perimeter_speed: self.outer_perimeter_speed,
                 infill_speed: self.infill_speed,
                 travel_speed: self.travel_speed,
                 bridge_speed: self.bridge_speed,
@@ -120,7 +124,8 @@ impl Settings {
 
 pub struct LayerSettings {
     pub layer_height: f64,
-    pub perimeter_speed: f64,
+    pub outer_perimeter_speed: f64,
+    pub inner_perimeter_speed: f64,
     pub infill_speed: f64,
     pub travel_speed: f64,
     pub bridge_speed: f64,

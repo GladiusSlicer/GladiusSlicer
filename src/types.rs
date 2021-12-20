@@ -175,7 +175,7 @@ impl MoveChain {
                                 bed_temp: None,
                                 extruder_temp: None,
                                 fan_speed: None,
-                                movement_speed: Some(settings.perimeter_speed),
+                                movement_speed: Some(settings.outer_perimeter_speed),
                                 retract: Some(false),
                             },
                         });
@@ -186,7 +186,7 @@ impl MoveChain {
                                 bed_temp: None,
                                 extruder_temp: None,
                                 fan_speed: None,
-                                movement_speed: Some(settings.perimeter_speed),
+                                movement_speed: Some(settings.inner_perimeter_speed),
                                 retract: Some(false),
                             },
                         });
