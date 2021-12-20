@@ -88,7 +88,7 @@ fn main() {
 
             let loader: &dyn Loader = match extension {
                 "stl" => &STLLoader {},
-                "3MF" => &ThreeMFLoader {},
+                "3MF" | "3mf"=> &ThreeMFLoader {},
                 _ => panic!("File Format {} not supported", extension),
             };
 
@@ -246,6 +246,16 @@ fn main() {
             slices[q]
                 .1
                 .fill_solid_bridge_area(&below, &settings.get_layer_settings(q));
+        });
+
+
+        println!("Generating Moves: Top Layer");
+        (0..slices.len()-1).into_iter().for_each(|q| {
+            let above = slices[q + 1].1.get_entire_slice_polygon().clone();
+
+            slices[q]
+                .1
+                .fill_solid_top_layer(&above, &settings.get_layer_settings(q),q);
         });
         //Combine layer to form support
 

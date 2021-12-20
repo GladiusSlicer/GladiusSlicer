@@ -118,6 +118,7 @@ pub struct MoveChain {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MoveType {
+    TopSolidInfill,
     SolidInfill,
     Infill,
     OuterPerimeter,
@@ -136,13 +137,24 @@ impl MoveChain {
         for m in self.moves {
             if m.move_type != current_type {
                 match m.move_type {
+                    MoveType::TopSolidInfill => {
+                        cmds.push(Command::SetState {
+                            new_state: StateChange {
+                                bed_temp: None,
+                                extruder_temp: None,
+                                fan_speed: None,
+                                movement_speed: Some(settings.solid_top_infill_speed),
+                                retract: Some(false),
+                            },
+                        });
+                    }
                     MoveType::SolidInfill => {
                         cmds.push(Command::SetState {
                             new_state: StateChange {
                                 bed_temp: None,
                                 extruder_temp: None,
                                 fan_speed: None,
-                                movement_speed: Some(settings.infill_speed),
+                                movement_speed: Some(settings.solid_infill_speed),
                                 retract: Some(false),
                             },
                         });

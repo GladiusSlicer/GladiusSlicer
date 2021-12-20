@@ -218,6 +218,42 @@ impl Slice {
         self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
     }
 
+
+    pub fn fill_solid_top_layer(
+        &mut self,
+        layer_above: &MultiPolygon<f64>,
+        settings: &LayerSettings,
+        layer_count: usize,
+    ) {
+        //For each area not in this slice that is in the other polygon, fill solid
+
+        let solid_area = self
+            .remaining_area
+            .difference(layer_above, 100000.0)
+            .offset(
+                settings.layer_width * 4.0,
+                JoinType::Square,
+                EndType::ClosedPolygon,
+                100000.0,
+            )
+            .intersection(&self.remaining_area, 100000.0);
+
+        for poly in &solid_area {
+            let angle = 45.0 + (120_f64) * layer_count as f64;
+
+            let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+
+            let new_moves = solid_fill_polygon(&rotate_poly, settings, MoveType::TopSolidInfill);
+
+            if let Some(mut chain) = new_moves {
+                chain.rotate(-angle.to_radians());
+                self.chains.push(chain);
+            }
+        }
+
+        self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
+    }
+
     pub fn slice_into_commands(
         &mut self,
         settings: &LayerSettings,
