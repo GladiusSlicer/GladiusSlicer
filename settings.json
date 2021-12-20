@@ -16,6 +16,10 @@
     "disable_fan_for_layers": 1,
     "slow_down_threshold": 15
   },
+  "skirt":{
+    "layers": 3,
+    "distance": 2.0
+  },
   "nozzle_diameter":0.4,
   "retract_length":0.8,
   "retract_lift_z":0.6,

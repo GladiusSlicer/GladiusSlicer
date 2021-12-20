@@ -7,6 +7,7 @@ pub struct Settings {
 
     pub filament: FilamentSettings,
     pub fan: FanSettings,
+    pub skirt: Option<SkirtSettings>,
 
     pub nozzle_diameter: f64,
 
@@ -53,6 +54,7 @@ impl Default for Settings {
             layer_width: 0.6,
             filament: FilamentSettings::default(),
             fan: FanSettings::default(),
+            skirt: None,
             nozzle_diameter: 0.4,
             retract_length: 0.8,
             retract_lift_z: 0.6,
@@ -183,4 +185,11 @@ impl Default for FanSettings {
             slow_down_threshold: 15,
         }
     }
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SkirtSettings {
+    pub layers: usize,
+    pub distance: f64,
 }

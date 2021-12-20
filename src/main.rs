@@ -13,6 +13,8 @@ use geo_clipper::*;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
+use geo::prelude::ConvexHull;
+
 use std::ffi::OsStr;
 use std::path::Path;
 
@@ -222,10 +224,52 @@ fn main() {
 
     println!("Generating Moves");
 
+        //Handle Perimeters
+    if let Some(skirt) = &settings.skirt {
+        println!("Generating Moves: Skirt");
+        let convex_hull =
+            objects.iter()
+                .map(|object|{
+                    object.layers
+                        .iter()
+                        .take(skirt.layers)
+                        .map(|m| m.1.get_entire_slice_polygon())
+                })
+                .flatten()
+                .fold(
+                    objects
+                        .get(0)
+                        .expect("Needs an object")
+                        .layers
+                        .get(0)
+                        .unwrap()
+                        .1
+                        .get_entire_slice_polygon()
+                        .clone(),
+                    |a, b| a.union(b, 1000000.0),
+                ).convex_hull();
+
+        //Add to first object
+        objects.get_mut(0)
+            .expect("Needs an object")
+            .layers
+            .iter_mut()
+            .take(skirt.layers)
+            .enumerate()
+            .for_each(|(layer_num, (_layer, slice))|{
+                slice.generate_skirt(
+                    &convex_hull,
+                    &settings.get_layer_settings(layer_num),
+                    skirt
+                )
+            })
+    }
+
     objects.par_iter_mut().for_each(|object| {
         let slices = &mut object.layers;
 
         let slice_count = slices.len();
+
 
         //Handle Perimeters
         println!("Generating Moves: Perimeters");

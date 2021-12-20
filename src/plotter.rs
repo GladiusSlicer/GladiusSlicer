@@ -1,4 +1,4 @@
-use crate::settings::LayerSettings;
+use crate::settings::{LayerSettings, SkirtSettings};
 use crate::types::{Command, Move, MoveChain, MoveType};
 use geo::coordinate_position::CoordPos;
 use geo::coordinate_position::CoordinatePosition;
@@ -252,6 +252,41 @@ impl Slice {
         }
 
         self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
+    }
+
+    pub fn generate_skirt(
+        &mut self,
+        convex_polygon: &Polygon<f64>,
+        settings: &LayerSettings,
+        skirt_settings: &SkirtSettings,
+    ) {
+        let offset_hull_multi = convex_polygon
+            .offset(
+                skirt_settings.distance,
+                JoinType::Square,
+                EndType::ClosedPolygon,
+                100000.0,
+            );
+
+        assert_eq!(offset_hull_multi.0.len(),1);
+
+
+        let moves = offset_hull_multi.0[0]
+            .exterior()
+            .0
+            .iter()
+            .circular_tuple_windows::<(_, _)>()
+            .map(|(&_start, &end)| Move {
+                end,
+                move_type: MoveType::OuterPerimeter ,
+                width: settings.layer_width,
+            })
+            .collect();
+
+        self.chains.push(MoveChain {
+            start_point: offset_hull_multi.0[0].exterior()[0],
+            moves,
+        });
     }
 
     pub fn slice_into_commands(
