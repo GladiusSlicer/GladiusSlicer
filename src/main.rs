@@ -533,11 +533,11 @@ fn convert(
                 let y_diff = end.y - start.y;
                 let length = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
 
-                let extrude = ((4.0 * thickness * width)
-                    / (std::f64::consts::PI
-                        * settings.filament.diameter
-                        * settings.filament.diameter))
-                    * length;
+                let extrusion_width = width + (thickness * (1.0-std::f64::consts::FRAC_PI_4));
+
+                let extrusion_volume = (((width -thickness) *thickness) + (std::f64::consts::PI * (thickness/2.0) *(thickness/2.0)))* length;
+                let filament_area = (std::f64::consts::PI * settings.filament.diameter * settings.filament.diameter) / 4.0;
+                let extrude = extrusion_volume / filament_area;
 
                 writeln!(write_buf, "G1 X{:.5} Y{:.5} E{:.5}", end.x, end.y, extrude)?;
             }
