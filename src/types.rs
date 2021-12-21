@@ -131,11 +131,11 @@ pub enum MoveType {
 impl MoveChain {
     pub fn create_commands(self, settings: &LayerSettings, thickness: f64) -> Vec<Command> {
         let mut cmds = vec![];
-        let mut current_type = MoveType::Travel;
+        let mut current_type = None;
         let mut current_loc = self.start_point;
 
         for m in self.moves {
-            if m.move_type != current_type {
+            if Some(m.move_type) != current_type {
                 match m.move_type {
                     MoveType::TopSolidInfill => {
                         cmds.push(Command::SetState {
@@ -219,10 +219,10 @@ impl MoveChain {
                         });
                     }
                 }
-                current_type = m.move_type;
+                current_type = Some(m.move_type);
             }
 
-            if current_type == MoveType::Travel {
+            if m.move_type == MoveType::Travel {
                 cmds.push(Command::MoveTo { end: m.end });
                 current_loc = m.end;
             } else {
