@@ -160,7 +160,8 @@ pub struct FilamentSettings {
 pub struct FanSettings {
     pub fan_speed: f64,
     pub disable_fan_for_layers: usize,
-    pub slow_down_threshold: usize,
+    pub slow_down_threshold: f64,
+    pub min_print_speed: f64
 }
 
 impl Default for FilamentSettings {
@@ -182,7 +183,8 @@ impl Default for FanSettings {
         FanSettings {
             fan_speed: 100.0,
             disable_fan_for_layers: 1,
-            slow_down_threshold: 15,
+            slow_down_threshold: 15.0,
+            min_print_speed: 15.0,
         }
     }
 }
