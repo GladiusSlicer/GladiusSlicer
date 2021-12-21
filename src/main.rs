@@ -447,7 +447,7 @@ fn main() {
                                 let d = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
                                 current_pos = *end;
                                 if current_speed != 0.0 {
-                                    *map.entry(OrderedFloat(current_speed)).or_insert(0.0) += d ;
+                                    non_move_time += d / current_speed;
                                 }
                             }
                             Command::MoveAndExtrude {
@@ -545,7 +545,9 @@ fn main() {
                 for cmd  in &mut moves[start..end]{
                     if let Command::SetState {new_state} = cmd{
                         if let Some(speed)= &mut new_state.movement_speed{
-                            *speed = speed.min(max_speed).max(settings.fan.min_print_speed);
+                            if *speed != settings.travel_speed {
+                                *speed = speed.min(max_speed).max(settings.fan.min_print_speed);
+                            }
                         }
                     }
                 }
