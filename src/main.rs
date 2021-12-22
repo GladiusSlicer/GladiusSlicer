@@ -29,6 +29,7 @@ mod plotter;
 mod settings;
 mod tower;
 mod types;
+mod Monotone;
 
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
