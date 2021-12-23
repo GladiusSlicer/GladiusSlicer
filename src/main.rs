@@ -251,7 +251,7 @@ fn main() {
                     .1
                     .get_entire_slice_polygon()
                     .clone(),
-                |a, b| a.union(b, 1000000.0),
+                |a, b| a.union(b, 100000.0),
             )
             .convex_hull();
 
@@ -318,7 +318,7 @@ fn main() {
                         .1
                         .get_entire_slice_polygon()
                         .clone(),
-                    |a, b| a.intersection(b, 10000.0),
+                    |a, b| a.intersection(b, 100000.0),
                 );
             let above = slices[q + 2..q + layers]
                 .iter()
@@ -330,9 +330,9 @@ fn main() {
                         .1
                         .get_entire_slice_polygon()
                         .clone(),
-                    |a, b| a.intersection(b, 10000.0),
+                    |a, b| a.intersection(b, 100000.0),
                 );
-            let intersection = below.intersection(&above, 10000.0);
+            let intersection = below.intersection(&above, 100000.0);
 
             slices.get_mut(q).unwrap().1.fill_solid_subtracted_area(
                 &intersection,

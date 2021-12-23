@@ -284,6 +284,7 @@ use std::collections::BinaryHeap;
 use std::ops::Index;
 use geo::{Coordinate, Polygon};
 use geo::prelude::*;
+use geo::winding_order::Winding;
 use geo_svg::{Color, ToSvg};
 use itertools::Itertools;
 
@@ -337,35 +338,11 @@ enum Orientation{
 
 pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection>{
 
-
-    let mut exterior = poly.exterior().clone();
-
-    if exterior.0.first() == exterior.0.last(){
-        exterior.0.pop();
-    }
-
-    //exterior = exterior.simplifyvw(&0.01);
-
-    let interiors : Vec<_>= poly
-        .interiors()
-        .iter()
-        .map(|ls|{
-            let mut interior = ls.clone();
-
-            if interior.0.first() == interior.0.last(){
-                interior.0.pop();
-            }
-
-            //interior = interior.simplifyvw(&0.01);
-
-            interior
-        }).collect();
-
-
-    let mut mono_points = std::iter::once(&exterior).chain(interiors.iter())
+    let mut mono_points = std::iter::once(poly.exterior()).chain(poly.interiors().iter())
         .map(|line_string|{
             line_string.0
                 .iter()
+                .take(line_string.0.len()-1)
                 .circular_tuple_windows::<(&Coordinate<f64>,&Coordinate<f64>,&Coordinate<f64>)>()
                         .map(|(&next, &point, &prev)| {
 

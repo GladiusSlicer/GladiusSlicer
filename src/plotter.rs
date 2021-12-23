@@ -101,7 +101,7 @@ impl Slice {
             -settings.layer_width * number_of_perimeters as f64,
             JoinType::Square,
             EndType::ClosedPolygon,
-            100000000.0,
+            100000.0,
         );
     }
 
@@ -356,7 +356,7 @@ fn inset_polygon_recursive(
         -settings.layer_width / 2.0,
         JoinType::Square,
         EndType::ClosedPolygon,
-        100000000.0,
+        100000.0,
     );
 
     for polygon in inset_poly.0.iter() {
@@ -405,7 +405,7 @@ fn inset_polygon_recursive(
                 -settings.layer_width / 2.0,
                 JoinType::Square,
                 EndType::ClosedPolygon,
-                100000000.0,
+                100000.0,
             );
 
             for polygon_rec in rec_inset_poly {
@@ -588,113 +588,121 @@ fn solid_fill_polygon(
     settings: &LayerSettings,
     fill_type: MoveType,
 ) -> Vec<MoveChain> {
-    println!("Layer");
 
-    get_monotone_sections(poly)
-        .iter()
-        .filter_map(|section|{
-
-            let mut current_y =( ( (section.left_chain[0].y) / settings.layer_width).floor() * settings.layer_width) ;
-
-
-            let mut orient = true;
-
-            let mut start_point = None;
-
-            let mut line_change= true;
-
-            let mut left_index = 1;
-            let mut right_index = 1;
-
-            let mut moves = vec![];
-
-             println!("new {:?}", section);
-            loop {
-                while left_index < section.left_chain.len() && section.left_chain[left_index].y > current_y {
-                    left_index +=1;
-                    line_change = true;
-
-                }
-
-
-                if left_index == section.left_chain.len() {break;}
-
-                while right_index < section.right_chain.len() && section.right_chain[right_index].y > current_y {
-                    right_index +=1;
-                    line_change = true;
-                }
-
-                if right_index == section.right_chain.len() {break;}
-
-                let left_top = section.left_chain[left_index-1];
-                let left_bot = section.left_chain[left_index];
-                let right_top = section.right_chain[right_index-1];
-                let right_bot = section.right_chain[right_index];
-
-                let left_point  = point_lerp(&left_top ,&left_bot ,current_y);
-                let right_point = point_lerp(&right_top,&right_bot,current_y);
-                println!("{:.2} {} {}",current_y,left_point.x,right_point.x);
-
-                start_point = start_point.or(Some(Coordinate {
-                    x: left_point.x,
-                    y: current_y,
-                }));
-
-                if orient {
-                    moves.push(Move {
-                        end: Coordinate {
-                            x: left_point.x + settings.layer_width / 2.0,
-                            y: current_y,
-                        },
-                        move_type: if line_change {
-                            MoveType::Travel
-                        } else {
-                            fill_type
-                        },
-                        width: settings.layer_width,
-                    });
-
-                    moves.push(Move {
-                        end: Coordinate {
-                            x: right_point.x - settings.layer_width / 2.0,
-                            y: current_y,
-                        },
-                        move_type: fill_type,
-                        width: settings.layer_width,
-                    });
-
-                } else {
-
-                    moves.push(Move {
-                        end: Coordinate {
-                            x: right_point.x - settings.layer_width / 2.0,
-                            y: current_y,
-                        },
-                        move_type: if line_change {
-                            MoveType::Travel
-                        } else {
-                            fill_type
-                        },
-                        width: settings.layer_width,
-                    });
-
-                    moves.push(Move {
-                        end: Coordinate {
-                            x: left_point.x + settings.layer_width / 2.0,
-                            y: current_y,
-                        },
-                        move_type: fill_type,
-                        width: settings.layer_width,
-                    });
-                }
-
-                orient = !orient;
-                current_y -= settings.layer_width;
-                line_change = false;
-            }
-
-            start_point.map(|start_point| MoveChain { start_point, moves })
+    poly.offset(
+            -settings.layer_width / 2.0 ,
+            JoinType::Square,
+            EndType::ClosedPolygon,
+            100000.0,
+        ).iter()
+        .filter(|poly|{
+            poly.unsigned_area() >1.0
         })
+        .map(|poly| {
+            get_monotone_sections(poly)
+                .iter()
+                .filter_map(|section| {
+                    let mut current_y = (((section.left_chain[0].y) / settings.layer_width).floor() * settings.layer_width);
+
+
+                    let mut orient = true;
+
+                    let mut start_point = None;
+
+                    let mut line_change = true;
+
+                    let mut left_index = 1;
+                    let mut right_index = 1;
+
+                    let mut moves = vec![];
+
+                    loop {
+                        while left_index < section.left_chain.len() && section.left_chain[left_index].y > current_y {
+                            left_index += 1;
+                            line_change = true;
+                        }
+
+
+                        if left_index == section.left_chain.len() { break; }
+
+                        while right_index < section.right_chain.len() && section.right_chain[right_index].y > current_y {
+                            right_index += 1;
+                            line_change = true;
+                        }
+
+                        if right_index == section.right_chain.len() { break; }
+
+                        let left_top = section.left_chain[left_index - 1];
+                        let left_bot = section.left_chain[left_index];
+                        let right_top = section.right_chain[right_index - 1];
+                        let right_bot = section.right_chain[right_index];
+
+                        let left_point = point_lerp(&left_top, &left_bot, current_y);
+                        let right_point = point_lerp(&right_top, &right_bot, current_y);
+
+                        start_point = start_point.or(Some(Coordinate {
+                            x: left_point.x,
+                            y: current_y,
+                        }));
+
+                        if orient {
+                            moves.push(Move {
+                                end: Coordinate {
+                                    x: left_point.x,
+                                    y: current_y,
+                                },
+                                move_type: if line_change {
+                                    MoveType::Travel
+                                } else {
+                                    fill_type
+                                },
+                                width: settings.layer_width,
+                            });
+
+                            moves.push(Move {
+                                end: Coordinate {
+                                    x: right_point.x ,
+                                    y: current_y,
+                                },
+                                move_type: fill_type,
+                                width: settings.layer_width,
+                            });
+                        } else {
+                            moves.push(Move {
+                                end: Coordinate {
+                                    x: right_point.x ,
+                                    y: current_y,
+                                },
+                                move_type: if line_change {
+                                    MoveType::Travel
+                                } else {
+                                    fill_type
+                                },
+                                width: settings.layer_width,
+                            });
+
+                            moves.push(Move {
+                                end: Coordinate {
+                                    x: left_point.x,
+                                    y: current_y,
+                                },
+                                move_type: fill_type,
+                                width: settings.layer_width,
+                            });
+                        }
+
+                        orient = !orient;
+                        current_y -= settings.layer_width;
+                        line_change = false;
+                    }
+
+                    start_point.map(|start_point| MoveChain { start_point, moves })
+                })
+                .collect::<Vec<_>>()
+                .into_iter()
+
+        })
+        .flatten()
         .collect()
 }
 
