@@ -128,7 +128,7 @@ impl Slice {
             } else {
                 let new_moves = partial_fill_polygon(&poly, settings, settings.infill_percentage);
 
-                if let Some(chain) = new_moves {
+                for mut chain in new_moves {
                     self.chains.push(chain);
                 }
             }
@@ -445,10 +445,29 @@ fn inset_polygon_recursive(
         })
 }
 
+fn partial_fill_polygon(
+    poly: &Polygon<f64>,
+    settings: &LayerSettings,
+    fill_ratio: f64,
+) -> Vec<MoveChain> {
+    spaced_fill_polygon(poly,settings,MoveType::Infill,settings.layer_width / fill_ratio)
+}
+
+
 fn solid_fill_polygon(
     poly: &Polygon<f64>,
     settings: &LayerSettings,
     fill_type: MoveType,
+) -> Vec<MoveChain> {
+    spaced_fill_polygon(poly,settings,fill_type,settings.layer_width)
+
+}
+
+fn spaced_fill_polygon(
+    poly: &Polygon<f64>,
+    settings: &LayerSettings,
+    fill_type: MoveType,
+    spacing: f64,
 ) -> Vec<MoveChain> {
     poly.offset(
         -settings.layer_width / 2.0,
@@ -462,8 +481,8 @@ fn solid_fill_polygon(
         get_monotone_sections(poly)
             .iter()
             .filter_map(|section| {
-                let mut current_y = ((section.left_chain[0].y) / settings.layer_width).floor()
-                    * settings.layer_width;
+                let mut current_y = ((section.left_chain[0].y) / spacing).floor()
+                    * spacing;
 
                 let mut orient = true;
 
@@ -559,7 +578,7 @@ fn solid_fill_polygon(
                     }
 
                     orient = !orient;
-                    current_y -= settings.layer_width;
+                    current_y -= spacing;
                     line_change = false;
                 }
 
@@ -570,150 +589,6 @@ fn solid_fill_polygon(
     })
     .flatten()
     .collect()
-}
-
-fn partial_fill_polygon(
-    poly: &Polygon<f64>,
-    settings: &LayerSettings,
-    fill_ratio: f64,
-) -> Option<MoveChain> {
-    let mut moves = vec![];
-
-    let mut lines: Vec<(Coordinate<f64>, Coordinate<f64>)> = poly
-        .exterior()
-        .0
-        .iter()
-        .copied()
-        .circular_tuple_windows::<(_, _)>()
-        .collect();
-
-    for interior in poly.interiors() {
-        let mut new_lines = interior
-            .0
-            .iter()
-            .copied()
-            .circular_tuple_windows::<(_, _)>()
-            .collect();
-        lines.append(&mut new_lines);
-    }
-
-    for line in lines.iter_mut() {
-        *line = if line.0.y < line.1.y {
-            *line
-        } else {
-            (line.1, line.0)
-        };
-    }
-
-    lines.sort_by(|a, b| b.0.y.partial_cmp(&a.0.y).unwrap());
-
-    let distance = settings.layer_width / fill_ratio;
-
-    let mut current_y = (lines[lines.len() - 1].0.y / distance).ceil() * distance;
-
-    let mut current_lines = Vec::new();
-
-    let mut orient = false;
-
-    let mut start_point = None;
-
-    let mut line_change;
-
-    let distance = settings.layer_width / fill_ratio;
-
-    while !lines.is_empty() || !current_lines.is_empty() {
-        line_change = false;
-        while !lines.is_empty() && lines[lines.len() - 1].0.y < current_y {
-            current_lines.push(lines.pop().unwrap());
-            line_change = true;
-        }
-
-        current_lines.retain(|(_s, e)| e.y > current_y);
-
-        if current_lines.is_empty() {
-            break;
-        }
-
-        //current_lines.sort_by(|a,b| b.0.x.partial_cmp(&x.0.y).unwrap().then(b.1.x.partial_cmp(&a.1.x).unwrap()) )
-
-        let mut points = current_lines
-            .iter()
-            .map(|(start, end)| {
-                ((current_y - start.y) * ((end.x - start.x) / (end.y - start.y))) + start.x
-            })
-            .collect::<Vec<_>>();
-
-        points.sort_by(|a, b| a.partial_cmp(b).unwrap());
-
-        start_point = start_point.or(Some(Coordinate {
-            x: points[0],
-            y: current_y,
-        }));
-
-        moves.push(Move {
-            end: Coordinate {
-                x: if orient {
-                    *points.first().unwrap() + settings.layer_width / 2.0
-                } else {
-                    *points.last().unwrap() - settings.layer_width / 2.0
-                },
-                y: current_y,
-            },
-            move_type: if line_change {
-                MoveType::Travel
-            } else {
-                MoveType::Infill
-            },
-            width: settings.layer_width,
-        });
-
-        if orient {
-            for (start, end) in points.iter().tuples::<(_, _)>() {
-                moves.push(Move {
-                    end: Coordinate {
-                        x: *start + settings.layer_width / 2.0,
-                        y: current_y,
-                    },
-                    move_type: MoveType::Travel,
-                    width: settings.layer_width,
-                });
-
-                moves.push(Move {
-                    end: Coordinate {
-                        x: *end - settings.layer_width / 2.0,
-                        y: current_y,
-                    },
-                    move_type: MoveType::Infill,
-                    width: settings.layer_width,
-                });
-            }
-        } else {
-            for (start, end) in points.iter().rev().tuples::<(_, _)>() {
-                moves.push(Move {
-                    end: Coordinate {
-                        x: *start - settings.layer_width / 2.0,
-                        y: current_y,
-                    },
-                    move_type: MoveType::Travel,
-                    width: settings.layer_width,
-                });
-
-                moves.push(Move {
-                    end: Coordinate {
-                        x: *end + settings.layer_width / 2.0,
-                        y: current_y,
-                    },
-                    move_type: MoveType::Infill,
-                    width: settings.layer_width,
-                });
-            }
-        }
-
-        orient = !orient;
-        current_y += distance;
-    }
-
-    start_point.map(|start_point| MoveChain { start_point, moves })
 }
 
 fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPolygon<f64>) -> f64 {
