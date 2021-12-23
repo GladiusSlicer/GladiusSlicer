@@ -18,18 +18,18 @@ use geo::prelude::ConvexHull;
 use std::ffi::OsStr;
 use std::path::Path;
 
-use rayon::prelude::*;
-use itertools::{Itertools, Group};
-use std::collections::HashMap;
+use itertools::{Itertools};
 use ordered_float::OrderedFloat;
+use rayon::prelude::*;
+use std::collections::HashMap;
 
+mod Monotone;
 mod loader;
 mod optimizer;
 mod plotter;
 mod settings;
 mod tower;
 mod types;
-mod Monotone;
 
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
@@ -414,22 +414,21 @@ fn main() {
         .flatten()
         .collect();
 
-
     println!("Optimizing {} Moves", moves.len());
     optimize_commands(&mut moves, &settings);
 
     let mut layer_height = 0.0;
     //Slow down on small layers
-    let mut current_layer =0.0;
-    let mut current_speed =0.0;
+    let mut current_speed = 0.0;
     let mut current_pos = Coordinate { x: 0.0, y: 0.0 };
 
     {
-        let mut layers: Vec<(HashMap<OrderedFloat<f64>, f64>,f64,usize,usize)> = moves.iter()
+        let layers: Vec<(HashMap<OrderedFloat<f64>, f64>, f64, usize, usize)> = moves
+            .iter()
             .enumerate()
             .batching(|it| {
                 //map from speed to length at that speed
-                let mut map : HashMap<OrderedFloat<f64>, f64> = HashMap::new();
+                let mut map: HashMap<OrderedFloat<f64>, f64> = HashMap::new();
                 let mut non_move_time = 0.0;
 
                 let start_z_height = layer_height;
@@ -437,11 +436,11 @@ fn main() {
 
                 let mut start_index = None;
                 let mut end_index = 0;
-                while layer_height == start_z_height && !return_none{
-                    if let Some((index,cmd))  = it.next(){
+                while layer_height == start_z_height && !return_none {
+                    if let Some((index, cmd)) = it.next() {
                         start_index = start_index.or(Some(index));
                         end_index = index;
-                         match cmd {
+                        match cmd {
                             Command::MoveTo { end } => {
                                 let x_diff = end.x - current_pos.x;
                                 let y_diff = end.y - current_pos.y;
@@ -461,15 +460,17 @@ fn main() {
                                 let y_diff = end.y - start.y;
                                 let d = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
                                 current_pos = *end;
-                                *map.entry(OrderedFloat(current_speed)).or_insert(0.0) += d ;
+                                *map.entry(OrderedFloat(current_speed)).or_insert(0.0) += d;
                             }
                             Command::SetState { new_state } => {
                                 if let Some(speed) = new_state.movement_speed {
                                     current_speed = speed
                                 }
-                                if let Some(_) = new_state.retract {
-                                    non_move_time += settings.retract_length / settings.retract_speed;
-                                    non_move_time += settings.retract_lift_z / settings.travel_speed;
+                                if new_state.retract.is_some() {
+                                    non_move_time +=
+                                        settings.retract_length / settings.retract_speed;
+                                    non_move_time +=
+                                        settings.retract_lift_z / settings.travel_speed;
                                 }
                             }
                             Command::Delay { msec } => {
@@ -478,74 +479,70 @@ fn main() {
                             Command::Arc { .. } => {
                                 unimplemented!()
                             }
-                             Command::LayerChange { z }  =>{
-                                 layer_height = *z;
-                             }
+                            Command::LayerChange { z } => {
+                                layer_height = *z;
+                            }
                             Command::NoAction | Command::ChangeObject { .. } => {}
                         }
-                    }
-                    else{
+                    } else {
                         return_none = true;
                     }
                 }
 
-                if return_none{
-                    if map.is_empty(){
+                if return_none {
+                    if map.is_empty() {
                         None
+                    } else {
+                        Some((map, non_move_time, start_index.unwrap(), end_index))
                     }
-                    else{
-                         Some((map,non_move_time,start_index.unwrap(),end_index))
-                    }
-                }
-                else {
-                    Some((map,non_move_time,start_index.unwrap(),end_index))
+                } else {
+                    Some((map, non_move_time, start_index.unwrap(), end_index))
                 }
             })
             .collect();
 
         layers
             .into_iter()
-            .filter_map(|(map,time,start, end)|{
-                let mut total_time = time + map
-                    .iter()
-                    .map(|(speed,len)|{
-                        len / speed.into_inner()
-                    })
-                    .sum::<f64>();
+            .filter_map(|(map, time, start, end)| {
+                let mut total_time = time
+                    + map
+                        .iter()
+                        .map(|(speed, len)| len / speed.into_inner())
+                        .sum::<f64>();
 
-                let min_time = settings.fan.slow_down_threshold ;
-                if total_time < min_time && map.len() > 0{
-                    let mut sorted = map.into_iter().collect::<Vec<(OrderedFloat<f64>,f64)>>();
-                    sorted.sort_by(|a,b|a.0.cmp(&b.0));
+                let min_time = settings.fan.slow_down_threshold;
+                if total_time < min_time && !map.is_empty() {
+                    let mut sorted = map.into_iter().collect::<Vec<(OrderedFloat<f64>, f64)>>();
+                    sorted.sort_by(|a, b| a.0.cmp(&b.0));
 
-                    let mut max_speed : f64 = 0.0;
+                    let max_speed: f64 ;
                     loop {
-                        let (speed,len) = sorted.pop().unwrap();
-                        let (top_speed,_) = sorted.last().unwrap_or(&(OrderedFloat(0.000001),0.0));
+                        let (speed, len) = sorted.pop().unwrap();
+                        let (top_speed, _) =
+                            sorted.last().unwrap_or(&(OrderedFloat(0.000001), 0.0));
 
-                        if min_time - total_time < (len/ top_speed.into_inner()) - ( len/ speed.into_inner())
+                        if min_time - total_time
+                            < (len / top_speed.into_inner()) - (len / speed.into_inner())
                         {
-                            let second = (min_time - total_time );
-                            max_speed =  (len *speed.into_inner()) / ( len + (second*speed.into_inner()));
+                            let second = min_time - total_time;
+                            max_speed =
+                                (len * speed.into_inner()) / (len + (second * speed.into_inner()));
                             break;
-                        }
-                        else{
-                            total_time += (len/ top_speed.into_inner()) - ( len/ speed.into_inner())  ;
+                        } else {
+                            total_time +=
+                                (len / top_speed.into_inner()) - (len / speed.into_inner());
                             //println!("tt: {:.5}", total_time);
                         }
-
-                    };
-                    Some((max_speed,start,end))
-                }
-                else{
+                    }
+                    Some((max_speed, start, end))
+                } else {
                     None
                 }
-
-
-            }).for_each(|(max_speed,start,end)|{
-                for cmd  in &mut moves[start..end]{
-                    if let Command::SetState {new_state} = cmd{
-                        if let Some(speed)= &mut new_state.movement_speed{
+            })
+            .for_each(|(max_speed, start, end)| {
+                for cmd in &mut moves[start..end] {
+                    if let Command::SetState { new_state } = cmd {
+                        if let Some(speed) = &mut new_state.movement_speed {
                             if *speed != settings.travel_speed {
                                 *speed = speed.min(max_speed).max(settings.fan.min_print_speed);
                             }
@@ -554,8 +551,6 @@ fn main() {
                 }
             });
     }
-
-
 
     //Convert all commands into
     let mut plastic_used = 0.0;
@@ -592,7 +587,7 @@ fn main() {
                 if let Some(speed) = new_state.movement_speed {
                     current_speed = speed
                 }
-                if let Some(_) = new_state.retract {
+                if new_state.retract.is_some() {
                     total_time += settings.retract_length / settings.retract_speed;
                     total_time += settings.retract_lift_z / settings.travel_speed;
                 }
@@ -624,8 +619,6 @@ fn main() {
         "Total Filament Cost: {:.2} $",
         (((plastic_used / 1000.0) * settings.filament.density) / 1000.0) * settings.filament.cost
     );
-
-
 
     //Output the GCode
     if let Some(file_path) = matches.value_of("OUTPUT") {
@@ -678,10 +671,15 @@ fn convert(
                 let y_diff = end.y - start.y;
                 let length = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
 
-                let extrusion_width = width + (thickness * (1.0-std::f64::consts::FRAC_PI_4));
+                //let extrusion_width = width + (thickness * (1.0 - std::f64::consts::FRAC_PI_4));
 
-                let extrusion_volume = (((width -thickness) *thickness) + (std::f64::consts::PI * (thickness/2.0) *(thickness/2.0)))* length;
-                let filament_area = (std::f64::consts::PI * settings.filament.diameter * settings.filament.diameter) / 4.0;
+                let extrusion_volume = (((width - thickness) * thickness)
+                    + (std::f64::consts::PI * (thickness / 2.0) * (thickness / 2.0)))
+                    * length;
+                let filament_area = (std::f64::consts::PI
+                    * settings.filament.diameter
+                    * settings.filament.diameter)
+                    / 4.0;
                 let extrude = extrusion_volume / filament_area;
 
                 writeln!(write_buf, "G1 X{:.5} Y{:.5} E{:.5}", end.x, end.y, extrude)?;
