@@ -17,6 +17,7 @@ pub struct Slice {
     remaining_area: MultiPolygon<f64>,
     solid_infill: Option<MultiPolygon<f64>>,
     normal_infill: Option<MultiPolygon<f64>>,
+    fixed_chains: Vec<MoveChain>,
     chains: Vec<MoveChain>,
 }
 
@@ -32,6 +33,7 @@ impl Slice {
             remaining_area: MultiPolygon(vec![polygon]),
             solid_infill: None,
             normal_infill: None,
+            fixed_chains: vec![],
             chains: vec![],
         }
     }
@@ -76,6 +78,7 @@ impl Slice {
             solid_infill: None,
             normal_infill: None,
             chains: vec![],
+            fixed_chains: vec![],
         }
     }
 
@@ -94,7 +97,7 @@ impl Slice {
             true,
             number_of_perimeters - 1,
         ) {
-            self.chains.push(mc);
+            self.fixed_chains.push(mc);
         }
 
         self.remaining_area = self.remaining_area.offset(
@@ -286,7 +289,7 @@ impl Slice {
             })
             .collect();
 
-        self.chains.push(MoveChain {
+        self.fixed_chains.push(MoveChain {
             start_point: offset_hull_multi.0[0].exterior()[0],
             moves,
         });
@@ -325,7 +328,7 @@ impl Slice {
 
             let mut full_moves = vec![];
             let starting_point = ordered_chains[0].start_point;
-            for mut chain in ordered_chains {
+            for mut chain in self.fixed_chains.iter_mut().chain(ordered_chains.iter_mut()) {
                 full_moves.push(Move {
                     end: chain.start_point,
                     move_type: MoveType::Travel,
@@ -442,147 +445,6 @@ fn inset_polygon_recursive(
         })
 }
 
-/*
-fn solid_fill_polygon(
-    poly: &Polygon<f64>,
-    settings: &LayerSettings,
-    fill_type: MoveType,
-) -> Option<MoveChain> {
-    let mut moves = vec![];
-
-    let mut lines: Vec<(Coordinate<f64>, Coordinate<f64>)> = poly
-        .exterior()
-        .0
-        .iter()
-        .copied()
-        .circular_tuple_windows::<(_, _)>()
-        .collect();
-
-    for interior in poly.interiors() {
-        let mut new_lines = interior
-            .0
-            .iter()
-            .copied()
-            .circular_tuple_windows::<(_, _)>()
-            .collect();
-        lines.append(&mut new_lines);
-    }
-
-    for line in lines.iter_mut() {
-        *line = if line.0.y < line.1.y {
-            *line
-        } else {
-            (line.1, line.0)
-        };
-    }
-
-    lines.sort_by(|a, b| b.0.y.partial_cmp(&a.0.y).unwrap());
-
-    let mut current_y = lines[lines.len() - 1].0.y + settings.layer_width / 2.0;
-
-    let mut current_lines = Vec::new();
-
-    let mut orient = false;
-
-    let mut start_point = None;
-
-    let mut line_change;
-
-    while !lines.is_empty() || !current_lines.is_empty() {
-        line_change = false;
-        while !lines.is_empty() && lines[lines.len() - 1].0.y < current_y {
-            current_lines.push(lines.pop().unwrap());
-            line_change = true;
-        }
-
-        current_lines.retain(|(_s, e)| e.y > current_y);
-
-        if current_lines.is_empty() {
-            break;
-        }
-
-        //current_lines.sort_by(|a,b| b.0.x.partial_cmp(&x.0.y).unwrap().then(b.1.x.partial_cmp(&a.1.x).unwrap()) )
-
-        let mut points = current_lines
-            .iter()
-            .map(|(start, end)| {
-                ((current_y - start.y) * ((end.x - start.x) / (end.y - start.y))) + start.x
-            })
-            .collect::<Vec<_>>();
-
-        points.sort_by(|a, b| a.partial_cmp(b).unwrap());
-
-        start_point = start_point.or(Some(Coordinate {
-            x: points[0],
-            y: current_y,
-        }));
-
-        moves.push(Move {
-            end: Coordinate {
-                x: if orient {
-                    *points.first().unwrap() + settings.layer_width / 2.0
-                } else {
-                    *points.last().unwrap() - settings.layer_width / 2.0
-                },
-                y: current_y,
-            },
-            move_type: if line_change {
-                MoveType::Travel
-            } else {
-                fill_type
-            },
-            width: settings.layer_width,
-        });
-
-        if orient {
-            for (start, end) in points.iter().tuples::<(_, _)>() {
-                moves.push(Move {
-                    end: Coordinate {
-                        x: *start + settings.layer_width / 2.0,
-                        y: current_y,
-                    },
-                    move_type: MoveType::Travel,
-                    width: settings.layer_width,
-                });
-
-                moves.push(Move {
-                    end: Coordinate {
-                        x: *end - settings.layer_width / 2.0,
-                        y: current_y,
-                    },
-                    move_type: fill_type,
-                    width: settings.layer_width,
-                });
-            }
-        } else {
-            for (start, end) in points.iter().rev().tuples::<(_, _)>() {
-                moves.push(Move {
-                    end: Coordinate {
-                        x: *start - settings.layer_width / 2.0,
-                        y: current_y,
-                    },
-                    move_type: MoveType::Travel,
-                    width: settings.layer_width,
-                });
-
-                moves.push(Move {
-                    end: Coordinate {
-                        x: *end + settings.layer_width / 2.0,
-                        y: current_y,
-                    },
-                    move_type: fill_type,
-                    width: settings.layer_width,
-                });
-            }
-        }
-
-        orient = !orient;
-        current_y += settings.layer_width;
-    }
-
-    start_point.map(|start_point| MoveChain { start_point, moves })
-}*/
-
 fn solid_fill_polygon(
     poly: &Polygon<f64>,
     settings: &LayerSettings,
@@ -611,8 +473,8 @@ fn solid_fill_polygon(
 
                     let mut line_change = true;
 
-                    let mut left_index = 1;
-                    let mut right_index = 1;
+                    let mut left_index = 0;
+                    let mut right_index = 0;
 
                     let mut moves = vec![];
 
