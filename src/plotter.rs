@@ -1,5 +1,6 @@
 use crate::settings::{LayerSettings, SkirtSettings};
 use crate::types::{Command, Move, MoveChain, MoveType};
+use crate::Monotone::get_monotone_sections;
 use geo::coordinate_position::CoordPos;
 use geo::coordinate_position::CoordinatePosition;
 use geo::prelude::*;
@@ -115,11 +116,11 @@ impl Slice {
             if solid {
                 let angle = 45.0 + (120_f64) * layer_count as f64;
 
-                let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+                ;let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
                 let new_moves = solid_fill_polygon(&rotate_poly, settings, MoveType::SolidInfill);
 
-                if let Some(mut chain) = new_moves {
+                for mut chain in new_moves {
                     chain.rotate(-angle.to_radians());
                     self.chains.push(chain);
                 }
@@ -152,23 +153,25 @@ impl Slice {
             )
             .intersection(&self.remaining_area, 100000.0);
 
-        self.chains.append(
+        let angle = 45.0 + (120_f64) * layer_count as f64;
+
+        self.chains.extend(
             &mut solid_area
                 .0
-                .par_iter()
-                .filter_map(|poly| {
-                    let angle = 45.0 + (120_f64) * layer_count as f64;
+                .iter()
+                .map(|poly| {
+
 
                     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-                    solid_fill_polygon(&rotate_poly, settings, MoveType::SolidInfill).map(
+                    solid_fill_polygon(&rotate_poly, settings, MoveType::SolidInfill).into_iter().map(
                         |mut chain| {
                             chain.rotate(-angle.to_radians());
                             chain
                         },
                     )
                 })
-                .collect(),
+                .flatten(),
         );
 
         self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
@@ -192,11 +195,11 @@ impl Slice {
             )
             .intersection(&self.remaining_area, 100000.0);
 
-        self.chains.append(
+        self.chains.extend(
             &mut solid_area
                 .0
-                .par_iter()
-                .filter_map(|poly| {
+                .iter()
+                .map(|poly| {
                     let unsupported_area: MultiPolygon<f64> =
                         poly.difference(layer_below, 100000.0);
                     let mut angle = get_optimal_bridge_angle(poly, &unsupported_area);
@@ -208,14 +211,14 @@ impl Slice {
 
                     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-                    solid_fill_polygon(&rotate_poly, settings, MoveType::Bridging).map(
-                        |mut chain| {
+                    solid_fill_polygon(&rotate_poly, settings, MoveType::Bridging).into_iter().map(
+                            move |mut chain| {
                             chain.rotate(-angle.to_radians());
                             chain
                         },
                     )
                 })
-                .collect(),
+                .flatten(),
         );
 
         self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
@@ -247,10 +250,10 @@ impl Slice {
 
             let new_moves = solid_fill_polygon(&rotate_poly, settings, MoveType::TopSolidInfill);
 
-            if let Some(mut chain) = new_moves {
+            for mut chain in new_moves {
                 chain.rotate(-angle.to_radians());
                 self.chains.push(chain);
-            }
+            };
         }
 
         self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
@@ -439,6 +442,7 @@ fn inset_polygon_recursive(
         })
 }
 
+/*
 fn solid_fill_polygon(
     poly: &Polygon<f64>,
     settings: &LayerSettings,
@@ -577,6 +581,121 @@ fn solid_fill_polygon(
     }
 
     start_point.map(|start_point| MoveChain { start_point, moves })
+}*/
+
+fn solid_fill_polygon(
+    poly: &Polygon<f64>,
+    settings: &LayerSettings,
+    fill_type: MoveType,
+) -> Vec<MoveChain> {
+    println!("Layer");
+
+    get_monotone_sections(poly)
+        .iter()
+        .filter_map(|section|{
+
+            let mut current_y =( ( (section.left_chain[0].y) / settings.layer_width).floor() * settings.layer_width) ;
+
+
+            let mut orient = true;
+
+            let mut start_point = None;
+
+            let mut line_change= true;
+
+            let mut left_index = 1;
+            let mut right_index = 1;
+
+            let mut moves = vec![];
+
+             println!("new {:?}", section);
+            loop {
+                while left_index < section.left_chain.len() && section.left_chain[left_index].y > current_y {
+                    left_index +=1;
+                    line_change = true;
+
+                }
+
+
+                if left_index == section.left_chain.len() {break;}
+
+                while right_index < section.right_chain.len() && section.right_chain[right_index].y > current_y {
+                    right_index +=1;
+                    line_change = true;
+                }
+
+                if right_index == section.right_chain.len() {break;}
+
+                let left_top = section.left_chain[left_index-1];
+                let left_bot = section.left_chain[left_index];
+                let right_top = section.right_chain[right_index-1];
+                let right_bot = section.right_chain[right_index];
+
+                let left_point  = point_lerp(&left_top ,&left_bot ,current_y);
+                let right_point = point_lerp(&right_top,&right_bot,current_y);
+                println!("{:.2} {} {}",current_y,left_point.x,right_point.x);
+
+                start_point = start_point.or(Some(Coordinate {
+                    x: left_point.x,
+                    y: current_y,
+                }));
+
+                if orient {
+                    moves.push(Move {
+                        end: Coordinate {
+                            x: left_point.x + settings.layer_width / 2.0,
+                            y: current_y,
+                        },
+                        move_type: if line_change {
+                            MoveType::Travel
+                        } else {
+                            fill_type
+                        },
+                        width: settings.layer_width,
+                    });
+
+                    moves.push(Move {
+                        end: Coordinate {
+                            x: right_point.x - settings.layer_width / 2.0,
+                            y: current_y,
+                        },
+                        move_type: fill_type,
+                        width: settings.layer_width,
+                    });
+
+                } else {
+
+                    moves.push(Move {
+                        end: Coordinate {
+                            x: right_point.x - settings.layer_width / 2.0,
+                            y: current_y,
+                        },
+                        move_type: if line_change {
+                            MoveType::Travel
+                        } else {
+                            fill_type
+                        },
+                        width: settings.layer_width,
+                    });
+
+                    moves.push(Move {
+                        end: Coordinate {
+                            x: left_point.x + settings.layer_width / 2.0,
+                            y: current_y,
+                        },
+                        move_type: fill_type,
+                        width: settings.layer_width,
+                    });
+                }
+
+                orient = !orient;
+                current_y -= settings.layer_width;
+                line_change = false;
+            }
+
+            start_point.map(|start_point| MoveChain { start_point, moves })
+        })
+        .collect()
 }
 
 fn partial_fill_polygon(
@@ -779,4 +898,18 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
         .min_by(|(_, l_sum), (_, r_sum)| l_sum.partial_cmp(r_sum).unwrap())
         .map(|((x, y), _)| -90.0 - (y).atan2(x).to_degrees())
         .unwrap_or(0.0)
+}
+
+#[inline]
+fn point_lerp(a: &Coordinate<f64>, b: &Coordinate<f64>, y: f64) -> Coordinate<f64>{
+    Coordinate{
+        x : lerp(a.x,b.x, ((y-a.y)/(b.y-a.y))),
+        y ,
+    }
+}
+
+
+#[inline]
+fn lerp(a: f64, b: f64, f: f64) -> f64 {
+    a + f * (b - a)
 }
