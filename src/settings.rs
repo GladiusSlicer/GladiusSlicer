@@ -30,6 +30,8 @@ pub struct Settings {
     pub first_layer_travel_speed: f64,
     pub first_layer_width: f64,
 
+    pub inner_permimeters_first : bool,
+
     pub number_of_perimeters: usize,
 
     pub print_x: f64,
@@ -73,6 +75,7 @@ impl Default for Settings {
             print_x: 210.0,
             print_y: 210.0,
             print_z: 210.0,
+            inner_permimeters_first: true,
             minimum_retract_distance: 1.0,
             infill_perimeter_overlap_percentage: 0.25,
             starting_gcode: "G90 ; use absolute coordinates \n\
@@ -117,7 +120,8 @@ impl Settings {
                 bridge_speed: self.bridge_speed,
                 layer_width: self.first_layer_width,
                 infill_percentage: self.infill_percentage,
-                infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage
+                infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage,
+                inner_permimeters_first: self.inner_permimeters_first,
             }
         } else {
             LayerSettings {
@@ -132,6 +136,7 @@ impl Settings {
                 layer_width: self.layer_width,
                 infill_percentage: self.infill_percentage,
                 infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage,
+                inner_permimeters_first: self.inner_permimeters_first,
             }
         }
     }
@@ -148,7 +153,8 @@ pub struct LayerSettings {
     pub bridge_speed: f64,
     pub layer_width: f64,
     pub infill_percentage: f64,
-    pub infill_perimeter_overlap_percentage: f64
+    pub infill_perimeter_overlap_percentage: f64,
+    pub inner_permimeters_first: bool
 }
 
 #[derive(Serialize, Deserialize, Debug)]

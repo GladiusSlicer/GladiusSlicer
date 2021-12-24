@@ -362,7 +362,12 @@ fn inset_polygon_recursive(
         100000.0,
     );
 
+
+
     for polygon in inset_poly.0.iter() {
+
+        let mut outer_chains = vec![];
+        let mut inner_chains = vec![];
         let moves = polygon
             .exterior()
             .0
@@ -379,7 +384,7 @@ fn inset_polygon_recursive(
             })
             .collect();
 
-        move_chains.push(MoveChain {
+        outer_chains.push(MoveChain {
             start_point: polygon.exterior()[0],
             moves,
         });
@@ -397,7 +402,7 @@ fn inset_polygon_recursive(
                     width: settings.layer_width,
                 });
             }
-            move_chains.push(MoveChain {
+            outer_chains.push(MoveChain {
                 start_point: interior.0[0],
                 moves,
             });
@@ -418,9 +423,17 @@ fn inset_polygon_recursive(
                     false,
                     layer_left - 1,
                 ) {
-                    move_chains.push(mc);
+                    inner_chains.push(mc);
                 }
             }
+        }
+
+        if settings.inner_permimeters_first {
+            move_chains.append(&mut inner_chains);
+            move_chains.append(&mut outer_chains);
+        }else {
+            move_chains.append(&mut outer_chains);
+            move_chains.append(&mut inner_chains);
         }
     }
 
