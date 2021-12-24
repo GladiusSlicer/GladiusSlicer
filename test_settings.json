@@ -1,0 +1,49 @@
+{
+  "layer_height":0.1,
+  "first_layer_height":0.3,
+  "layer_width":0.45,
+  "filament":{
+    "diameter":1.75,
+    "density":1.24,
+    "cost":24.99,
+    "extruder_temp":210.0,
+    "first_layer_extruder_temp":215.0,
+    "bed_temp":60.0,
+    "first_layer_bed_temp":60.0
+  },
+  "fan":{
+    "fan_speed": 100.0,
+    "disable_fan_for_layers": 1,
+    "slow_down_threshold": 15,
+    "min_print_speed": 15.0
+  },
+  "skirt":{
+    "layers": 3,
+    "distance": 2.0
+  },
+  "nozzle_diameter":0.4,
+  "retract_length":0.8,
+  "retract_lift_z":0.0,
+  "retract_speed":35.0,
+  "outer_perimeter_speed":25.0,
+  "inner_perimeter_speed":45.0,
+  "infill_speed":80.0,
+  "solid_infill_speed":80.0,
+  "solid_top_infill_speed":40.0,
+  "infill_percentage":0.2,
+  "travel_speed": 180.0,
+  "bridge_speed": 30.0,
+  "first_layer_perimeter_speed":20.0,
+  "first_layer_infill_speed":20.0,
+  "first_layer_travel_speed":180.0,
+  "first_layer_width":0.4,
+  "print_x": 250,
+  "print_y": 210,
+  "print_z": 210,
+  "number_of_perimeters": 2,
+  "minimum_retract_distance": 1,
+  "infill_perimeter_overlap_percentage": 0.25,
+  "inner_permimeters_first" : true,
+  "starting_gcode":"M201 X1000 Y1000 Z1000 E5000 ; sets maximum accelerations, mm/sec^2\nM203 X200 Y200 Z12 E120 ; sets maximum feedrates, mm/sec\nM204 P1250 R1250 T1250 ; sets acceleration (P, T) and retract acceleration (R), mm/sec^2\nM205 X8.00 Y8.00 Z0.40 E1.50 ; sets the jerk limits, mm/sec\nM205 S0 T0 ; sets the minimum extruding and travel feed rate, mm/sec\nM107;\nG90 ; use absolute coordinates \nM83 ; extruder relative mode\nM106 S255 ; FANNNNN\nM104 S[First Layer Extruder Temp] ; set extruder temp\nM140 S[First Layer Bed Temp] ; set bed temp\nM190 S[First Layer Bed Temp]; wait for bed temp\nM109 S[First Layer Extruder Temp] ; wait for extruder temp\nG28 W ; home all without mesh bed level\nG80 ; mesh bed leveling\nG1 Y-3.0 F1000.0 ; go outside print area\nG92 E0.0\nG1 X60.0 E9.0 F1000.0 ; intro line\nG1 X100.0 E12.5 F1000.0 ; intro line\nG92 E0.0;\nG21 ; set units to millimeters\nG90 ; use absolute coordinates\nM83 ; use relative distances for extrusion\nM900 K0.05 ; Filament gcode LA 1.5\nM900 K30 ; Filament gcode LA 1.0\nM204 S1000\n",
+  "ending_gcode":"G4 ; wait\nM221 S100 \nM104 S0 ; turn off temperature \nM140 S0 ; turn off heatbed \nG1 X0 F3000 ; home X axis \nM84 ; disable motors\nM107 ; disable fan\n"
+}
