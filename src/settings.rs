@@ -38,6 +38,8 @@ pub struct Settings {
 
     pub minimum_retract_distance: f64,
 
+    pub infill_perimeter_overlap_percentage: f64,
+
     pub starting_gcode: String,
     pub ending_gcode: String,
 }
@@ -72,6 +74,7 @@ impl Default for Settings {
             print_y: 210.0,
             print_z: 210.0,
             minimum_retract_distance: 1.0,
+            infill_perimeter_overlap_percentage: 0.25,
             starting_gcode: "G90 ; use absolute coordinates \n\
                                 M83 ; extruder relative mode\n\
                                 M106 S255 ; FANNNNN\n\
@@ -114,6 +117,7 @@ impl Settings {
                 bridge_speed: self.bridge_speed,
                 layer_width: self.first_layer_width,
                 infill_percentage: self.infill_percentage,
+                infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage
             }
         } else {
             LayerSettings {
@@ -127,6 +131,7 @@ impl Settings {
                 bridge_speed: self.bridge_speed,
                 layer_width: self.layer_width,
                 infill_percentage: self.infill_percentage,
+                infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage,
             }
         }
     }
@@ -143,6 +148,7 @@ pub struct LayerSettings {
     pub bridge_speed: f64,
     pub layer_width: f64,
     pub infill_percentage: f64,
+    pub infill_perimeter_overlap_percentage: f64
 }
 
 #[derive(Serialize, Deserialize, Debug)]

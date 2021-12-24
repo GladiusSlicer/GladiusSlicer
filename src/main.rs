@@ -673,9 +673,11 @@ fn convert(
 
                 //let extrusion_width = width + (thickness * (1.0 - std::f64::consts::FRAC_PI_4));
 
-                let extrusion_volume = (((width - thickness) * thickness)
+                 /*let extrusion_volume = (((width - thickness) * thickness)
                     + (std::f64::consts::PI * (thickness / 2.0) * (thickness / 2.0)))
-                    * length;
+                    * length;*/
+                let extrusion_volume = width*thickness*length;
+
                 let filament_area = (std::f64::consts::PI
                     * settings.filament.diameter
                     * settings.filament.diameter)

@@ -470,7 +470,7 @@ fn spaced_fill_polygon(
     spacing: f64,
 ) -> Vec<MoveChain> {
     poly.offset(
-        -settings.layer_width / 2.0,
+        ((-settings.layer_width / 2.0)* (1.0 - settings.infill_perimeter_overlap_percentage) ) +(settings.layer_width / 2.0),
         JoinType::Square,
         EndType::ClosedPolygon,
         100000.0,
