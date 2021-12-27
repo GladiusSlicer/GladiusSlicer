@@ -364,8 +364,9 @@ fn inset_polygon_recursive(
 
 
 
-    for polygon in inset_poly.0.iter() {
+    for raw_polygon in inset_poly.0.iter() {
 
+        let polygon = raw_polygon.simplify(&0.01);
         let mut outer_chains = vec![];
         let mut inner_chains = vec![];
         let moves = polygon

@@ -674,10 +674,10 @@ fn convert(
 
                 //let extrusion_width = width + (thickness * (1.0 - std::f64::consts::FRAC_PI_4));
 
-                 /*let extrusion_volume = (((width - thickness) * thickness)
+                 let extrusion_volume = (((width - thickness) * thickness)
                     + (std::f64::consts::PI * (thickness / 2.0) * (thickness / 2.0)))
-                    * length;*/
-                let extrusion_volume = width*thickness*length;
+                    * length;
+                /*let extrusion_volume = width*thickness*length;*/
 
                 let filament_area = (std::f64::consts::PI
                     * settings.filament.diameter
@@ -741,6 +741,7 @@ fn convert(
             Command::LayerChange { z } => {
                 current_z = *z;
                 writeln!(write_buf, "G1 Z{:.5}", z)?;
+                writeln!(write_buf, "G92 E0.0")?;
             }
             Command::Delay { msec } => {
                 writeln!(write_buf, "G4 P{:.5}", msec)?;
