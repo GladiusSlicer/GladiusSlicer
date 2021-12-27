@@ -38,7 +38,7 @@ pub struct Settings {
     pub first_layer_travel_speed: f64,
     pub first_layer_width: f64,
 
-    pub inner_permimeters_first : bool,
+    pub inner_permimeters_first: bool,
 
     pub number_of_perimeters: usize,
 
@@ -118,7 +118,7 @@ impl Default for Settings {
                                 M107 ; disable fan\n"
                 .to_string(),
             first_layer_width: 0.6,
-            bridge_acceleration: 0.0
+            bridge_acceleration: 0.0,
         }
     }
 }
@@ -195,7 +195,7 @@ pub struct LayerSettings {
     pub layer_width: f64,
     pub infill_percentage: f64,
     pub infill_perimeter_overlap_percentage: f64,
-    pub inner_permimeters_first: bool
+    pub inner_permimeters_first: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

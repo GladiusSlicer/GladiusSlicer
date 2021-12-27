@@ -18,12 +18,11 @@ use geo::prelude::ConvexHull;
 use std::ffi::OsStr;
 use std::path::Path;
 
-use itertools::{Itertools};
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
-mod Monotone;
 mod loader;
 mod optimizer;
 mod plotter;
@@ -516,7 +515,7 @@ fn main() {
                     let mut sorted = map.into_iter().collect::<Vec<(OrderedFloat<f64>, f64)>>();
                     sorted.sort_by(|a, b| a.0.cmp(&b.0));
 
-                    let max_speed: f64 ;
+                    let max_speed: f64;
                     loop {
                         let (speed, len) = sorted.pop().unwrap();
                         let (top_speed, _) =
@@ -674,7 +673,7 @@ fn convert(
 
                 //let extrusion_width = width + (thickness * (1.0 - std::f64::consts::FRAC_PI_4));
 
-                 let extrusion_volume = (((width - thickness) * thickness)
+                let extrusion_volume = (((width - thickness) * thickness)
                     + (std::f64::consts::PI * (thickness / 2.0) * (thickness / 2.0)))
                     * length;
                 /*let extrusion_volume = width*thickness*length;*/

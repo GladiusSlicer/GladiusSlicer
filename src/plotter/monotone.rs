@@ -1,5 +1,4 @@
 use geo::{Coordinate, Polygon};
-use geo_svg::{Color, ToSvg};
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -132,12 +131,12 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                 let index = sweep_line_storage
                     .iter()
                     .position(|section| *section.left_chain.last().unwrap() == point.pos)
-                    .unwrap_or_else( ||
+                    .unwrap_or_else(|| {
                         panic!(
                             "End point must be in the storage {:?} |||| {:?}",
                             point, sweep_line_storage
-                        ),
-                    );
+                        )
+                    });
 
                 let removed_section = sweep_line_storage.remove(index);
 
@@ -148,7 +147,7 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                 let index = sweep_line_storage
                     .iter()
                     .position(|section| *section.left_chain.last().unwrap() == point.pos)
-                    .unwrap_or_else( || panic!("left error {:?} {:?}", point, sweep_line_storage));
+                    .unwrap_or_else(|| panic!("left error {:?} {:?}", point, sweep_line_storage));
 
                 sweep_line_storage[index].left_chain.push(point.prev);
 
@@ -214,7 +213,7 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
 
                         point.pos.x > left_x && point.pos.x < right_x
                     })
-                    .unwrap_or_else( || panic!("split error {:?} {:?}", point, sweep_line_storage));
+                    .unwrap_or_else(|| panic!("split error {:?} {:?}", point, sweep_line_storage));
 
                 //will become new left section
                 let old_section = sweep_line_storage.get_mut(index).unwrap();
