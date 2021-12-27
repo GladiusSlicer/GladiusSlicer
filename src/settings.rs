@@ -24,6 +24,14 @@ pub struct Settings {
     pub travel_speed: f64,
     pub bridge_speed: f64,
 
+    pub inner_perimeter_acceleration: f64,
+    pub outer_perimeter_acceleration: f64,
+    pub solid_top_infill_acceleration: f64,
+    pub solid_infill_acceleration: f64,
+    pub infill_acceleration: f64,
+    pub travel_acceleration: f64,
+    pub bridge_acceleration: f64,
+
     pub first_layer_height: f64,
     pub first_layer_perimeter_speed: f64,
     pub first_layer_infill_speed: f64,
@@ -72,6 +80,14 @@ impl Default for Settings {
             infill_percentage: 0.2,
             travel_speed: 180.0,
             bridge_speed: 30.0,
+
+            inner_perimeter_acceleration: 800.0,
+            outer_perimeter_acceleration: 800.0,
+            solid_top_infill_acceleration: 1000.0,
+            solid_infill_acceleration: 1000.0,
+            infill_acceleration: 1000.0,
+            travel_acceleration: 1000.0,
+
             print_x: 210.0,
             print_y: 210.0,
             print_z: 210.0,
@@ -102,6 +118,7 @@ impl Default for Settings {
                                 M107 ; disable fan\n"
                 .to_string(),
             first_layer_width: 0.6,
+            bridge_acceleration: 0.0
         }
     }
 }
@@ -118,6 +135,13 @@ impl Settings {
                 infill_speed: self.first_layer_infill_speed,
                 travel_speed: self.first_layer_travel_speed,
                 bridge_speed: self.bridge_speed,
+                inner_perimeter_acceleration: self.inner_perimeter_acceleration,
+                outer_perimeter_acceleration: self.outer_perimeter_acceleration,
+                solid_top_infill_acceleration: self.solid_top_infill_acceleration,
+                solid_infill_acceleration: self.solid_infill_acceleration,
+                infill_acceleration: self.infill_acceleration,
+                travel_acceleration: self.travel_acceleration,
+                bridge_acceleration: self.bridge_acceleration,
                 layer_width: self.first_layer_width,
                 infill_percentage: self.infill_percentage,
                 infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage,
@@ -133,6 +157,13 @@ impl Settings {
                 infill_speed: self.infill_speed,
                 travel_speed: self.travel_speed,
                 bridge_speed: self.bridge_speed,
+                inner_perimeter_acceleration: self.inner_perimeter_acceleration,
+                outer_perimeter_acceleration: self.outer_perimeter_acceleration,
+                solid_top_infill_acceleration: self.solid_top_infill_acceleration,
+                solid_infill_acceleration: self.solid_infill_acceleration,
+                infill_acceleration: self.infill_acceleration,
+                travel_acceleration: self.travel_acceleration,
+                bridge_acceleration: self.bridge_acceleration,
                 layer_width: self.layer_width,
                 infill_percentage: self.infill_percentage,
                 infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage,
@@ -144,6 +175,7 @@ impl Settings {
 
 pub struct LayerSettings {
     pub layer_height: f64,
+
     pub outer_perimeter_speed: f64,
     pub inner_perimeter_speed: f64,
     pub solid_top_infill_speed: f64,
@@ -151,6 +183,15 @@ pub struct LayerSettings {
     pub infill_speed: f64,
     pub travel_speed: f64,
     pub bridge_speed: f64,
+
+    pub inner_perimeter_acceleration: f64,
+    pub outer_perimeter_acceleration: f64,
+    pub solid_top_infill_acceleration: f64,
+    pub solid_infill_acceleration: f64,
+    pub infill_acceleration: f64,
+    pub travel_acceleration: f64,
+    pub bridge_acceleration: f64,
+
     pub layer_width: f64,
     pub infill_percentage: f64,
     pub infill_perimeter_overlap_percentage: f64,

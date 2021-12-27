@@ -144,6 +144,7 @@ impl MoveChain {
                                 extruder_temp: None,
                                 fan_speed: None,
                                 movement_speed: Some(settings.solid_top_infill_speed),
+                                acceleration: Some(settings.solid_top_infill_acceleration),
                                 retract: Some(false),
                             },
                         });
@@ -155,6 +156,7 @@ impl MoveChain {
                                 extruder_temp: None,
                                 fan_speed: None,
                                 movement_speed: Some(settings.solid_infill_speed),
+                                acceleration: Some(settings.solid_infill_acceleration),
                                 retract: Some(false),
                             },
                         });
@@ -166,6 +168,7 @@ impl MoveChain {
                                 extruder_temp: None,
                                 fan_speed: None,
                                 movement_speed: Some(settings.infill_speed),
+                                acceleration: Some(settings.infill_acceleration),
                                 retract: Some(false),
                             },
                         });
@@ -177,6 +180,7 @@ impl MoveChain {
                                 extruder_temp: None,
                                 fan_speed: None,
                                 movement_speed: Some(settings.bridge_speed),
+                                acceleration: Some(settings.bridge_acceleration),
                                 retract: Some(false),
                             },
                         });
@@ -188,6 +192,7 @@ impl MoveChain {
                                 extruder_temp: None,
                                 fan_speed: None,
                                 movement_speed: Some(settings.outer_perimeter_speed),
+                                acceleration: Some(settings.outer_perimeter_acceleration),
                                 retract: Some(false),
                             },
                         });
@@ -199,6 +204,7 @@ impl MoveChain {
                                 extruder_temp: None,
                                 fan_speed: None,
                                 movement_speed: Some(settings.inner_perimeter_speed),
+                                acceleration: Some(settings.inner_perimeter_acceleration),
                                 retract: Some(false),
                             },
                         });
@@ -214,6 +220,7 @@ impl MoveChain {
                                 extruder_temp: None,
                                 fan_speed: None,
                                 movement_speed: Some(settings.travel_speed),
+                                acceleration: Some(settings.travel_acceleration),
                                 retract: Some(true),
                             },
                         });
@@ -298,6 +305,7 @@ pub struct StateChange {
     pub bed_temp: Option<f64>,
     pub fan_speed: Option<f64>,
     pub movement_speed: Option<f64>,
+    pub acceleration: Option<f64>,
     pub retract: Option<bool>,
 }
 
@@ -336,6 +344,14 @@ impl StateChange {
                     other.movement_speed
                 }
             },
+            acceleration: {
+                if self.acceleration == other.acceleration {
+                    None
+                } else {
+                    self.acceleration = other.acceleration.or(self.acceleration);
+                    other.acceleration
+                }
+            },
             retract: {
                 if self.retract == other.retract {
                     None
@@ -353,6 +369,7 @@ impl StateChange {
             bed_temp: { other.bed_temp.or(self.bed_temp) },
             fan_speed: { other.fan_speed.or(self.fan_speed) },
             movement_speed: { other.movement_speed.or(self.movement_speed) },
+            acceleration: { other.acceleration.or(self.acceleration) },
             retract: { other.retract.or(self.retract) },
         }
     }
