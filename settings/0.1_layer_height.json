@@ -1,44 +1,8 @@
 {
   "layer_height":0.1,
   "first_layer_height":0.2,
-  "layer_width":0.45,
-  "first_layer_width":0.4,
 
-  "speed" : {
-    "outer_perimeter":25.0,
-    "inner_perimeter":45.0,
-    "infill":80.0,
-    "solid_infill":80.0,
-    "solid_top_infill":40.0,
-
-    "travel": 180.0,
-    "bridge": 30.0
-  },
-  "first_layer_speed" : {
-    "outer_perimeter":20.0,
-    "inner_perimeter":20.0,
-    "infill":20.0,
-    "solid_infill":20.0,
-    "solid_top_infill":20.0,
-    "travel": 180.0,
-    "bridge": 20.0
-  },
-  "acceleration" : {
-    "outer_perimeter":800.0,
-    "inner_perimeter":800.0,
-    "infill":1000.0,
-    "solid_infill":1000.0,
-    "solid_top_infill":1000.0,
-    "travel": 1000.0,
-    "bridge": 1000.0
-  },
-
-  "number_of_perimeters": 2,
   "top_layers": 9,
   "bottom_layers": 7,
 
-  "other_files" : [
-    "settings\\PLA_Filament.json",
-    "settings\\PrusaMk3.json",
-  ]
 }

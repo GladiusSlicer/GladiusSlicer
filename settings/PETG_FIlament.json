@@ -1,0 +1,12 @@
+{
+  "retract_length":1.2,
+  "filament":{
+    "diameter":1.75,
+    "density":1.27,
+    "cost":27.99,
+    "extruder_temp":240.0,
+    "first_layer_extruder_temp":230.0,
+    "bed_temp":90.0,
+    "first_layer_bed_temp":85.0
+  }
+}
