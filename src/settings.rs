@@ -16,27 +16,14 @@ pub struct Settings {
     pub retract_lift_z: f64,
     pub retract_speed: f64,
 
-    pub inner_perimeter_speed: f64,
-    pub outer_perimeter_speed: f64,
-    pub solid_top_infill_speed: f64,
-    pub solid_infill_speed: f64,
-    pub infill_speed: f64,
-    pub infill_percentage: f64,
-    pub travel_speed: f64,
-    pub bridge_speed: f64,
+    pub speed: MovementParameter,
+    pub first_layer_speed: MovementParameter,
+    pub acceleration: MovementParameter,
 
-    pub inner_perimeter_acceleration: f64,
-    pub outer_perimeter_acceleration: f64,
-    pub solid_top_infill_acceleration: f64,
-    pub solid_infill_acceleration: f64,
-    pub infill_acceleration: f64,
-    pub travel_acceleration: f64,
-    pub bridge_acceleration: f64,
+    pub infill_percentage: f64,
+
 
     pub first_layer_height: f64,
-    pub first_layer_perimeter_speed: f64,
-    pub first_layer_infill_speed: f64,
-    pub first_layer_travel_speed: f64,
     pub first_layer_width: f64,
 
     pub inner_permimeters_first: bool,
@@ -64,9 +51,6 @@ impl Default for Settings {
         Settings {
             layer_height: 0.15,
             first_layer_height: 0.3,
-            first_layer_perimeter_speed: 5.0,
-            first_layer_infill_speed: 20.0,
-            first_layer_travel_speed: 50.0,
             number_of_perimeters: 3,
             top_layers: 3,
             bottom_layers: 3,
@@ -79,21 +63,35 @@ impl Default for Settings {
             retract_lift_z: 0.6,
             retract_speed: 35.0,
 
-            inner_perimeter_speed: 5.0,
-            outer_perimeter_speed: 5.0,
-            infill_speed: 200.0,
-            solid_infill_speed: 200.0,
-            solid_top_infill_speed: 200.0,
-            infill_percentage: 0.2,
-            travel_speed: 180.0,
-            bridge_speed: 30.0,
+            speed: MovementParameter{
+                inner_perimeter: 5.0,
+                outer_perimeter: 5.0,
+                solid_top_infill: 200.0,
+                solid_infill: 200.0,
+                infill: 200.0,
+                travel: 180.0,
+                bridge: 30.0
+            },
+            first_layer_speed: MovementParameter{
+                inner_perimeter: 5.0,
+                outer_perimeter: 5.0,
+                solid_top_infill: 20.0,
+                solid_infill: 20.0,
+                infill: 20.0,
+                travel: 5.0,
+                bridge: 20.0
+            },
+            acceleration: MovementParameter{
+                inner_perimeter: 800.0,
+                outer_perimeter: 800.0,
+                solid_top_infill: 1000.0,
+                solid_infill: 1000.0,
+                infill: 1000.0,
+                travel: 1000.0,
+                bridge: 1000.0
+            },
 
-            inner_perimeter_acceleration: 800.0,
-            outer_perimeter_acceleration: 800.0,
-            solid_top_infill_acceleration: 1000.0,
-            solid_infill_acceleration: 1000.0,
-            infill_acceleration: 1000.0,
-            travel_acceleration: 1000.0,
+            infill_percentage: 0.2,
 
             print_x: 210.0,
             print_y: 210.0,
@@ -126,7 +124,6 @@ impl Default for Settings {
                                 M107 ; disable fan\n"
                 .to_string(),
             first_layer_width: 0.6,
-            bridge_acceleration: 0.0,
         }
     }
 }
@@ -136,20 +133,8 @@ impl Settings {
         if layer == 0 {
             LayerSettings {
                 layer_height: self.first_layer_height,
-                inner_perimeter_speed: self.first_layer_perimeter_speed,
-                outer_perimeter_speed: self.first_layer_perimeter_speed,
-                solid_top_infill_speed: self.first_layer_infill_speed,
-                solid_infill_speed: self.first_layer_infill_speed,
-                infill_speed: self.first_layer_infill_speed,
-                travel_speed: self.first_layer_travel_speed,
-                bridge_speed: self.bridge_speed,
-                inner_perimeter_acceleration: self.inner_perimeter_acceleration,
-                outer_perimeter_acceleration: self.outer_perimeter_acceleration,
-                solid_top_infill_acceleration: self.solid_top_infill_acceleration,
-                solid_infill_acceleration: self.solid_infill_acceleration,
-                infill_acceleration: self.infill_acceleration,
-                travel_acceleration: self.travel_acceleration,
-                bridge_acceleration: self.bridge_acceleration,
+                speed: self.first_layer_speed.clone(),
+                acceleration: self.acceleration.clone(),
                 layer_width: self.first_layer_width,
                 infill_type: self.infill_type,
                 infill_percentage: self.infill_percentage,
@@ -159,20 +144,8 @@ impl Settings {
         } else {
             LayerSettings {
                 layer_height: self.layer_height,
-                inner_perimeter_speed: self.inner_perimeter_speed,
-                outer_perimeter_speed: self.outer_perimeter_speed,
-                solid_top_infill_speed: self.solid_top_infill_speed,
-                solid_infill_speed: self.solid_infill_speed,
-                infill_speed: self.infill_speed,
-                travel_speed: self.travel_speed,
-                bridge_speed: self.bridge_speed,
-                inner_perimeter_acceleration: self.inner_perimeter_acceleration,
-                outer_perimeter_acceleration: self.outer_perimeter_acceleration,
-                solid_top_infill_acceleration: self.solid_top_infill_acceleration,
-                solid_infill_acceleration: self.solid_infill_acceleration,
-                infill_acceleration: self.infill_acceleration,
-                travel_acceleration: self.travel_acceleration,
-                bridge_acceleration: self.bridge_acceleration,
+                speed: self.speed.clone(),
+                acceleration: self.acceleration.clone(),
                 layer_width: self.layer_width,
                 infill_type: self.infill_type,
                 infill_percentage: self.infill_percentage,
@@ -186,21 +159,8 @@ impl Settings {
 pub struct LayerSettings {
     pub layer_height: f64,
 
-    pub outer_perimeter_speed: f64,
-    pub inner_perimeter_speed: f64,
-    pub solid_top_infill_speed: f64,
-    pub solid_infill_speed: f64,
-    pub infill_speed: f64,
-    pub travel_speed: f64,
-    pub bridge_speed: f64,
-
-    pub inner_perimeter_acceleration: f64,
-    pub outer_perimeter_acceleration: f64,
-    pub solid_top_infill_acceleration: f64,
-    pub solid_infill_acceleration: f64,
-    pub infill_acceleration: f64,
-    pub travel_acceleration: f64,
-    pub bridge_acceleration: f64,
+    pub speed: MovementParameter,
+    pub acceleration: MovementParameter,
 
     pub layer_width: f64,
 
@@ -209,6 +169,20 @@ pub struct LayerSettings {
     pub infill_perimeter_overlap_percentage: f64,
     pub inner_permimeters_first: bool,
 }
+
+#[derive(Serialize, Deserialize, Debug,Clone)]
+pub struct MovementParameter {
+    pub inner_perimeter: f64,
+    pub outer_perimeter: f64,
+    pub solid_top_infill: f64,
+    pub solid_infill: f64,
+    pub infill: f64,
+    pub travel: f64,
+    pub bridge: f64,
+
+
+}
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FilamentSettings {

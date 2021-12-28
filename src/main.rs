@@ -475,7 +475,7 @@ fn main() {
                                     non_move_time +=
                                         settings.retract_length / settings.retract_speed;
                                     non_move_time +=
-                                        settings.retract_lift_z / settings.travel_speed;
+                                        settings.retract_lift_z / settings.speed.travel;
                                 }
                             }
                             Command::Delay { msec } => {
@@ -548,7 +548,7 @@ fn main() {
                 for cmd in &mut moves[start..end] {
                     if let Command::SetState { new_state } = cmd {
                         if let Some(speed) = &mut new_state.movement_speed {
-                            if *speed != settings.travel_speed {
+                            if *speed != settings.speed.travel {
                                 *speed = speed.min(max_speed).max(settings.fan.min_print_speed);
                             }
                         }
@@ -594,7 +594,7 @@ fn main() {
                 }
                 if new_state.retract.is_some() {
                     total_time += settings.retract_length / settings.retract_speed;
-                    total_time += settings.retract_lift_z / settings.travel_speed;
+                    total_time += settings.retract_lift_z / settings.speed.travel;
                 }
             }
             Command::Delay { msec } => {
@@ -707,7 +707,7 @@ fn convert(
                             write_buf,
                             "G1 Z{:.5} F{:.5}; z Lift",
                             current_z + settings.retract_lift_z,
-                            60.0 * settings.travel_speed,
+                            60.0 * settings.speed.travel,
                         )?;
                     }
                     Some(false) => {
