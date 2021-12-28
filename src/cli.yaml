@@ -1,7 +1,7 @@
-name: slicer
-version: "0.0.1"
+name: Gladius Slicer
+version: "0.1.0"
 author: Lucas Ince <lucasince@gmail.com>
-about: Slices 3d Models
+about: Slices 3D Models
 args:
     - config:
         short: c
