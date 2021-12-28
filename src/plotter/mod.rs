@@ -302,7 +302,7 @@ impl Slice {
         layer_thickness: f64,
     ) {
         //Order Chains for fastest print
-        if !self.chains.is_empty() {
+        let mut ordered_chains = if !self.chains.is_empty() {
             let mut ordered_chains = vec![self.chains.swap_remove(0)];
 
             while !self.chains.is_empty() {
@@ -326,29 +326,34 @@ impl Slice {
                 ordered_chains.push(closest_chain);
             }
 
-            let mut full_moves = vec![];
-            let starting_point = ordered_chains[0].start_point;
-            for chain in self
-                .fixed_chains
-                .iter_mut()
-                .chain(ordered_chains.iter_mut())
-            {
-                full_moves.push(Move {
-                    end: chain.start_point,
-                    move_type: MoveType::Travel,
-                    width: 0.0,
-                });
-                full_moves.append(&mut chain.moves)
-            }
-
-            commands.append(
-                &mut MoveChain {
-                    moves: full_moves,
-                    start_point: starting_point,
-                }
-                .create_commands(settings, layer_thickness),
-            );
+            ordered_chains
         }
+        else{
+            vec![]
+        };
+
+        let mut full_moves = vec![];
+        let starting_point = self.fixed_chains[0].start_point;
+        for chain in self
+            .fixed_chains
+            .iter_mut()
+            .chain(ordered_chains.iter_mut())
+        {
+            full_moves.push(Move {
+                end: chain.start_point,
+                move_type: MoveType::Travel,
+                width: 0.0,
+            });
+            full_moves.append(&mut chain.moves)
+        }
+
+        commands.append(
+            &mut MoveChain {
+                moves: full_moves,
+                start_point: starting_point,
+            }
+            .create_commands(settings, layer_thickness),
+        );
     }
 }
 
