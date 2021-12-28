@@ -2,29 +2,172 @@ use crate::plotter::monotone::get_monotone_sections;
 use crate::settings::LayerSettings;
 use crate::types::{Move, MoveChain, MoveType};
 
+use serde::{Deserialize, Serialize};
+
 use geo::prelude::*;
 use geo::*;
 use geo_clipper::*;
 
-pub fn partial_fill_polygon(
-    poly: &Polygon<f64>,
-    settings: &LayerSettings,
-    fill_ratio: f64,
-) -> Vec<MoveChain> {
-    spaced_fill_polygon(
-        poly,
-        settings,
-        MoveType::Infill,
-        settings.layer_width / fill_ratio,
-    )
+pub trait SolidInfillFill {
+    fn fill(&self, filepath: &str) -> Vec<MoveChain>;
 }
 
-pub fn solid_fill_polygon(
+pub trait PartialInfillFill {
+    fn fill(&self, filepath: &str) -> Vec<MoveChain>;
+}
+
+pub enum SolidInfillsTypes {
+    Rectilinear,
+}
+
+pub fn linear_fill_polygon(
     poly: &Polygon<f64>,
     settings: &LayerSettings,
     fill_type: MoveType,
+    angle: f64,
 ) -> Vec<MoveChain> {
-    spaced_fill_polygon(poly, settings, fill_type, settings.layer_width)
+    let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+
+    let mut new_moves =
+        spaced_fill_polygon(&rotate_poly, settings, fill_type, settings.layer_width, 0.0);
+
+    for mut chain in new_moves.iter_mut() {
+        chain.rotate(-angle.to_radians());
+    }
+
+    new_moves
+}
+
+pub fn partial_linear_fill_polygon(
+    poly: &Polygon<f64>,
+    settings: &LayerSettings,
+    fill_type: MoveType,
+    spacing: f64,
+    angle: f64,
+    offset: f64,
+) -> Vec<MoveChain> {
+    let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+
+    let mut new_moves = spaced_fill_polygon(&rotate_poly, settings, fill_type, spacing, offset);
+
+    for mut chain in new_moves.iter_mut() {
+        chain.rotate(-angle.to_radians());
+    }
+
+    new_moves
+}
+
+pub fn solid_infill_polygon(
+    poly: &Polygon<f64>,
+    settings: &LayerSettings,
+    fill_type: MoveType,
+    layer_count: usize,
+    layer_height: f64,
+) -> Vec<MoveChain> {
+    let angle = 45.0 + (120_f64) * layer_count as f64;
+
+    linear_fill_polygon(poly, settings, MoveType::Infill, angle)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum PartialInfillTypes {
+    Linear,
+    Rectilinear,
+    Triangle,
+    Cubic,
+}
+
+pub fn partial_infill_polygon(
+    poly: &Polygon<f64>,
+    settings: &LayerSettings,
+    fill_ratio: f64,
+    layer_count: usize,
+    layer_height: f64,
+) -> Vec<MoveChain> {
+    match settings.infill_type {
+        PartialInfillTypes::Linear => partial_linear_fill_polygon(
+            poly,
+            settings,
+            MoveType::Infill,
+            settings.layer_width / fill_ratio,
+            0.0,
+            0.0,
+        ),
+        PartialInfillTypes::Rectilinear => {
+            let mut fill = partial_linear_fill_polygon(
+                poly,
+                settings,
+                MoveType::Infill,
+                2.0 * settings.layer_width / fill_ratio,
+                45.0,
+                0.0,
+            );
+            fill.append(&mut partial_linear_fill_polygon(
+                poly,
+                settings,
+                MoveType::Infill,
+                2.0 * settings.layer_width / fill_ratio,
+                135.0,
+                0.0,
+            ));
+            fill
+        }
+        PartialInfillTypes::Triangle => {
+            let mut fill = partial_linear_fill_polygon(
+                poly,
+                settings,
+                MoveType::Infill,
+                3.0 * settings.layer_width / fill_ratio,
+                45.0,
+                0.0,
+            );
+            fill.append(&mut partial_linear_fill_polygon(
+                poly,
+                settings,
+                MoveType::Infill,
+                3.0 * settings.layer_width / fill_ratio,
+                45.0 + 60.0,
+                0.0,
+            ));
+            fill.append(&mut partial_linear_fill_polygon(
+                poly,
+                settings,
+                MoveType::Infill,
+                3.0 * settings.layer_width / fill_ratio,
+                45.0 + 120.0,
+                0.0,
+            ));
+            fill
+        }
+        PartialInfillTypes::Cubic => {
+            let mut fill = partial_linear_fill_polygon(
+                poly,
+                settings,
+                MoveType::Infill,
+                3.0 * settings.layer_width / fill_ratio,
+                45.0,
+                layer_height / std::f64::consts::SQRT_2,
+            );
+            fill.append(&mut partial_linear_fill_polygon(
+                poly,
+                settings,
+                MoveType::Infill,
+                3.0 * settings.layer_width / fill_ratio,
+                45.0 + 120.0,
+                layer_height / std::f64::consts::SQRT_2,
+            ));
+            fill.append(&mut partial_linear_fill_polygon(
+                poly,
+                settings,
+                MoveType::Infill,
+                3.0 * settings.layer_width / fill_ratio,
+                45.0 + 240.0,
+                layer_height / std::f64::consts::SQRT_2,
+            ));
+            fill
+        }
+        _ => unimplemented!(),
+    }
 }
 
 pub fn spaced_fill_polygon(
@@ -32,6 +175,7 @@ pub fn spaced_fill_polygon(
     settings: &LayerSettings,
     fill_type: MoveType,
     spacing: f64,
+    offset: f64,
 ) -> Vec<MoveChain> {
     poly.offset(
         ((-settings.layer_width / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage))
@@ -46,7 +190,9 @@ pub fn spaced_fill_polygon(
         get_monotone_sections(poly)
             .iter()
             .filter_map(|section| {
-                let mut current_y = ((section.left_chain[0].y) / spacing).floor() * spacing;
+                let mut current_y = (((section.left_chain[0].y + offset) / spacing).floor()
+                    - (offset / spacing))
+                    * spacing;
 
                 let mut orient = true;
 

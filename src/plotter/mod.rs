@@ -2,7 +2,7 @@ mod infill;
 mod monotone;
 mod perimeter;
 
-use crate::plotter::infill::*;
+pub use crate::plotter::infill::*;
 use crate::plotter::perimeter::*;
 use crate::settings::{LayerSettings, SkirtSettings};
 use crate::types::{Command, Move, MoveChain, MoveType};
@@ -116,21 +116,30 @@ impl Slice {
         settings: &LayerSettings,
         solid: bool,
         layer_count: usize,
+        layer_height: f64,
     ) {
         //For each region still available fill wih infill
         for poly in &self.remaining_area {
             if solid {
-                let angle = 45.0 + (120_f64) * layer_count as f64;
-                let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
-
-                let new_moves = solid_fill_polygon(&rotate_poly, settings, MoveType::SolidInfill);
+                let new_moves = solid_infill_polygon(
+                    poly,
+                    settings,
+                    MoveType::SolidInfill,
+                    layer_count,
+                    layer_height,
+                );
 
                 for mut chain in new_moves {
-                    chain.rotate(-angle.to_radians());
                     self.chains.push(chain);
                 }
             } else {
-                let new_moves = partial_fill_polygon(&poly, settings, settings.infill_percentage);
+                let new_moves = partial_infill_polygon(
+                    &poly,
+                    settings,
+                    settings.infill_percentage,
+                    layer_count,
+                    layer_height,
+                );
 
                 for mut chain in new_moves {
                     self.chains.push(chain);
@@ -165,14 +174,7 @@ impl Slice {
                 .0
                 .iter()
                 .map(|poly| {
-                    let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
-
-                    solid_fill_polygon(&rotate_poly, settings, MoveType::SolidInfill)
-                        .into_iter()
-                        .map(|mut chain| {
-                            chain.rotate(-angle.to_radians());
-                            chain
-                        })
+                    linear_fill_polygon(&poly, settings, MoveType::SolidInfill, angle).into_iter()
                 })
                 .flatten(),
         );
@@ -212,14 +214,7 @@ impl Slice {
                     }
                     //println!("angle {}", angle);
 
-                    let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
-
-                    solid_fill_polygon(&rotate_poly, settings, MoveType::Bridging)
-                        .into_iter()
-                        .map(move |mut chain| {
-                            chain.rotate(-angle.to_radians());
-                            chain
-                        })
+                    linear_fill_polygon(poly, settings, MoveType::Bridging, angle).into_iter()
                 })
                 .flatten(),
         );
@@ -249,12 +244,9 @@ impl Slice {
         for poly in &solid_area {
             let angle = 45.0 + (120_f64) * layer_count as f64;
 
-            let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
-
-            let new_moves = solid_fill_polygon(&rotate_poly, settings, MoveType::TopSolidInfill);
+            let new_moves = linear_fill_polygon(&poly, settings, MoveType::TopSolidInfill, angle);
 
             for mut chain in new_moves {
-                chain.rotate(-angle.to_radians());
                 self.chains.push(chain);
             }
         }
@@ -301,59 +293,60 @@ impl Slice {
         commands: &mut Vec<Command>,
         layer_thickness: f64,
     ) {
-        //Order Chains for fastest print
-        let mut ordered_chains = if !self.chains.is_empty() {
-            let mut ordered_chains = vec![self.chains.swap_remove(0)];
+        if !self.fixed_chains.is_empty() {
+            //Order Chains for fastest print
+            let mut ordered_chains = if !self.chains.is_empty() {
+                let mut ordered_chains = vec![self.chains.swap_remove(0)];
 
-            while !self.chains.is_empty() {
-                let index = self
-                    .chains
-                    .iter()
-                    .position_min_by_key(|a| {
-                        OrderedFloat(
-                            ordered_chains
-                                .last()
-                                .unwrap()
-                                .moves
-                                .last()
-                                .unwrap()
-                                .end
-                                .euclidean_distance(&a.start_point),
-                        )
-                    })
-                    .unwrap();
-                let closest_chain = self.chains.remove(index);
-                ordered_chains.push(closest_chain);
+                while !self.chains.is_empty() {
+                    let index = self
+                        .chains
+                        .iter()
+                        .position_min_by_key(|a| {
+                            OrderedFloat(
+                                ordered_chains
+                                    .last()
+                                    .unwrap()
+                                    .moves
+                                    .last()
+                                    .unwrap()
+                                    .end
+                                    .euclidean_distance(&a.start_point),
+                            )
+                        })
+                        .unwrap();
+                    let closest_chain = self.chains.remove(index);
+                    ordered_chains.push(closest_chain);
+                }
+
+                ordered_chains
+            } else {
+                vec![]
+            };
+
+            let mut full_moves = vec![];
+            let starting_point = self.fixed_chains[0].start_point;
+            for chain in self
+                .fixed_chains
+                .iter_mut()
+                .chain(ordered_chains.iter_mut())
+            {
+                full_moves.push(Move {
+                    end: chain.start_point,
+                    move_type: MoveType::Travel,
+                    width: 0.0,
+                });
+                full_moves.append(&mut chain.moves)
             }
 
-            ordered_chains
+            commands.append(
+                &mut MoveChain {
+                    moves: full_moves,
+                    start_point: starting_point,
+                }
+                .create_commands(settings, layer_thickness),
+            );
         }
-        else{
-            vec![]
-        };
-
-        let mut full_moves = vec![];
-        let starting_point = self.fixed_chains[0].start_point;
-        for chain in self
-            .fixed_chains
-            .iter_mut()
-            .chain(ordered_chains.iter_mut())
-        {
-            full_moves.push(Move {
-                end: chain.start_point,
-                move_type: MoveType::Travel,
-                width: 0.0,
-            });
-            full_moves.append(&mut chain.moves)
-        }
-
-        commands.append(
-            &mut MoveChain {
-                moves: full_moves,
-                start_point: starting_point,
-            }
-            .create_commands(settings, layer_thickness),
-        );
     }
 }
 

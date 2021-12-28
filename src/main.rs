@@ -345,11 +345,12 @@ fn main() {
         slices
             .par_iter_mut()
             .enumerate()
-            .for_each(|(layer_num, (_layer, slice))| {
+            .for_each(|(layer_num, (layer, slice))| {
                 slice.fill_remaining_area(
                     &settings.get_layer_settings(layer_num),
                     layer_num < 3 || layer_num + 3 + 1 > slice_count,
                     layer_num,
+                    *layer,
                 );
             });
     });

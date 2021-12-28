@@ -1,3 +1,4 @@
+use crate::plotter::PartialInfillTypes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,6 +50,7 @@ pub struct Settings {
     pub minimum_retract_distance: f64,
 
     pub infill_perimeter_overlap_percentage: f64,
+    pub infill_type: PartialInfillTypes,
 
     pub starting_gcode: String,
     pub ending_gcode: String,
@@ -94,6 +96,7 @@ impl Default for Settings {
             inner_permimeters_first: true,
             minimum_retract_distance: 1.0,
             infill_perimeter_overlap_percentage: 0.25,
+            infill_type: PartialInfillTypes::Linear,
             starting_gcode: "G90 ; use absolute coordinates \n\
                                 M83 ; extruder relative mode\n\
                                 M106 S255 ; FANNNNN\n\
@@ -143,6 +146,7 @@ impl Settings {
                 travel_acceleration: self.travel_acceleration,
                 bridge_acceleration: self.bridge_acceleration,
                 layer_width: self.first_layer_width,
+                infill_type: self.infill_type,
                 infill_percentage: self.infill_percentage,
                 infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage,
                 inner_permimeters_first: self.inner_permimeters_first,
@@ -165,6 +169,7 @@ impl Settings {
                 travel_acceleration: self.travel_acceleration,
                 bridge_acceleration: self.bridge_acceleration,
                 layer_width: self.layer_width,
+                infill_type: self.infill_type,
                 infill_percentage: self.infill_percentage,
                 infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage,
                 inner_permimeters_first: self.inner_permimeters_first,
@@ -193,6 +198,8 @@ pub struct LayerSettings {
     pub bridge_acceleration: f64,
 
     pub layer_width: f64,
+
+    pub infill_type: PartialInfillTypes,
     pub infill_percentage: f64,
     pub infill_perimeter_overlap_percentage: f64,
     pub inner_permimeters_first: bool,
