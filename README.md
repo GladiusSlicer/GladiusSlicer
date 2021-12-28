@@ -4,9 +4,9 @@
 
 Rust, LGPL. Copyright 2021 Lucas Ince/mrhatman
 
-Questions? Please use the github discussion page.
+**Questions?** Please use the github discussion page.
 
-Want to contribute? Open a PR. 
+**Want to contribute?** Open a PR. Contributing document coming.
 
 Gladius Slicer is currently in a Alpha state and very little is stable so assume any new release will cause breaking bugs. If you need something stable, please open an issue or discussion, so we can plan out the interface. 
 
@@ -58,7 +58,7 @@ Settings files are hJSON, a human readable json that supports comments. Examples
 * STL File format
 * Layer slow down for small layers
 * Many other feature ( see settings file for more information)
-* 
+
 ### In Progress
 * 3MF file format
   * Fails with multiple drives
@@ -69,6 +69,10 @@ Settings files are hJSON, a human readable json that supports comments. Examples
   * Traits have been started but no loading yet.
 * Arc Optimization
   * Started but buggy and not active
+* Code Dumentation
+  * Some code is documented
+* Useful Error Messages
+  * Errors often aren't graceful
 
 ### Coming Shortly
 * Support Generation
@@ -76,6 +80,13 @@ Settings files are hJSON, a human readable json that supports comments. Examples
 * Perimeter start options
 * Percentage Complete Gcode
 * Handle Errors Better
+* Octoprint integration
+* Change settings based on layer
+* Elephant foot compensation
+
+### Eventually
+* Multiple Extruder Support
+* GUI
 
 ### Supported Printers
 * I only own a Prusa Mk3
