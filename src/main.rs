@@ -39,7 +39,7 @@ fn main() {
 
     let settings: Settings = matches
         .value_of("SETTINGS")
-        .map(|str| serde_json::from_str(&std::fs::read_to_string(str).unwrap()).unwrap())
+        .map(|str| deser_hjson::from_str(&std::fs::read_to_string(str).unwrap()).unwrap())
         .unwrap_or_default();
 
     // Gets a value for config if supplied by user, or defaults to "default.conf"
@@ -77,7 +77,7 @@ fn main() {
         .values_of("INPUT")
         .unwrap()
         .map(|value| {
-            let obj: InputObject = serde_json::from_str(value).unwrap();
+            let obj: InputObject = deser_hjson::from_str(value).unwrap();
             obj
         })
         .par_bridge()
