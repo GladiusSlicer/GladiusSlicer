@@ -129,7 +129,7 @@ impl Slice {
                     layer_height,
                 );
 
-                for mut chain in new_moves {
+                for chain in new_moves {
                     self.chains.push(chain);
                 }
             } else {
@@ -141,7 +141,7 @@ impl Slice {
                     layer_height,
                 );
 
-                for mut chain in new_moves {
+                for chain in new_moves {
                     self.chains.push(chain);
                 }
             }
@@ -246,7 +246,7 @@ impl Slice {
 
             let new_moves = linear_fill_polygon(&poly, settings, MoveType::TopSolidInfill, angle);
 
-            for mut chain in new_moves {
+            for chain in new_moves {
                 self.chains.push(chain);
             }
         }

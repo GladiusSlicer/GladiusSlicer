@@ -31,7 +31,7 @@ pub fn linear_fill_polygon(
     let mut new_moves =
         spaced_fill_polygon(&rotate_poly, settings, fill_type, settings.layer_width, 0.0);
 
-    for mut chain in new_moves.iter_mut() {
+    for chain in new_moves.iter_mut() {
         chain.rotate(-angle.to_radians());
     }
 
@@ -50,7 +50,7 @@ pub fn partial_linear_fill_polygon(
 
     let mut new_moves = spaced_fill_polygon(&rotate_poly, settings, fill_type, spacing, offset);
 
-    for mut chain in new_moves.iter_mut() {
+    for chain in new_moves.iter_mut() {
         chain.rotate(-angle.to_radians());
     }
 
@@ -66,7 +66,7 @@ pub fn solid_infill_polygon(
 ) -> Vec<MoveChain> {
     let angle = 45.0 + (120_f64) * layer_count as f64;
 
-    linear_fill_polygon(poly, settings, MoveType::Infill, angle)
+    linear_fill_polygon(poly, settings, fill_type, angle)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -166,7 +166,6 @@ pub fn partial_infill_polygon(
             ));
             fill
         }
-        _ => unimplemented!(),
     }
 }
 
