@@ -79,6 +79,7 @@ Settings files are hJSON, a human readable json that supports comments. Examples
 
 ### Supported Printers
 * I only own a Prusa Mk3
+* Friend owns a CR10
 * Other printer can easily be added
 
 
