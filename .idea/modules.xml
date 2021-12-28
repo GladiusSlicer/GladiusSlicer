@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Slicer.iml" filepath="$PROJECT_DIR$/Slicer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/gladius_slicer.iml" filepath="$PROJECT_DIR$/gladius_slicer.iml" />
     </modules>
   </component>
 </project>

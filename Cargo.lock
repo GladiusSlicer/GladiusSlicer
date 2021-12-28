@@ -3,28 +3,6 @@
 version = 3
 
 [[package]]
-name = "Slicer"
-version = "0.1.0"
-dependencies = [
- "clap",
- "deser-hjson",
- "geo",
- "geo-clipper",
- "geo-svg",
- "itertools",
- "log",
- "nalgebra",
- "nom_stl",
- "ordered-float",
- "rayon",
- "serde",
- "serde-xml-rs",
- "serde_json",
- "simple_logger",
- "zip",
-]
-
-[[package]]
 name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -412,6 +390,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b78e20d5d868fa2c4182a8170cb4df261e781a605810e3c1500269c1907da461"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "gladius_slicer"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "deser-hjson",
+ "geo",
+ "geo-clipper",
+ "geo-svg",
+ "itertools",
+ "log",
+ "nalgebra",
+ "nom_stl",
+ "ordered-float",
+ "rayon",
+ "serde",
+ "serde-xml-rs",
+ "serde_json",
+ "simple_logger",
+ "zip",
 ]
 
 [[package]]
