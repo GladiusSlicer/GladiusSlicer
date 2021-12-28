@@ -48,6 +48,8 @@
   "print_y": 210,
   "print_z": 210,
   "number_of_perimeters": 2,
+    "top_layers": 5,
+  "bottom_layers": 3,
   "minimum_retract_distance": 1,
   "infill_perimeter_overlap_percentage": 0.25,
   "inner_permimeters_first" : true,

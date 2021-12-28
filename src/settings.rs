@@ -43,6 +43,9 @@ pub struct Settings {
 
     pub number_of_perimeters: usize,
 
+    pub top_layers: usize,
+    pub bottom_layers: usize,
+
     pub print_x: f64,
     pub print_y: f64,
     pub print_z: f64,
@@ -65,6 +68,8 @@ impl Default for Settings {
             first_layer_infill_speed: 20.0,
             first_layer_travel_speed: 50.0,
             number_of_perimeters: 3,
+            top_layers: 3,
+            bottom_layers: 3,
             layer_width: 0.6,
             filament: FilamentSettings::default(),
             fan: FanSettings::default(),

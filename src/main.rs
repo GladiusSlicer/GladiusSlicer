@@ -31,6 +31,8 @@ mod tower;
 mod types;
 
 fn main() {
+
+
     // The YAML file is found relative to the current file, similar to how modules are found
     let yaml = load_yaml!("cli.yaml");
     let matches = App::from_yaml(yaml).get_matches();
@@ -305,21 +307,23 @@ fn main() {
 
         println!("Generating Moves: Above and below support");
 
-        let layers = 3;
-        (layers..slices.len() - layers).into_iter().for_each(|q| {
-            let below = slices[(q - layers + 1)..q]
+        let top_layers = settings.top_layers;
+        let bottom_layers = settings.bottom_layers;
+
+        (bottom_layers..slices.len() - top_layers).into_iter().for_each(|q| {
+            let below = slices[(q - bottom_layers + 1)..q]
                 .iter()
                 .map(|m| m.1.get_entire_slice_polygon())
                 .fold(
                     slices
-                        .get(q - layers)
+                        .get(q - bottom_layers)
                         .unwrap()
                         .1
                         .get_entire_slice_polygon()
                         .clone(),
                     |a, b| a.intersection(b, 100000.0),
                 );
-            let above = slices[q + 2..q + layers]
+            let above = slices[q + 1..q + top_layers+1]
                 .iter()
                 .map(|m| m.1.get_entire_slice_polygon())
                 .fold(
@@ -348,7 +352,7 @@ fn main() {
             .for_each(|(layer_num, (layer, slice))| {
                 slice.fill_remaining_area(
                     &settings.get_layer_settings(layer_num),
-                    layer_num < 3 || layer_num + 3 + 1 > slice_count,
+                    layer_num < settings.bottom_layers || settings.top_layers + 3 + 1 > slice_count,
                     layer_num,
                     *layer,
                 );
