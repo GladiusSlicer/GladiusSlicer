@@ -184,7 +184,7 @@ pub struct MovementParameter {
 }
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug,Clone)]
 pub struct FilamentSettings {
     pub diameter: f64,
     pub density: f64,
@@ -195,7 +195,7 @@ pub struct FilamentSettings {
     pub first_layer_bed_temp: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug,Clone)]
 pub struct FanSettings {
     pub fan_speed: f64,
     pub disable_fan_for_layers: usize,
@@ -228,8 +228,145 @@ impl Default for FanSettings {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug,Clone)]
 pub struct SkirtSettings {
     pub layers: usize,
     pub distance: f64,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PartialSettings {
+    pub layer_height: Option<f64>,
+    pub layer_width: Option<f64>,
+
+    pub filament: Option<FilamentSettings>,
+    pub fan: Option<FanSettings>,
+    pub skirt: Option<SkirtSettings>,
+
+    pub nozzle_diameter: Option<f64>,
+
+    pub retract_length: Option<f64>,
+    pub retract_lift_z: Option<f64>,
+    pub retract_speed: Option<f64>,
+
+    pub speed: Option<MovementParameter>,
+    pub first_layer_speed: Option<MovementParameter>,
+    pub acceleration: Option<MovementParameter>,
+
+    pub infill_percentage: Option<f64>,
+
+
+    pub first_layer_height: Option<f64>,
+    pub first_layer_width: Option<f64>,
+
+    pub inner_permimeters_first: Option<bool>,
+
+    pub number_of_perimeters: Option<usize>,
+
+    pub top_layers: Option<usize>,
+    pub bottom_layers: Option<usize>,
+
+    pub print_x: Option<f64>,
+    pub print_y: Option<f64>,
+    pub print_z: Option<f64>,
+
+    pub minimum_retract_distance: Option<f64>,
+
+    pub infill_perimeter_overlap_percentage: Option<f64>,
+    pub infill_type: Option<PartialInfillTypes>,
+
+    pub starting_gcode: Option<String>,
+    pub ending_gcode: Option<String>,
+    
+    pub other_files: Option<Vec<String>>,
+}
+
+impl PartialSettings {
+    pub fn get_settings(mut self) -> Result<Settings,String>{
+
+        self.combine_with_other_files();
+
+        let settings = Settings{
+            layer_height: self.layer_height.ok_or("layer_height")?,
+            layer_width: self.layer_width.ok_or("layer_width")?,
+            filament: self.filament.ok_or("filament")?,
+            fan: self.fan.ok_or("fan")?,
+            skirt: self.skirt,
+            nozzle_diameter: self.nozzle_diameter.ok_or("nozzle_diameter")?,
+            retract_length: self.retract_length.ok_or("retract_length")?,
+            retract_lift_z: self.retract_lift_z.ok_or("retract_lift_z")?,
+            retract_speed: self.retract_speed.ok_or("retract_speed")?,
+            speed: self.speed.ok_or("speed")?,
+            first_layer_speed: self.first_layer_speed.ok_or("first_layer_speed")?,
+            acceleration: self.acceleration.ok_or("acceleration")?,
+            infill_percentage: self.infill_percentage.ok_or("infill_percentage")?,
+            first_layer_height: self.first_layer_height.ok_or("first_layer_height")?,
+            first_layer_width: self.first_layer_width.ok_or("first_layer_width")?,
+            inner_permimeters_first: self.inner_permimeters_first.ok_or("inner_permimeters_first")?,
+            number_of_perimeters: self.number_of_perimeters.ok_or("number_of_perimeters")?,
+            top_layers: self.top_layers.ok_or("top_layers")?,
+            bottom_layers: self.bottom_layers.ok_or("bottom_layers")?,
+            print_x: self.print_x.ok_or("print_x")?,
+            print_y: self.print_y.ok_or("print_y")?,
+            print_z: self.print_z.ok_or("print_z")?,
+            minimum_retract_distance: self.minimum_retract_distance.ok_or("minimum_retract_distance")?,
+            infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage.ok_or("infill_perimeter_overlap_percentage")?,
+            infill_type: self.infill_type.ok_or("infill_type")?,
+            starting_gcode: self.starting_gcode.ok_or("starting_gcode")?,
+            ending_gcode: self.ending_gcode.ok_or("ending_gcode")?,
+        };
+        
+        Ok(settings)
+    }
+
+    fn combine_with_other_files(&mut self){
+
+        let files : Vec<String> = self.other_files.as_mut().map(|of| of.drain(..).collect()).unwrap_or_default();
+
+        for file in files{
+            println!("file {}",file);
+            let mut ps : PartialSettings = deser_hjson::from_str(&std::fs::read_to_string(file).unwrap()).unwrap();
+
+
+            ps.combine_with_other_files();
+
+            *self = self.combine(ps);
+
+        }
+    }
+    
+    fn combine(&self, other: PartialSettings) -> PartialSettings {
+        PartialSettings{
+            layer_height: self.layer_height.or(other.layer_height),
+            layer_width: self.layer_width.or(other.layer_width),
+            filament: self.filament.clone().or(other.filament.clone()),
+            fan: self.fan.clone().or(other.fan.clone()),
+            skirt: self.skirt.clone().or(other.skirt.clone()),
+            nozzle_diameter: self.nozzle_diameter.or(other.nozzle_diameter),
+            retract_length: self.retract_length.or(other.retract_length),
+            retract_lift_z: self.retract_lift_z.or(other.retract_lift_z),
+            retract_speed: self.retract_speed.or(other.retract_speed),
+            speed: self.speed.clone().or(other.speed.clone()),
+            first_layer_speed: self.first_layer_speed.clone().or(other.first_layer_speed.clone()),
+            acceleration: self.acceleration.clone().or(other.acceleration.clone()),
+            infill_percentage: self.infill_percentage.or(other.infill_percentage),
+            first_layer_height: self.first_layer_height.or(other.first_layer_height),
+            first_layer_width: self.first_layer_width.or(other.first_layer_width),
+            inner_permimeters_first: self.inner_permimeters_first.or(other.inner_permimeters_first),
+            number_of_perimeters: self.number_of_perimeters.or(other.number_of_perimeters),
+            top_layers: self.top_layers.or(other.top_layers),
+            bottom_layers: self.bottom_layers.or(other.bottom_layers),
+            print_x: self.print_x.or(other.print_x),
+            print_y: self.print_y.or(other.print_y),
+            print_z: self.print_z.or(other.print_z),
+            minimum_retract_distance: self.minimum_retract_distance.or(other.minimum_retract_distance),
+            infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage.or(other.infill_perimeter_overlap_percentage),
+            infill_type: self.infill_type.or(other.infill_type),
+            starting_gcode: self.starting_gcode.clone().or(other.starting_gcode.clone()),
+            ending_gcode: self.ending_gcode.clone().or(other.ending_gcode.clone()),
+            other_files: None
+        }
+    }
+    
+}
+

@@ -6,7 +6,7 @@ use simple_logger::SimpleLogger;
 
 use crate::optimizer::optimize_commands;
 use crate::plotter::Slice;
-use crate::settings::Settings;
+use crate::settings::{PartialSettings, Settings};
 use crate::tower::*;
 use geo::Coordinate;
 use geo_clipper::*;
@@ -40,6 +40,7 @@ fn main() {
     let settings: Settings = matches
         .value_of("SETTINGS")
         .map(|str| deser_hjson::from_str(&std::fs::read_to_string(str).unwrap()).unwrap())
+        .map(|partial_settings: PartialSettings| partial_settings.get_settings().unwrap())
         .unwrap_or_default();
 
     // Gets a value for config if supplied by user, or defaults to "default.conf"
