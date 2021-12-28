@@ -353,7 +353,7 @@ fn main() {
             .for_each(|(layer_num, (layer, slice))| {
                 slice.fill_remaining_area(
                     &settings.get_layer_settings(layer_num),
-                    layer_num < settings.bottom_layers || settings.top_layers + 3 + 1 > slice_count,
+                    layer_num < settings.bottom_layers || settings.top_layers + layer_num + 1 > slice_count,
                     layer_num,
                     *layer,
                 );
