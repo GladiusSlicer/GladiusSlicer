@@ -8,6 +8,8 @@ pub enum SlicerErrors {
     ThreemfLoadError,
     ThreemfUnsupportedType,
     TowerGeneration,
+    NoInputProvided,
+    InputMisformat,
     UnspecifiedError(String)
 }
 
@@ -48,6 +50,12 @@ impl SlicerErrors {
             }
             SlicerErrors::TowerGeneration  => {
                 (0x1007,format!("Error Creating Tower. Model most likely needs repair. Please Repair and run again."))
+            }
+            SlicerErrors::NoInputProvided  => {
+                (0x1008,format!("No Input Provided."))
+            }
+            SlicerErrors::InputMisformat  => {
+                (0x1009,format!("Input Incorrectly Formatted"))
             }
             SlicerErrors::UnspecifiedError(err_string) => {
                 (0xFFFFFFFF,format!("Third Party Error. {}",err_string))

@@ -91,9 +91,15 @@ fn main() {
 
     let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>)> = matches
         .values_of("INPUT")
-        .unwrap()
+        .unwrap_or_else(||{
+            SlicerErrors::NoInputProvided.show_error_message();
+            std::process::exit(-1);
+        })
         .map(|value| {
-            let obj: InputObject = deser_hjson::from_str(value).unwrap();
+            let obj: InputObject = deser_hjson::from_str(value).unwrap_or_else(|err|{
+                SlicerErrors::InputMisformat.show_error_message();
+                std::process::exit(-1);
+            });
             obj
         })
         .par_bridge()
@@ -272,7 +278,7 @@ fn main() {
                     .expect("Needs an object")
                     .layers
                     .get(0)
-                    .unwrap()
+                    .expect("Object needs a Slice")
                     .1
                     .get_entire_slice_polygon()
                     .clone(),
@@ -343,7 +349,7 @@ fn main() {
                     .fold(
                         slices
                             .get(q - bottom_layers)
-                            .unwrap()
+                            .expect("Bounds Checked above")
                             .1
                             .get_entire_slice_polygon()
                             .clone(),
@@ -355,7 +361,7 @@ fn main() {
                     .fold(
                         slices
                             .get(q + 1)
-                            .unwrap()
+                            .expect("Bounds Checked above")
                             .1
                             .get_entire_slice_polygon()
                             .clone(),
@@ -363,7 +369,7 @@ fn main() {
                     );
                 let intersection = below.intersection(&above, 100000.0);
 
-                slices.get_mut(q).unwrap().1.fill_solid_subtracted_area(
+                slices.get_mut(q).expect("Bounds Checked above").1.fill_solid_subtracted_area(
                     &intersection,
                     &settings.get_layer_settings(q),
                     q,
@@ -437,7 +443,7 @@ fn main() {
         .flatten()
         .collect();
 
-    layer_moves.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
+    layer_moves.sort_by(|(a, _), (b, _)| a.partial_cmp(b).expect("No NAN layer heights are allowed"));
 
     let mut moves: Vec<_> = layer_moves
         .into_iter()
