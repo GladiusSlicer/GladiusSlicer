@@ -1,5 +1,7 @@
 use crate::loader::*;
 use serde::Deserialize;
+use zip::result::ZipError;
+use crate::SlicerErrors;
 
 #[derive(Deserialize, Debug)]
 struct Relationships {
@@ -58,16 +60,15 @@ struct ThreeMFTriangles {
 pub struct ThreeMFLoader {}
 
 impl Loader for ThreeMFLoader {
-    fn load(&self, filepath: &str) -> Option<(Vec<Vertex>, Vec<IndexedTriangle>)> {
+    fn load(&self, filepath: &str) -> Result<(Vec<Vertex>, Vec<IndexedTriangle>),SlicerErrors> {
         let zipfile = std::fs::File::open(filepath).unwrap();
 
-        let mut archive = zip::ZipArchive::new(zipfile).unwrap();
+        let mut archive = zip::ZipArchive::new(zipfile).map_err(|_| SlicerErrors::ThreemfUnsupportedType)?;
 
         let rel_file = match archive.by_name("_rels/.rels") {
             Ok(file) => file,
             Err(..) => {
-                println!("File not found");
-                return None;
+                return Err(SlicerErrors::ThreemfLoadError);
             }
         };
 
@@ -79,8 +80,7 @@ impl Loader for ThreeMFLoader {
         let model_file = match archive.by_name(&ModelPath[1..]) {
             Ok(file) => file,
             Err(..) => {
-                println!("File not found");
-                return None;
+                return Err(SlicerErrors::ThreemfLoadError);
             }
         };
 
@@ -114,6 +114,6 @@ impl Loader for ThreeMFLoader {
             }
         }
 
-        Some((vertices, triangles))
+        Ok((vertices, triangles))
     }
 }

@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
+use crate::SlicerErrors;
 
 #[inline]
 fn line_z_intersection(z: f64, v_start: Vertex, v_end: Vertex) -> Vertex {
@@ -27,7 +28,7 @@ impl TriangleTower {
     pub fn from_triangles_and_vertices(
         triangles: &[IndexedTriangle],
         vertices: Vec<Vertex>,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, SlicerErrors> {
         let mut future_tower_vert: Vec<Vec<TriangleEvent>> =
             (0..vertices.len()).map(|_| vec![]).collect();
 
@@ -53,7 +54,7 @@ impl TriangleTower {
             }
         }
 
-        let res_tower_vertices: Result<Vec<TowerVertex>, ()> = future_tower_vert
+        let res_tower_vertices: Result<Vec<TowerVertex>, SlicerErrors> = future_tower_vert
             .into_iter()
             .enumerate()
             .map(|(index, events)| {
@@ -99,7 +100,7 @@ struct TowerRing {
 }
 
 impl TowerRing {
-    fn repair_loop(&mut self) -> Result<(), ()> {
+    fn repair_loop(&mut self) -> Result<(), SlicerErrors> {
         if *self.last_element.borrow() == *self.first_element.borrow() {
             let mut ring_ptr = self.first_element.clone();
 
@@ -107,7 +108,7 @@ impl TowerRing {
                 let next = if let Some(next) = ring_ptr.borrow().next().cloned() {
                     next
                 } else {
-                    return Err(());
+                    return Err(SlicerErrors::TowerGeneration);
                 };
 
                 ring_ptr = next;
@@ -123,7 +124,7 @@ impl TowerRing {
         Ok(())
     }
 
-    fn join_rings(first: TowerRing, second: TowerRing) -> Result<Self, ()> {
+    fn join_rings(first: TowerRing, second: TowerRing) -> Result<Self, SlicerErrors> {
         let second_next = second.first_element.borrow().next_clone();
 
         first.last_element.borrow_mut().set_next(second_next);
@@ -147,7 +148,7 @@ impl TowerRing {
         self.repair_loop();
     }*/
 
-    fn split_on_edge(mut self, edge: usize) -> Result<Vec<Self>, ()> {
+    fn split_on_edge(mut self, edge: usize) -> Result<Vec<Self>, SlicerErrors> {
         let mut frags = vec![];
 
         let mut ring_ptr = self.first_element.clone();
@@ -162,7 +163,7 @@ impl TowerRing {
 
         while {
             last_ptr = ring_ptr.clone();
-            let next = ring_ptr.borrow().next().ok_or(())?.clone();
+            let next = ring_ptr.borrow().next().ok_or(SlicerErrors::TowerGeneration)?.clone();
             ring_ptr = next;
             if let TowerRingElement::Edge { end_index, .. } = *ring_ptr.borrow() {
                 if end_index == edge {
@@ -172,11 +173,11 @@ impl TowerRing {
                     frags.push(std::mem::replace(
                         &mut temp_frag,
                         TowerRing {
-                            first_element: ring_ptr.borrow().next_clone().ok_or(())?,
+                            first_element: ring_ptr.borrow().next_clone().ok_or(SlicerErrors::TowerGeneration)?,
                             last_element: self.last_element.clone(),
                         },
                     ));
-                    self.first_element = ring_ptr.borrow().next_clone().ok_or(())?;
+                    self.first_element = ring_ptr.borrow().next_clone().ok_or(SlicerErrors::TowerGeneration)?;
 
                     found = true;
                 }
@@ -382,7 +383,7 @@ pub enum TriangleEvent {
 fn join_triangle_event(
     events: Vec<TriangleEvent>,
     starting_point: usize,
-) -> Result<Vec<TowerRing>, ()> {
+) -> Result<Vec<TowerRing>, SlicerErrors> {
     //debug!("Tri events = {:?}",events);
     let mut element_list: Vec<TowerRing> = Vec::new();
     for event in events.iter() {
@@ -497,7 +498,7 @@ fn join_fragments(fragments: &mut Vec<TowerRing>) {
 
 }
 */
-fn join_fragments(fragments: &mut Vec<TowerRing>) -> Result<(), ()> {
+fn join_fragments(fragments: &mut Vec<TowerRing>) -> Result<(), SlicerErrors> {
     /*
 
         for frag in &*fragments{
@@ -507,8 +508,8 @@ fn join_fragments(fragments: &mut Vec<TowerRing>) -> Result<(), ()> {
     'outer: loop {
         for first_pos in 0..fragments.len() {
             for second_pos in (first_pos + 1)..fragments.len() {
-                let first = fragments.get(first_pos).ok_or(())?;
-                let second = fragments.get(second_pos).ok_or(())?;
+                let first = fragments.get(first_pos).ok_or(SlicerErrors::TowerGeneration)?;
+                let second = fragments.get(second_pos).ok_or(SlicerErrors::TowerGeneration)?;
 
                 if first.last_element == second.first_element {
                     let second_r = fragments.swap_remove(second_pos);
@@ -544,7 +545,7 @@ impl<'s> TriangleTowerIterator<'s> {
         }
     }
 
-    pub fn advance_to_height(&mut self, z: f64) -> Result<(), ()> {
+    pub fn advance_to_height(&mut self, z: f64) -> Result<(), SlicerErrors> {
         //println!("Advance to height {} {} {}", self.tower.get_height_of_vertex(self.tower_vert_index), z, self.tower.tower_vertices[self.tower_vert_index].start_index);
 
         while self.tower.get_height_of_vertex(self.tower_vert_index) < z
@@ -553,7 +554,7 @@ impl<'s> TriangleTowerIterator<'s> {
             let pop_tower_vert = self.tower.tower_vertices[self.tower_vert_index].clone();
 
             //Create Frags from rings by removing current edges
-            let vec_frag: Result<Vec<Vec<TowerRing>>, ()> = self
+            let vec_frag: Result<Vec<Vec<TowerRing>>, SlicerErrors> = self
                 .active_rings
                 .drain(..)
                 .map(|tower_ring| tower_ring.split_on_edge(pop_tower_vert.start_index))

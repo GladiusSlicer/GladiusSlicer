@@ -22,6 +22,7 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use rayon::prelude::*;
 use std::collections::HashMap;
+use crate::error::SlicerErrors;
 
 mod loader;
 mod optimizer;
@@ -29,17 +30,33 @@ mod plotter;
 mod settings;
 mod tower;
 mod types;
+mod error;
 
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
     let yaml = load_yaml!("cli.yaml");
     let matches = App::from_yaml(yaml).get_matches();
 
-    let settings: Settings = matches
-        .value_of("SETTINGS")
-        .map(|str| deser_hjson::from_str(&std::fs::read_to_string(str).unwrap()).unwrap())
-        .map(|partial_settings: PartialSettings| partial_settings.get_settings().unwrap())
-        .unwrap_or_default();
+    let settings_res: Result<Settings,SlicerErrors> = {
+        let settings_path = matches.value_of("SETTINGS");
+        if let Some(str) = settings_path {
+            load_settings(str)
+        }
+        else{
+            Ok(Settings::default())
+        }
+    };
+
+    let settings ={
+        match settings_res {
+            Ok(settings) => settings,
+            Err(err) => {
+                err.show_error_message();
+                std::process::exit(-1);
+            }
+        }
+    };
+
 
     // Gets a value for config if supplied by user, or defaults to "default.conf"
     let config = matches.value_of("config").unwrap_or("default.conf");
@@ -98,7 +115,14 @@ fn main() {
                 _ => panic!("File Format {} not supported", extension),
             };
 
-            let (mut vertices, triangles) = loader.load(model_path.to_str().unwrap()).unwrap();
+            let (mut vertices, triangles) = match loader.load(model_path.to_str().unwrap()) {
+                Ok((mut vertices, triangles)) => (vertices, triangles),
+                Err(err) =>{
+                    err.show_error_message();
+                    std::process::exit(-1);
+                }
+            };
+
 
             let transform = match object {
                 InputObject::Raw(_, transform) => transform,
@@ -168,13 +192,14 @@ fn main() {
 
     println!("Creating Towers");
     let towers : Vec<TriangleTower>= converted_inputs.into_iter().map(|( vertices, triangles)|{
-        if let Ok(tower) = TriangleTower::from_triangles_and_vertices(&triangles, vertices){
-            tower
+        match TriangleTower::from_triangles_and_vertices(&triangles, vertices) {
+            Ok(tower) => tower,
+            Err(err) => {
+                err.show_error_message();
+                std::process::exit(-1);
+            }
         }
-        else{
-            println!("Error Creating Tower. Model most likely needs repair. Please Repair and run again.");
-            std::process::exit(-1);
-        }
+
     }).collect();
 
     println!("Slicing");
@@ -809,4 +834,11 @@ fn convert(
         .expect("File Closed Before CLosed. Gcode invalid.");
 
     Ok(())
+}
+
+fn load_settings(filepath: &str)->Result<Settings,SlicerErrors> {
+    let settings_data = std::fs::read_to_string(filepath).map_err(|err| SlicerErrors::SettingsFileNotFound { filepath: filepath.to_string() })?;
+    let partial_settings : PartialSettings= deser_hjson::from_str(&settings_data).map_err(|err| SlicerErrors::SettingsFileMisformat { filepath: filepath.to_string() })?;
+    let settings = partial_settings.get_settings().map_err(|err| SlicerErrors::SettingsFileMissingSettings { missing_setting: err })?;
+    Ok(settings)
 }
