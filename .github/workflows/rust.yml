@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Set LIBCLANG_PATH
         run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
-        if: matrix.config.os == 'windows-latest'
+        if: matrix.os == 'windows-latest'
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install Rust Toolchain
