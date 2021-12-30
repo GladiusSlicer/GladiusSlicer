@@ -9,7 +9,6 @@ use crate::plotter::Slice;
 use crate::settings::{PartialSettings, Settings};
 use crate::tower::*;
 use geo::Coordinate;
-use geo_clipper::*;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
@@ -23,6 +22,7 @@ use ordered_float::OrderedFloat;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use crate::error::SlicerErrors;
+use crate::plotter::polygon_operations::PolygonOperations;
 
 mod loader;
 mod optimizer;
@@ -282,7 +282,7 @@ fn main() {
                     .1
                     .get_entire_slice_polygon()
                     .clone(),
-                |a, b| a.union(b, 100000.0),
+                |a, b| a.union_with(b),
             )
             .convex_hull();
 
@@ -353,7 +353,7 @@ fn main() {
                             .1
                             .get_entire_slice_polygon()
                             .clone(),
-                        |a, b| a.intersection(b, 100000.0),
+                        |a, b| a.intersection_with(b),
                     );
                 let above = slices[q + 1..q + top_layers + 1]
                     .iter()
@@ -365,9 +365,9 @@ fn main() {
                             .1
                             .get_entire_slice_polygon()
                             .clone(),
-                        |a, b| a.intersection(b, 100000.0),
+                        |a, b| a.intersection_with(b),
                     );
-                let intersection = below.intersection(&above, 100000.0);
+                let intersection = below.intersection_with(&above);
 
                 slices.get_mut(q).expect("Bounds Checked above").1.fill_solid_subtracted_area(
                     &intersection,

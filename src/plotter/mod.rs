@@ -1,6 +1,7 @@
 mod infill;
 mod monotone;
 mod perimeter;
+pub mod polygon_operations;
 
 pub use crate::plotter::infill::*;
 use crate::plotter::perimeter::*;
@@ -10,10 +11,10 @@ use geo::coordinate_position::CoordPos;
 use geo::coordinate_position::CoordinatePosition;
 use geo::prelude::*;
 use geo::*;
-use geo_clipper::*;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
+use crate::plotter::polygon_operations::PolygonOperations;
 
 pub struct Slice {
     MainPolygon: MultiPolygon<f64>,
@@ -103,12 +104,8 @@ impl Slice {
             self.fixed_chains.push(mc);
         }
 
-        self.remaining_area = self.remaining_area.offset(
-            -settings.layer_width * number_of_perimeters as f64,
-            JoinType::Square,
-            EndType::ClosedPolygon,
-            100000.0,
-        );
+        self.remaining_area = self.remaining_area.offset_from(-settings.layer_width * number_of_perimeters as f64);
+
     }
 
     pub fn fill_remaining_area(
@@ -158,14 +155,11 @@ impl Slice {
 
         let solid_area = self
             .remaining_area
-            .difference(other, 100000.0)
-            .offset(
+            .difference_with(other)
+            .offset_from(
                 settings.layer_width * 4.0,
-                JoinType::Square,
-                EndType::ClosedPolygon,
-                100000.0,
             )
-            .intersection(&self.remaining_area, 100000.0);
+            .intersection_with(&self.remaining_area);
 
         let angle = 45.0 + (120_f64) * layer_count as f64;
 
@@ -179,7 +173,7 @@ impl Slice {
                 .flatten(),
         );
 
-        self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
+        self.remaining_area = self.remaining_area.difference_with(&solid_area)
     }
 
     pub fn fill_solid_bridge_area(
@@ -191,14 +185,11 @@ impl Slice {
 
         let solid_area = self
             .remaining_area
-            .difference(layer_below, 100000.0)
-            .offset(
+            .difference_with(layer_below)
+            .offset_from(
                 settings.layer_width * 4.0,
-                JoinType::Square,
-                EndType::ClosedPolygon,
-                100000.0,
             )
-            .intersection(&self.remaining_area, 100000.0);
+            .intersection_with(&self.remaining_area);
 
         self.chains.extend(
             &mut solid_area
@@ -206,7 +197,7 @@ impl Slice {
                 .iter()
                 .map(|poly| {
                     let unsupported_area: MultiPolygon<f64> =
-                        poly.difference(layer_below, 100000.0);
+                        poly.difference_with(layer_below);
                     let mut angle = get_optimal_bridge_angle(poly, &unsupported_area);
 
                     if angle < 0.0 {
@@ -219,7 +210,7 @@ impl Slice {
                 .flatten(),
         );
 
-        self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
+        self.remaining_area = self.remaining_area.difference_with(&solid_area)
     }
 
     pub fn fill_solid_top_layer(
@@ -232,14 +223,9 @@ impl Slice {
 
         let solid_area = self
             .remaining_area
-            .difference(layer_above, 100000.0)
-            .offset(
-                settings.layer_width * 4.0,
-                JoinType::Square,
-                EndType::ClosedPolygon,
-                100000.0,
-            )
-            .intersection(&self.remaining_area, 100000.0);
+            .difference_with(layer_above)
+            .offset_from(settings.layer_width * 4.0)
+            .intersection_with(&self.remaining_area);
 
         for poly in &solid_area {
             let angle = 45.0 + (120_f64) * layer_count as f64;
@@ -251,7 +237,7 @@ impl Slice {
             }
         }
 
-        self.remaining_area = self.remaining_area.difference(&solid_area, 100000.0)
+        self.remaining_area = self.remaining_area.difference_with(&solid_area)
     }
 
     pub fn generate_skirt(
@@ -260,11 +246,8 @@ impl Slice {
         settings: &LayerSettings,
         skirt_settings: &SkirtSettings,
     ) {
-        let offset_hull_multi = convex_polygon.offset(
-            skirt_settings.distance,
-            JoinType::Square,
-            EndType::ClosedPolygon,
-            100000.0,
+        let offset_hull_multi = convex_polygon.offset_from(
+            skirt_settings.distance
         );
 
         assert_eq!(offset_hull_multi.0.len(), 1);
