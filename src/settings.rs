@@ -341,19 +341,22 @@ impl PartialSettings {
         PartialSettings {
             layer_height: self.layer_height.or(other.layer_height),
             layer_width: self.layer_width.or(other.layer_width),
-            filament: self.filament.clone().or_else(||other.filament.clone()),
-            fan: self.fan.clone().or_else(||other.fan.clone()),
-            skirt: self.skirt.clone().or_else(||other.skirt.clone()),
+            filament: self.filament.clone().or_else(|| other.filament.clone()),
+            fan: self.fan.clone().or_else(|| other.fan.clone()),
+            skirt: self.skirt.clone().or_else(|| other.skirt.clone()),
             nozzle_diameter: self.nozzle_diameter.or(other.nozzle_diameter),
             retract_length: self.retract_length.or(other.retract_length),
             retract_lift_z: self.retract_lift_z.or(other.retract_lift_z),
             retract_speed: self.retract_speed.or(other.retract_speed),
-            speed: self.speed.clone().or_else(||other.speed.clone()),
+            speed: self.speed.clone().or_else(|| other.speed.clone()),
             first_layer_speed: self
                 .first_layer_speed
                 .clone()
-                .or_else(||other.first_layer_speed.clone()),
-            acceleration: self.acceleration.clone().or_else(||other.acceleration.clone()),
+                .or_else(|| other.first_layer_speed.clone()),
+            acceleration: self
+                .acceleration
+                .clone()
+                .or_else(|| other.acceleration.clone()),
             infill_percentage: self.infill_percentage.or(other.infill_percentage),
             first_layer_height: self.first_layer_height.or(other.first_layer_height),
             first_layer_width: self.first_layer_width.or(other.first_layer_width),
@@ -373,7 +376,10 @@ impl PartialSettings {
                 .infill_perimeter_overlap_percentage
                 .or(other.infill_perimeter_overlap_percentage),
             infill_type: self.infill_type.or(other.infill_type),
-            starting_gcode: self.starting_gcode.clone().or_else(||other.starting_gcode.clone()),
+            starting_gcode: self
+                .starting_gcode
+                .clone()
+                .or_else(|| other.starting_gcode.clone()),
             ending_gcode: self.ending_gcode.clone().or(other.ending_gcode),
             other_files: None,
         }

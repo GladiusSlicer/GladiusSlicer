@@ -1,31 +1,31 @@
 #[derive(Clone, Debug, PartialEq)]
 pub enum SlicerErrors {
-    ObjectFileNotFound{filepath:String},
-    SettingsFileNotFound{filepath:String},
-    SettingsFileMisformat{filepath:String},
-    SettingsFileMissingSettings{missing_setting:String},
+    ObjectFileNotFound { filepath: String },
+    SettingsFileNotFound { filepath: String },
+    SettingsFileMisformat { filepath: String },
+    SettingsFileMissingSettings { missing_setting: String },
     StlLoadError,
     ThreemfLoadError,
     ThreemfUnsupportedType,
     TowerGeneration,
     NoInputProvided,
     InputMisformat,
-    UnspecifiedError(String)
+    UnspecifiedError(String),
 }
 
 impl SlicerErrors {
-    pub fn show_error_message(&self){
-        let (error_code,message) =  self.get_code_and_message();
+    pub fn show_error_message(&self) {
+        let (error_code, message) = self.get_code_and_message();
         println!("\n");
         println!("**************************************************");
         println!("\tGladius Slicer Ran into an error");
-        println!("\tError Code: {:#X}",error_code);
-        println!("\t{}",message);
+        println!("\tError Code: {:#X}", error_code);
+        println!("\t{}", message);
         println!("**************************************************");
         println!("\n\n\n");
     }
 
-    fn get_code_and_message(&self) -> (u32,String){
+    fn get_code_and_message(&self) -> (u32, String) {
         match self {
             SlicerErrors::ObjectFileNotFound { filepath } => {
                 (0x1000,format!("Could not load object file \"{}\". It was not found in the filesystem. Please check that the file exists and retry.",filepath))
@@ -49,18 +49,17 @@ impl SlicerErrors {
                 (0x1006,format!("Could not load settings file. Was missing settings {}.",missing_setting))
             }
             SlicerErrors::TowerGeneration  => {
-                (0x1007,format!("Error Creating Tower. Model most likely needs repair. Please Repair and run again."))
+                (0x1007,"Error Creating Tower. Model most likely needs repair. Please Repair and run again.".to_string())
             }
             SlicerErrors::NoInputProvided  => {
-                (0x1008,format!("No Input Provided."))
+                (0x1008,"No Input Provided.".to_string())
             }
             SlicerErrors::InputMisformat  => {
-                (0x1009,format!("Input Incorrectly Formatted"))
+                (0x1009,"Input Incorrectly Formatted".to_string())
             }
             SlicerErrors::UnspecifiedError(err_string) => {
                 (0xFFFFFFFF,format!("Third Party Error. {}",err_string))
             }
         }
     }
-
 }

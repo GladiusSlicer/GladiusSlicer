@@ -1,10 +1,10 @@
 use crate::types::*;
+use crate::SlicerErrors;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
-use crate::SlicerErrors;
 
 #[inline]
 fn line_z_intersection(z: f64, v_start: Vertex, v_end: Vertex) -> Vertex {
@@ -163,7 +163,11 @@ impl TowerRing {
 
         while {
             last_ptr = ring_ptr.clone();
-            let next = ring_ptr.borrow().next().ok_or(SlicerErrors::TowerGeneration)?.clone();
+            let next = ring_ptr
+                .borrow()
+                .next()
+                .ok_or(SlicerErrors::TowerGeneration)?
+                .clone();
             ring_ptr = next;
             if let TowerRingElement::Edge { end_index, .. } = *ring_ptr.borrow() {
                 if end_index == edge {
@@ -173,11 +177,17 @@ impl TowerRing {
                     frags.push(std::mem::replace(
                         &mut temp_frag,
                         TowerRing {
-                            first_element: ring_ptr.borrow().next_clone().ok_or(SlicerErrors::TowerGeneration)?,
+                            first_element: ring_ptr
+                                .borrow()
+                                .next_clone()
+                                .ok_or(SlicerErrors::TowerGeneration)?,
                             last_element: self.last_element.clone(),
                         },
                     ));
-                    self.first_element = ring_ptr.borrow().next_clone().ok_or(SlicerErrors::TowerGeneration)?;
+                    self.first_element = ring_ptr
+                        .borrow()
+                        .next_clone()
+                        .ok_or(SlicerErrors::TowerGeneration)?;
 
                     found = true;
                 }
@@ -508,8 +518,12 @@ fn join_fragments(fragments: &mut Vec<TowerRing>) -> Result<(), SlicerErrors> {
     'outer: loop {
         for first_pos in 0..fragments.len() {
             for second_pos in (first_pos + 1)..fragments.len() {
-                let first = fragments.get(first_pos).ok_or(SlicerErrors::TowerGeneration)?;
-                let second = fragments.get(second_pos).ok_or(SlicerErrors::TowerGeneration)?;
+                let first = fragments
+                    .get(first_pos)
+                    .ok_or(SlicerErrors::TowerGeneration)?;
+                let second = fragments
+                    .get(second_pos)
+                    .ok_or(SlicerErrors::TowerGeneration)?;
 
                 if first.last_element == second.first_element {
                     let second_r = fragments.swap_remove(second_pos);

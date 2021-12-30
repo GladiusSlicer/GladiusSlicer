@@ -62,7 +62,7 @@ pub fn solid_infill_polygon(
     settings: &LayerSettings,
     fill_type: MoveType,
     layer_count: usize,
-    layer_height: f64,
+    _layer_height: f64,
 ) -> Vec<MoveChain> {
     let angle = 45.0 + (120_f64) * layer_count as f64;
 
@@ -81,7 +81,7 @@ pub fn partial_infill_polygon(
     poly: &Polygon<f64>,
     settings: &LayerSettings,
     fill_ratio: f64,
-    layer_count: usize,
+    _layer_count: usize,
     layer_height: f64,
 ) -> Vec<MoveChain> {
     match settings.infill_type {

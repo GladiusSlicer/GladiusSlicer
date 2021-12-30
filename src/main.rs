@@ -17,37 +17,36 @@ use geo::prelude::ConvexHull;
 use std::ffi::OsStr;
 use std::path::Path;
 
+use crate::error::SlicerErrors;
+use crate::plotter::polygon_operations::PolygonOperations;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use rayon::prelude::*;
 use std::collections::HashMap;
-use crate::error::SlicerErrors;
-use crate::plotter::polygon_operations::PolygonOperations;
 
+mod error;
 mod loader;
 mod optimizer;
 mod plotter;
 mod settings;
 mod tower;
 mod types;
-mod error;
 
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
     let yaml = load_yaml!("cli.yaml");
     let matches = App::from_yaml(yaml).get_matches();
 
-    let settings_res: Result<Settings,SlicerErrors> = {
+    let settings_res: Result<Settings, SlicerErrors> = {
         let settings_path = matches.value_of("SETTINGS");
         if let Some(str) = settings_path {
             load_settings(str)
-        }
-        else{
+        } else {
             Ok(Settings::default())
         }
     };
 
-    let settings ={
+    let settings = {
         match settings_res {
             Ok(settings) => settings,
             Err(err) => {
@@ -56,7 +55,6 @@ fn main() {
             }
         }
     };
-
 
     // Gets a value for config if supplied by user, or defaults to "default.conf"
     let config = matches.value_of("config").unwrap_or("default.conf");
@@ -91,12 +89,12 @@ fn main() {
 
     let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>)> = matches
         .values_of("INPUT")
-        .unwrap_or_else(||{
+        .unwrap_or_else(|| {
             SlicerErrors::NoInputProvided.show_error_message();
             std::process::exit(-1);
         })
         .map(|value| {
-            let obj: InputObject = deser_hjson::from_str(value).unwrap_or_else(|err|{
+            let obj: InputObject = deser_hjson::from_str(value).unwrap_or_else(|_| {
                 SlicerErrors::InputMisformat.show_error_message();
                 std::process::exit(-1);
             });
@@ -122,13 +120,12 @@ fn main() {
             };
 
             let (mut vertices, triangles) = match loader.load(model_path.to_str().unwrap()) {
-                Ok((mut vertices, triangles)) => (vertices, triangles),
-                Err(err) =>{
+                Ok((vertices, triangles)) => (vertices, triangles),
+                Err(err) => {
                     err.show_error_message();
                     std::process::exit(-1);
                 }
             };
-
 
             let transform = match object {
                 InputObject::Raw(_, transform) => transform,
@@ -197,16 +194,18 @@ fn main() {
         .collect();
 
     println!("Creating Towers");
-    let towers : Vec<TriangleTower>= converted_inputs.into_iter().map(|( vertices, triangles)|{
-        match TriangleTower::from_triangles_and_vertices(&triangles, vertices) {
-            Ok(tower) => tower,
-            Err(err) => {
-                err.show_error_message();
-                std::process::exit(-1);
+    let towers: Vec<TriangleTower> = converted_inputs
+        .into_iter()
+        .map(|(vertices, triangles)| {
+            match TriangleTower::from_triangles_and_vertices(&triangles, vertices) {
+                Ok(tower) => tower,
+                Err(err) => {
+                    err.show_error_message();
+                    std::process::exit(-1);
+                }
             }
-        }
-
-    }).collect();
+        })
+        .collect();
 
     println!("Slicing");
 
@@ -369,11 +368,11 @@ fn main() {
                     );
                 let intersection = below.intersection_with(&above);
 
-                slices.get_mut(q).expect("Bounds Checked above").1.fill_solid_subtracted_area(
-                    &intersection,
-                    &settings.get_layer_settings(q),
-                    q,
-                )
+                slices
+                    .get_mut(q)
+                    .expect("Bounds Checked above")
+                    .1
+                    .fill_solid_subtracted_area(&intersection, &settings.get_layer_settings(q), q)
             });
 
         println!("Generating Moves: Fill Areas");
@@ -384,7 +383,8 @@ fn main() {
             .for_each(|(layer_num, (layer, slice))| {
                 slice.fill_remaining_area(
                     &settings.get_layer_settings(layer_num),
-                    layer_num < settings.bottom_layers || settings.top_layers + layer_num + 1 > slice_count,
+                    layer_num < settings.bottom_layers
+                        || settings.top_layers + layer_num + 1 > slice_count,
                     layer_num,
                     *layer,
                 );
@@ -443,7 +443,8 @@ fn main() {
         .flatten()
         .collect();
 
-    layer_moves.sort_by(|(a, _), (b, _)| a.partial_cmp(b).expect("No NAN layer heights are allowed"));
+    layer_moves
+        .sort_by(|(a, _), (b, _)| a.partial_cmp(b).expect("No NAN layer heights are allowed"));
 
     let mut moves: Vec<_> = layer_moves
         .into_iter()
@@ -490,8 +491,8 @@ fn main() {
                             Command::MoveAndExtrude {
                                 start,
                                 end,
-                                width,
-                                thickness,
+                                width: _width,
+                                thickness: _thickness,
                             } => {
                                 let x_diff = end.x - start.x;
                                 let y_diff = end.y - start.y;
@@ -842,9 +843,19 @@ fn convert(
     Ok(())
 }
 
-fn load_settings(filepath: &str)->Result<Settings,SlicerErrors> {
-    let settings_data = std::fs::read_to_string(filepath).map_err(|err| SlicerErrors::SettingsFileNotFound { filepath: filepath.to_string() })?;
-    let partial_settings : PartialSettings= deser_hjson::from_str(&settings_data).map_err(|err| SlicerErrors::SettingsFileMisformat { filepath: filepath.to_string() })?;
-    let settings = partial_settings.get_settings().map_err(|err| SlicerErrors::SettingsFileMissingSettings { missing_setting: err })?;
+fn load_settings(filepath: &str) -> Result<Settings, SlicerErrors> {
+    let settings_data =
+        std::fs::read_to_string(filepath).map_err(|_| SlicerErrors::SettingsFileNotFound {
+            filepath: filepath.to_string(),
+        })?;
+    let partial_settings: PartialSettings =
+        deser_hjson::from_str(&settings_data).map_err(|_| SlicerErrors::SettingsFileMisformat {
+            filepath: filepath.to_string(),
+        })?;
+    let settings = partial_settings.get_settings().map_err(|err| {
+        SlicerErrors::SettingsFileMissingSettings {
+            missing_setting: err,
+        }
+    })?;
     Ok(settings)
 }

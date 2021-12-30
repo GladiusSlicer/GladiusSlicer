@@ -5,6 +5,7 @@ pub mod polygon_operations;
 
 pub use crate::plotter::infill::*;
 use crate::plotter::perimeter::*;
+use crate::plotter::polygon_operations::PolygonOperations;
 use crate::settings::{LayerSettings, SkirtSettings};
 use crate::types::{Command, Move, MoveChain, MoveType};
 use geo::coordinate_position::CoordPos;
@@ -14,10 +15,9 @@ use geo::*;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
-use crate::plotter::polygon_operations::PolygonOperations;
 
 pub struct Slice {
-    MainPolygon: MultiPolygon<f64>,
+    main_polygon: MultiPolygon<f64>,
     remaining_area: MultiPolygon<f64>,
     solid_infill: Option<MultiPolygon<f64>>,
     normal_infill: Option<MultiPolygon<f64>>,
@@ -33,7 +33,7 @@ impl Slice {
         let polygon = Polygon::new(LineString::from_iter(line), vec![]);
 
         Slice {
-            MainPolygon: MultiPolygon(vec![polygon.clone()]),
+            main_polygon: MultiPolygon(vec![polygon.clone()]),
             remaining_area: MultiPolygon(vec![polygon]),
             solid_infill: None,
             normal_infill: None,
@@ -77,7 +77,7 @@ impl Slice {
         let multi_polygon: MultiPolygon<f64> = MultiPolygon(polygons);
 
         Slice {
-            MainPolygon: multi_polygon.clone(),
+            main_polygon: multi_polygon.clone(),
             remaining_area: multi_polygon,
             solid_infill: None,
             normal_infill: None,
@@ -87,7 +87,7 @@ impl Slice {
     }
 
     pub fn get_entire_slice_polygon(&self) -> &MultiPolygon<f64> {
-        &self.MainPolygon
+        &self.main_polygon
     }
 
     pub fn slice_perimeters_into_chains(
@@ -104,8 +104,9 @@ impl Slice {
             self.fixed_chains.push(mc);
         }
 
-        self.remaining_area = self.remaining_area.offset_from(-settings.layer_width * number_of_perimeters as f64);
-
+        self.remaining_area = self
+            .remaining_area
+            .offset_from(-settings.layer_width * number_of_perimeters as f64);
     }
 
     pub fn fill_remaining_area(
@@ -156,9 +157,7 @@ impl Slice {
         let solid_area = self
             .remaining_area
             .difference_with(other)
-            .offset_from(
-                settings.layer_width * 4.0,
-            )
+            .offset_from(settings.layer_width * 4.0)
             .intersection_with(&self.remaining_area);
 
         let angle = 45.0 + (120_f64) * layer_count as f64;
@@ -186,9 +185,7 @@ impl Slice {
         let solid_area = self
             .remaining_area
             .difference_with(layer_below)
-            .offset_from(
-                settings.layer_width * 4.0,
-            )
+            .offset_from(settings.layer_width * 4.0)
             .intersection_with(&self.remaining_area);
 
         self.chains.extend(
@@ -196,8 +193,7 @@ impl Slice {
                 .0
                 .iter()
                 .map(|poly| {
-                    let unsupported_area: MultiPolygon<f64> =
-                        poly.difference_with(layer_below);
+                    let unsupported_area: MultiPolygon<f64> = poly.difference_with(layer_below);
                     let mut angle = get_optimal_bridge_angle(poly, &unsupported_area);
 
                     if angle < 0.0 {
@@ -246,9 +242,7 @@ impl Slice {
         settings: &LayerSettings,
         skirt_settings: &SkirtSettings,
     ) {
-        let offset_hull_multi = convex_polygon.offset_from(
-            skirt_settings.distance
-        );
+        let offset_hull_multi = convex_polygon.offset_from(skirt_settings.distance);
 
         assert_eq!(offset_hull_multi.0.len(), 1);
 

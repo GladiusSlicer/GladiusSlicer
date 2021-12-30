@@ -1,18 +1,21 @@
 use crate::loader::*;
 use std::io::BufReader;
-use crate::SlicerErrors::StlLoadError;
 
 pub struct STLLoader {}
 
 impl Loader for STLLoader {
-    fn load(&self, filepath: &str) -> Result<(Vec<Vertex>, Vec<IndexedTriangle>),SlicerErrors> {
+    fn load(&self, filepath: &str) -> Result<(Vec<Vertex>, Vec<IndexedTriangle>), SlicerErrors> {
         let file = std::fs::OpenOptions::new()
             .read(true)
             .open(filepath)
-            .map_err(|err| SlicerErrors::ObjectFileNotFound {filepath: filepath.to_string()})?;
+            .map_err(|_| SlicerErrors::ObjectFileNotFound {
+                filepath: filepath.to_string(),
+            })?;
 
         let mut root_vase = BufReader::new(&file);
-        let mesh: nom_stl::IndexMesh = nom_stl::parse_stl(&mut root_vase).map_err(|_|SlicerErrors::StlLoadError)?.into();
+        let mesh: nom_stl::IndexMesh = nom_stl::parse_stl(&mut root_vase)
+            .map_err(|_| SlicerErrors::StlLoadError)?
+            .into();
 
         let mut triangles = vec![];
         let vertices = mesh

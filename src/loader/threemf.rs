@@ -1,18 +1,21 @@
 use crate::loader::*;
-use serde::Deserialize;
-use zip::result::ZipError;
 use crate::SlicerErrors;
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 struct Relationships {
-    Relationship: Vec<Relationship>,
+    #[serde(rename = "Relationship")]
+    relationship: Vec<Relationship>,
 }
 
 #[derive(Deserialize, Debug)]
 struct Relationship {
-    Type: String,
-    Target: String,
-    Id: String,
+    #[serde(rename = "Type")]
+    relationship_type: String,
+    #[serde(rename = "Target")]
+    target: String,
+    #[serde(rename = "Id")]
+    id: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -60,10 +63,11 @@ struct ThreeMFTriangles {
 pub struct ThreeMFLoader {}
 
 impl Loader for ThreeMFLoader {
-    fn load(&self, filepath: &str) -> Result<(Vec<Vertex>, Vec<IndexedTriangle>),SlicerErrors> {
+    fn load(&self, filepath: &str) -> Result<(Vec<Vertex>, Vec<IndexedTriangle>), SlicerErrors> {
         let zipfile = std::fs::File::open(filepath).unwrap();
 
-        let mut archive = zip::ZipArchive::new(zipfile).map_err(|_| SlicerErrors::ThreemfUnsupportedType)?;
+        let mut archive =
+            zip::ZipArchive::new(zipfile).map_err(|_| SlicerErrors::ThreemfUnsupportedType)?;
 
         let rel_file = match archive.by_name("_rels/.rels") {
             Ok(file) => file,
@@ -74,10 +78,10 @@ impl Loader for ThreeMFLoader {
 
         let rel: Relationships = serde_xml_rs::de::from_reader(rel_file).unwrap();
 
-        let ModelPath = rel.Relationship[0].Target.clone();
-        println!("Model Path: {}", ModelPath);
+        let model_path = rel.relationship[0].target.clone();
+        println!("Model Path: {}", model_path);
 
-        let model_file = match archive.by_name(&ModelPath[1..]) {
+        let model_file = match archive.by_name(&model_path[1..]) {
             Ok(file) => file,
             Err(..) => {
                 return Err(SlicerErrors::ThreemfLoadError);
