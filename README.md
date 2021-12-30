@@ -34,10 +34,10 @@ ARGS:
 ```
 
 ### Input file examples:
-* " {\"Auto\":\"test_3D_models\\3DBenchy.stl\"}" : Automatically Centers 3DBenchy file in center of the build area
-* " {\"AutoTranslate\":[\"test_3D_models\\3DBenchy.stl\",-10,0]} "  : Automatically centers 3DBenchy file in center of the build area offset -10 mm off center in the x dimension.
-* " {\"AutoTranslate\":[\"test_3D_models\\3DBenchy.stl\",0,-80]} " "{\"AutoTranslate\":[\"test_3D_models\\3DBenchy.stl\",0,80]} " : print 2 3DBenchy's 
-* " [[1.0,0.0,0.0,124.0],[0.0,1.0,0.0,105.0],[0.0,0.0,1.0,0.0],[0.0,0.0,0.0,1.0]] ": print 3DBenchy with given transform matrix
+* ` "{\"Auto\":\"test_3D_models\\3DBenchy.stl\"}" ` : Automatically Centers 3DBenchy file in center of the build area
+* ` "{\"AutoTranslate\":[\"test_3D_models\\3DBenchy.stl\",-10,0]}" `  : Automatically centers 3DBenchy file in center of the build area offset -10 mm off center in the x dimension.
+* ` "{\"AutoTranslate\":[\"test_3D_models\\3DBenchy.stl\",0,-80]} " "{\"AutoTranslate\":[\"test_3D_models\\3DBenchy.stl\",0,80]} " `: print 2 3DBenchy's 
+* ` "{\"Raw\":[\"test_3D_models\\3DBenchy.stl\",[[1.0,0.0,0.0,124.0],[0.0,1.0,0.0,105.0],[0.0,0.0,1.0,0.0],[0.0,0.0,0.0,1.0]] }" `:3DBenchy with given transform matrix
 
 ### Settings file example
 Settings files are hJSON, a human readable json that supports comments. Examples can be found in the settings folder.
