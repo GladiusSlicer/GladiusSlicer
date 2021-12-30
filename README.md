@@ -6,9 +6,9 @@ Rust, LGPL. Copyright 2021 Lucas Ince/mrhatman
 
 **Questions?** Please use the github discussion page.
 
-**Want to contribute?** Open a PR. Contributing document coming.
+**Want to contribute?** Open a PR. See contributing document for more information.
 
-Gladius Slicer is currently in a Alpha state and very little is stable so assume any new release will cause breaking bugs. If you need something stable, please open an issue or discussion, so we can plan out the interface. 
+Gladius Slicer is currently in a alpha state and very little is stable so assume any new release will cause breaking bugs. If you need something stable, please open an issue or discussion, so we can plan out the interface. 
 
 # Usage
 
@@ -37,7 +37,7 @@ ARGS:
 * " {\"Auto\":\"test_3D_models\\3DBenchy.stl\"}" : Automatically Centers 3DBenchy file in center of the build area
 * " {\"AutoTranslate\":[\"test_3D_models\\3DBenchy.stl\",-10,0]} "  : Automatically centers 3DBenchy file in center of the build area offset -10 mm off center in the x dimension.
 * " {\"AutoTranslate\":[\"test_3D_models\\3DBenchy.stl\",0,-80]} " "{\"AutoTranslate\":[\"test_3D_models\\3DBenchy.stl\",0,80]} " : print 2 3DBenchy's 
-* " [[1.0,0.0,0.0,124.1760025024414],[0.0,1.0,0.0,105.0009994506836],[0.0,0.0,1.0,2.7030678211303893e-6],[0.0,0.0,0.0,1.0]] ": print 3DBenchy with given transform matrix
+* " [[1.0,0.0,0.0,124.0],[0.0,1.0,0.0,105.0],[0.0,0.0,1.0,0.0],[0.0,0.0,0.0,1.0]] ": print 3DBenchy with given transform matrix
 
 ### Settings file example
 Settings files are hJSON, a human readable json that supports comments. Examples can be found in the settings folder.
