@@ -1,8 +1,9 @@
 name: Release
 
 on:
-  release:
-    types: [created, published]
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
 
 env:
   LC_CTYPE: en_US.UTF-8
