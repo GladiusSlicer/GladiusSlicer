@@ -93,7 +93,7 @@ impl InputObject {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Transform([[f64; 4]; 4]);
+pub struct Transform(pub [[f64; 4]; 4]);
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct IndexedTriangle {

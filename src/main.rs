@@ -100,7 +100,6 @@ fn main() {
             });
             obj
         })
-        .par_bridge()
         .map(|object| {
             let model_path = Path::new(object.get_model_path());
 
@@ -119,18 +118,19 @@ fn main() {
                 _ => panic!("File Format {} not supported", extension),
             };
 
-            let (mut vertices, triangles) = match loader.load(model_path.to_str().unwrap()) {
-                Ok((vertices, triangles)) => (vertices, triangles),
+            let mut models = match loader.load(model_path.to_str().unwrap()) {
+                Ok(v) => v,
                 Err(err) => {
                     err.show_error_message();
                     std::process::exit(-1);
                 }
             };
 
+
             let transform = match object {
                 InputObject::Raw(_, transform) => transform,
                 InputObject::Auto(_) => {
-                    let (min_x, max_x, min_y, max_y, min_z) = vertices.iter().fold(
+                    let (min_x, max_x, min_y, max_y, min_z) = models.iter().map(|(v,t)| v.iter()  ).flatten().fold(
                         (
                             f64::INFINITY,
                             f64::NEG_INFINITY,
@@ -155,7 +155,7 @@ fn main() {
                     )
                 }
                 InputObject::AutoTranslate(_, x, y) => {
-                    let (min_x, max_x, min_y, max_y, min_z) = vertices.iter().fold(
+                    let (min_x, max_x, min_y, max_y, min_z) = models.iter().map(|(v,t)| v.iter()  ).flatten().fold(
                         (
                             f64::INFINITY,
                             f64::NEG_INFINITY,
@@ -183,14 +183,17 @@ fn main() {
 
             let trans_str = serde_json::to_string(&transform).unwrap();
 
-            println!("Using Transform {}", trans_str);
 
-            for vert in vertices.iter_mut() {
-                *vert = &transform * *vert;
-            }
+            models.into_iter().map(move |(mut v,t)|{
 
-            (vertices, triangles)
+                 for vert in v.iter_mut() {
+                    *vert = &transform * *vert;
+                }
+
+                (v, t)
+            })
         })
+        .flatten()
         .collect();
 
     println!("Creating Towers");

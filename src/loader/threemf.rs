@@ -22,16 +22,40 @@ struct Relationship {
 #[serde(rename = "model")]
 struct ThreeMFModel {
     resources: ThreeMFResource,
+    build: ThreeMFBuild,
 }
 
 #[derive(Deserialize, Debug)]
 struct ThreeMFResource {
-    object: ThreeMFObject,
+    object: Vec<ThreeMFObject>,
+}
+#[derive(Deserialize, Debug)]
+struct ThreeMFBuild {
+    item: Vec<ThreeMFItem>,
 }
 
 #[derive(Deserialize, Debug)]
 struct ThreeMFObject {
-    mesh: ThreeMFMesh,
+    mesh: Option<ThreeMFMesh>,
+    components: Option<ThreeMFComponents>,
+    id: usize,
+}
+
+#[derive(Deserialize, Debug)]
+struct ThreeMFItem {
+    objectid: usize,
+    transform: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+struct ThreeMFComponents {
+    component : Vec<ThreeMFComponent>
+}
+
+#[derive(Deserialize, Debug)]
+struct ThreeMFComponent {
+    objectid: usize,
+    transform: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -63,7 +87,7 @@ struct ThreeMFTriangles {
 pub struct ThreeMFLoader {}
 
 impl Loader for ThreeMFLoader {
-    fn load(&self, filepath: &str) -> Result<(Vec<Vertex>, Vec<IndexedTriangle>), SlicerErrors> {
+    fn load(&self, filepath: &str) -> Result<Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, SlicerErrors> {
         let zipfile = std::fs::File::open(filepath).unwrap();
 
         let mut archive =
@@ -90,34 +114,113 @@ impl Loader for ThreeMFLoader {
 
         let model: ThreeMFModel = serde_xml_rs::de::from_reader(model_file).unwrap();
 
-        let mut triangles = vec![];
-        let vertices = model.resources.object.mesh.vertices.list;
+         model.build.item.iter().map(|item|{
+            let (mut v,t) =handle_object(item.objectid,&model.resources)?;
 
-        for triangle in model.resources.object.mesh.triangles.list {
-            let mut converted_tri = IndexedTriangle {
-                verts: [triangle.v1, triangle.v2, triangle.v3],
-            };
-            let v0 = vertices[converted_tri.verts[0]];
-            let v1 = vertices[converted_tri.verts[1]];
-            let v2 = vertices[converted_tri.verts[2]];
+            if let Some(t_str) = &item.transform{
+                let transform = get_transform_from_string(t_str)?;
 
-            if v0 < v1 && v0 < v2 {
-                triangles.push(converted_tri);
-            } else if v1 < v2 && v1 < v0 {
-                let temp = converted_tri.verts[0];
-                converted_tri.verts[0] = converted_tri.verts[1];
-                converted_tri.verts[1] = converted_tri.verts[2];
-                converted_tri.verts[2] = temp;
-                triangles.push(converted_tri);
-            } else {
-                let temp = converted_tri.verts[0];
-                converted_tri.verts[0] = converted_tri.verts[2];
-                converted_tri.verts[2] = converted_tri.verts[1];
-                converted_tri.verts[1] = temp;
-                triangles.push(converted_tri);
+                for vert in v.iter_mut() {
+                    *vert = &transform * *vert;
+                }
+
             }
+            Ok((v,t))
+        }).collect()
+    }
+}
+
+
+fn handle_object(obj_index:usize, comps: &ThreeMFResource)  -> Result<(Vec<Vertex>, Vec<IndexedTriangle>),SlicerErrors> {
+    let object = comps.object.iter().find(|obj| obj.id == obj_index).unwrap();
+
+    if let Some(mesh)= &object.mesh{
+        Ok(handle_mesh(mesh))
+    }
+    else if let Some(components) = &object.components{
+
+        let mut v = vec![];
+        let mut t = vec![];
+        let mut start =0;
+        for component in &components.component{
+            let (mut verts, mut triangles) = handle_object(component.objectid, comps)?;
+
+            if let Some(t_str) = &component.transform{
+                let transform = get_transform_from_string(t_str)?;
+
+                for vert in v.iter_mut() {
+                    *vert = &transform * *vert;
+                }
+
+            }
+
+            if start !=0{
+                for triangle in triangles.iter_mut(){
+                    triangle.verts[0] += start;
+                    triangle.verts[1] += start;
+                    triangle.verts[2] += start;
+                }
+            }
+
+            start += verts.len();
+
+            v.append(&mut verts);
+            t.append(&mut triangles);
         }
 
-        Ok((vertices, triangles))
+        Ok((v,t))
+    }
+    else{
+        Err(SlicerErrors::ThreemfLoadError)
+    }
+}
+
+fn handle_mesh(mesh: &ThreeMFMesh)  -> (Vec<Vertex>, Vec<IndexedTriangle>) {
+    let mut triangles = vec![];
+    let vertices = mesh.vertices.list.clone();
+
+    for triangle in &mesh.triangles.list {
+        let mut converted_tri = IndexedTriangle {
+            verts: [triangle.v1, triangle.v2, triangle.v3],
+        };
+        let v0 = vertices[converted_tri.verts[0]];
+        let v1 = vertices[converted_tri.verts[1]];
+        let v2 = vertices[converted_tri.verts[2]];
+
+        if v0 < v1 && v0 < v2 {
+            triangles.push(converted_tri);
+        } else if v1 < v2 && v1 < v0 {
+            let temp = converted_tri.verts[0];
+            converted_tri.verts[0] = converted_tri.verts[1];
+            converted_tri.verts[1] = converted_tri.verts[2];
+            converted_tri.verts[2] = temp;
+            triangles.push(converted_tri);
+        } else {
+            let temp = converted_tri.verts[0];
+            converted_tri.verts[0] = converted_tri.verts[2];
+            converted_tri.verts[2] = converted_tri.verts[1];
+            converted_tri.verts[1] = temp;
+            triangles.push(converted_tri);
+        }
+    }
+
+    (vertices,triangles)
+}
+
+fn get_transform_from_string(transform_string: &String) -> Result<Transform,SlicerErrors>{
+    let res_values : Result<Vec<f64>,_> = transform_string.split(' ').map(|str| str.parse()).collect();
+
+    let values = res_values.map_err(|_|SlicerErrors::ThreemfLoadError)?;
+    if values.len() != 12{
+        Err(SlicerErrors::ThreemfLoadError)
+    }
+    else{
+        let t = [
+            [values[0],values[3],values[6],values[9]],
+            [values[1],values[4],values[7],values[10]],
+            [values[2],values[5],values[8],values[11]],
+            [0.0,0.0,0.0,1.0]
+        ];
+        Ok(Transform(t))
     }
 }
