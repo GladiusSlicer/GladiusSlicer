@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  release:
+    types: [created, published]
+
+env:
+  LC_CTYPE: en_US.UTF-8
+  LANG: en_US.UTF-8
+
+jobs:
+  build-ubuntu:
+    runs-on: ubuntu-latest
+    env:
+      TARGET: x86_64-unknown-linux-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update stable && rustup default stable
+      - name: Install packages
+        run: sudo apt install musl-tools
+      - name: Build release
+        run: |
+          rustup target add ${{ env.TARGET }}
+          cargo build --release --target ${{ env.TARGET }} --verbose
+      - name: Tar zip
+        run: |
+          tar czvf rs-gladius_slicer.tar.gz target/${{ env.TARGET }}/release/rs-gladius_slicer
+      - name: Upload binaries
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.UPLOAD_ARTIFACTS }}
+          draft: true
+          files: gladius_slicer.tar.gz
+
+  build-windows:
+    runs-on: windows-latest
+    env:
+      TARGET: x86_64-pc-windows-msvc
+    steps:
+      - name: Install LLVM and Clang # required for bindgen to work, see https://github.com/rust-lang/rust-bindgen/issues/1797
+        uses: KyleMayes/install-llvm-action@32c4866ebb71e0949e8833eb49beeebed48532bd
+        with:
+          version: "11.0"
+          directory: ${{ runner.temp }}/llvm
+      - name: Set LIBCLANG_PATH
+        run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update stable && rustup default stable
+      - name: Build release
+        run: |
+          cargo build --release --verbose
+      - name: Upload binaries
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.UPLOAD_ARTIFACTS }}
+          draft: true
+          files: target/release/gladius_slicer.exe
