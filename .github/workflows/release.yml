@@ -27,11 +27,11 @@ jobs:
           cargo build --release --target ${{ env.TARGET }} --verbose
       - name: Tar zip
         run: |
-          tar czvf rs-gladius_slicer.tar.gz target/${{ env.TARGET }}/release/rs-gladius_slicer
+          tar czvf gladius_slicer.tar.gz target/${{ env.TARGET }}/release/gladius_slicer
       - name: Upload binaries
         uses: softprops/action-gh-release@v1
         with:
-          token: ${{ secrets.UPLOAD_ARTIFACTS }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           draft: true
           files: gladius_slicer.tar.gz
 
@@ -57,6 +57,6 @@ jobs:
       - name: Upload binaries
         uses: softprops/action-gh-release@v1
         with:
-          token: ${{ secrets.UPLOAD_ARTIFACTS }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           draft: true
           files: target/release/gladius_slicer.exe
