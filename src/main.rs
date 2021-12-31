@@ -183,6 +183,7 @@ fn main() {
 
             let trans_str = serde_json::to_string(&transform).unwrap();
 
+            println!("Using Transform {}", trans_str);
 
             models.into_iter().map(move |(mut v,t)|{
 

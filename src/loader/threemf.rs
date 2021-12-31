@@ -148,7 +148,9 @@ fn handle_object(obj_index:usize, comps: &ThreeMFResource)  -> Result<(Vec<Verte
             if let Some(t_str) = &component.transform{
                 let transform = get_transform_from_string(t_str)?;
 
-                for vert in v.iter_mut() {
+
+
+                for vert in verts.iter_mut() {
                     *vert = &transform * *vert;
                 }
 
