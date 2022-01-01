@@ -263,6 +263,40 @@ impl Slice {
             moves,
         });
     }
+    pub fn generate_brim(
+        &mut self,
+        entire_first_layer: MultiPolygon<f64>,
+        settings: &LayerSettings,
+        brim_width: f64,
+    ) {
+       self.fixed_chains.extend ((0..((brim_width / settings.layer_width).floor() as usize))
+            .rev()
+            .map(|i| (i as f64 *settings.layer_width)+ (settings.layer_width/2.0))
+            .map(|distance| entire_first_layer.offset_from(distance))
+            .map(|multi| {
+
+                multi.into_iter().map(|poly| {
+                    let moves = poly
+                        .exterior()
+                        .0
+                        .iter()
+                        .circular_tuple_windows::<(_, _)>()
+                        .map(|(&_start, &end)| Move {
+                            end,
+                            move_type: MoveType::OuterPerimeter,
+                            width: settings.layer_width,
+                        })
+                        .collect();
+
+                    MoveChain {
+                        start_point: poly.exterior()[0],
+                        moves,
+                    }
+                })
+            }).flatten());
+
+    }
+
 
     pub fn slice_into_commands(
         &mut self,

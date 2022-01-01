@@ -8,7 +8,7 @@ use crate::optimizer::optimize_commands;
 use crate::plotter::Slice;
 use crate::settings::{PartialSettings, Settings};
 use crate::tower::*;
-use geo::Coordinate;
+use geo::{Coordinate, MultiPolygon};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
@@ -23,6 +23,7 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use rayon::prelude::*;
 use std::collections::HashMap;
+
 
 mod error;
 mod loader;
@@ -300,6 +301,37 @@ fn main() {
             .for_each(|(layer_num, (_layer, slice))| {
                 slice.generate_skirt(&convex_hull, &settings.get_layer_settings(layer_num), skirt)
             })
+    }
+
+    if let Some(width) = &settings.brim_width {
+
+        println!("Generating Moves: Brim");
+        //Add to first object
+
+        let first_layer_multipolygon :MultiPolygon<f64> = MultiPolygon(
+            objects.iter()
+                .map(|poly| {
+                    poly.layers.get(0).expect("Object needs a Slice").1
+                        .get_entire_slice_polygon()
+                        .0
+                        .clone()
+                        .into_iter()
+                })
+                .flatten()
+                .collect()
+
+        );
+
+         objects
+            .get_mut(0)
+            .expect("Needs an object")
+            .layers
+            .get_mut(0)
+            .expect("Object needs a Slice")
+             .1
+            .generate_brim(first_layer_multipolygon,&settings.get_layer_settings(0),*width);
+
+
     }
 
     objects.par_iter_mut().for_each(|object| {

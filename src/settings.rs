@@ -36,6 +36,8 @@ pub struct Settings {
     pub print_y: f64,
     pub print_z: f64,
 
+    pub brim_width: Option<f64>,
+
     pub minimum_retract_distance: f64,
 
     pub infill_perimeter_overlap_percentage: f64,
@@ -123,6 +125,7 @@ impl Default for Settings {
                                 M107 ; disable fan\n"
                 .to_string(),
             first_layer_width: 0.6,
+            brim_width: None
         }
     }
 }
@@ -265,6 +268,8 @@ pub struct PartialSettings {
     pub print_y: Option<f64>,
     pub print_z: Option<f64>,
 
+    pub brim_width: Option<f64>,
+
     pub minimum_retract_distance: Option<f64>,
 
     pub infill_perimeter_overlap_percentage: Option<f64>,
@@ -305,6 +310,7 @@ impl PartialSettings {
             print_x: self.print_x.ok_or("print_x")?,
             print_y: self.print_y.ok_or("print_y")?,
             print_z: self.print_z.ok_or("print_z")?,
+            brim_width: self.brim_width,
             minimum_retract_distance: self
                 .minimum_retract_distance
                 .ok_or("minimum_retract_distance")?,
@@ -369,6 +375,7 @@ impl PartialSettings {
             print_x: self.print_x.or(other.print_x),
             print_y: self.print_y.or(other.print_y),
             print_z: self.print_z.or(other.print_z),
+            brim_width: self.brim_width.or(other.brim_width),
             minimum_retract_distance: self
                 .minimum_retract_distance
                 .or(other.minimum_retract_distance),
