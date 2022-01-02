@@ -1,8 +1,11 @@
 {
   "layer_height":0.1,
-  "first_layer_height":0.2,
 
   "top_layers": 9,
   "bottom_layers": 7,
 
+    "layer_settings" : [[{"SingleLayer":0},{
+
+    "height":0.2
+  }]]
 }

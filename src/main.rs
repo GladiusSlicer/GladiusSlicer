@@ -6,7 +6,7 @@ use simple_logger::SimpleLogger;
 
 use crate::optimizer::optimize_commands;
 use crate::plotter::Slice;
-use crate::settings::{PartialSettings, Settings};
+use crate::settings::{LayerRange, PartialSettings, Settings};
 use crate::tower::*;
 use geo::{Coordinate, MultiPolygon};
 use std::fs::File;
@@ -34,6 +34,13 @@ mod tower;
 mod types;
 
 fn main() {
+
+    let mut v = vec![];
+    v.push((LayerRange::SingleLayer(1),"a"));
+    v.push((LayerRange::LayerRange {start:2,end:5},"b"));
+    v.push((LayerRange::HeightRange {start: 4.0, end: 7.0},"c"));
+
+    println!("{}",serde_json::to_string(&v).unwrap());
     // The YAML file is found relative to the current file, similar to how modules are found
     let yaml = load_yaml!("cli.yaml");
     let matches = App::from_yaml(yaml).get_matches();
@@ -223,13 +230,10 @@ fn main() {
         let mut first_layer = true;
 
         let slices: Vec<_> = std::iter::repeat(())
-            .map(|_| {
+            .enumerate()
+            .map(|(layer_count,_)| {
                 //Advance to the correct height
-                let layer_height = if first_layer {
-                    settings.first_layer_height
-                } else {
-                    settings.layer_height
-                };
+                let layer_height = settings.get_layer_settings(layer_count,layer).layer_height;
 
                 layer += layer_height / 2.0;
                 tower_iter.advance_to_height(layer).expect("Error Creating Tower. Model most likely needs repair. Please Repair and run again.");
@@ -298,8 +302,8 @@ fn main() {
             .iter_mut()
             .take(skirt.layers)
             .enumerate()
-            .for_each(|(layer_num, (_layer, slice))| {
-                slice.generate_skirt(&convex_hull, &settings.get_layer_settings(layer_num), skirt)
+            .for_each(|(layer_num, (height, slice))| {
+                slice.generate_skirt(&convex_hull, &settings.get_layer_settings(layer_num,*height), skirt)
             })
     }
 
@@ -329,7 +333,7 @@ fn main() {
             .get_mut(0)
             .expect("Object needs a Slice")
              .1
-            .generate_brim(first_layer_multipolygon,&settings.get_layer_settings(0),*width);
+            .generate_brim(first_layer_multipolygon,&settings.get_layer_settings(0,0.0),*width);
 
 
     }
@@ -344,9 +348,9 @@ fn main() {
         slices
             .par_iter_mut()
             .enumerate()
-            .for_each(|(layer_num, (_layer, slice))| {
+            .for_each(|(layer_num, (layer, slice))| {
                 slice.slice_perimeters_into_chains(
-                    &settings.get_layer_settings(layer_num),
+                    &settings.get_layer_settings(layer_num,*layer),
                     settings.number_of_perimeters,
                 );
             });
@@ -355,18 +359,20 @@ fn main() {
         (1..slices.len()).into_iter().for_each(|q| {
             let below = slices[q - 1].1.get_entire_slice_polygon().clone();
 
+            let height = slices[q].0;
             slices[q]
                 .1
-                .fill_solid_bridge_area(&below, &settings.get_layer_settings(q));
+                .fill_solid_bridge_area(&below, &settings.get_layer_settings(q,height));
         });
 
         println!("Generating Moves: Top Layer");
         (0..slices.len() - 1).into_iter().for_each(|q| {
             let above = slices[q + 1].1.get_entire_slice_polygon().clone();
 
+            let height = slices[q].0;
             slices[q]
                 .1
-                .fill_solid_top_layer(&above, &settings.get_layer_settings(q), q);
+                .fill_solid_top_layer(&above, &settings.get_layer_settings(q,height), q);
         });
         //Combine layer to form support
 
@@ -404,11 +410,12 @@ fn main() {
                     );
                 let intersection = below.intersection_with(&above);
 
+                let height = slices[q].0;
                 slices
                     .get_mut(q)
                     .expect("Bounds Checked above")
                     .1
-                    .fill_solid_subtracted_area(&intersection, &settings.get_layer_settings(q), q)
+                    .fill_solid_subtracted_area(&intersection, &settings.get_layer_settings(q,height), q)
             });
 
         println!("Generating Moves: Fill Areas");
@@ -418,7 +425,7 @@ fn main() {
             .enumerate()
             .for_each(|(layer_num, (layer, slice))| {
                 slice.fill_remaining_area(
-                    &settings.get_layer_settings(layer_num),
+                    &settings.get_layer_settings(layer_num,*layer),
                     layer_num < settings.bottom_layers
                         || settings.top_layers + layer_num + 1 > slice_count,
                     layer_num,
@@ -465,7 +472,7 @@ fn main() {
                         },
                     });
                     slice.slice_into_commands(
-                        &settings.get_layer_settings(layer_num),
+                        &settings.get_layer_settings(layer_num,layer),
                         &mut moves,
                         layer - last_layer,
                     );

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use crate::plotter::PartialInfillTypes;
 use serde::{Deserialize, Serialize};
 
@@ -17,13 +18,10 @@ pub struct Settings {
     pub retract_speed: f64,
 
     pub speed: MovementParameter,
-    pub first_layer_speed: MovementParameter,
+    //pub first_layer_speed: MovementParameter,
     pub acceleration: MovementParameter,
 
     pub infill_percentage: f64,
-
-    pub first_layer_height: f64,
-    pub first_layer_width: f64,
 
     pub inner_permimeters_first: bool,
 
@@ -45,13 +43,14 @@ pub struct Settings {
 
     pub starting_gcode: String,
     pub ending_gcode: String,
+
+    pub layer_settings: Vec<(LayerRange,PartialLayerSettings)>
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Settings {
             layer_height: 0.15,
-            first_layer_height: 0.3,
             number_of_perimeters: 3,
             top_layers: 3,
             bottom_layers: 3,
@@ -72,15 +71,6 @@ impl Default for Settings {
                 infill: 200.0,
                 travel: 180.0,
                 bridge: 30.0,
-            },
-            first_layer_speed: MovementParameter {
-                inner_perimeter: 5.0,
-                outer_perimeter: 5.0,
-                solid_top_infill: 20.0,
-                solid_infill: 20.0,
-                infill: 20.0,
-                travel: 5.0,
-                bridge: 20.0,
             },
             acceleration: MovementParameter {
                 inner_perimeter: 800.0,
@@ -124,36 +114,51 @@ impl Default for Settings {
                                 M84 ; disable motors\n\
                                 M107 ; disable fan\n"
                 .to_string(),
-            first_layer_width: 0.6,
-            brim_width: None
+            brim_width: None,
+            layer_settings: vec![
+                (LayerRange::SingleLayer(0), PartialLayerSettings{layer_width: Some(0.6),speed:
+                    Some( MovementParameter {
+                        inner_perimeter: 5.0,
+                        outer_perimeter: 5.0,
+                        solid_top_infill: 20.0,
+                        solid_infill: 20.0,
+                        infill: 20.0,
+                        travel: 5.0,
+                        bridge: 20.0,
+                    }) ,
+                    layer_height: Some(0.3),
+                    .. Default::default()
+                })
+            ]
         }
     }
 }
 
 impl Settings {
-    pub fn get_layer_settings(&self, layer: usize) -> LayerSettings {
-        if layer == 0 {
-            LayerSettings {
-                layer_height: self.first_layer_height,
-                speed: self.first_layer_speed.clone(),
-                acceleration: self.acceleration.clone(),
-                layer_width: self.first_layer_width,
-                infill_type: self.infill_type,
-                infill_percentage: self.infill_percentage,
-                infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage,
-                inner_permimeters_first: self.inner_permimeters_first,
-            }
-        } else {
-            LayerSettings {
-                layer_height: self.layer_height,
-                speed: self.speed.clone(),
-                acceleration: self.acceleration.clone(),
-                layer_width: self.layer_width,
-                infill_type: self.infill_type,
-                infill_percentage: self.infill_percentage,
-                infill_perimeter_overlap_percentage: self.infill_perimeter_overlap_percentage,
-                inner_permimeters_first: self.inner_permimeters_first,
-            }
+    pub fn get_layer_settings(&self, layer: usize, height: f64) -> LayerSettings {
+
+        let changes = self
+            .layer_settings
+            .iter()
+            .filter( |(layer_range,_)| {
+                match layer_range {
+                    LayerRange::LayerRange {end, start} => *start <= layer&& layer <= *end,
+                    LayerRange::HeightRange {end, start} => *start <= height && height <= *end,
+                    LayerRange::SingleLayer (filter_layer) => *filter_layer == layer,
+                }
+            } )
+            .map(|(lr,pls)| pls)
+            .fold(PartialLayerSettings::default(),|a,b| a.combine(b));
+
+        LayerSettings {
+            layer_height: changes.layer_height.unwrap_or(self.layer_height),
+            speed: changes.speed.unwrap_or(self.speed.clone()),
+            acceleration: changes.acceleration.unwrap_or(self.acceleration.clone()),
+            layer_width: changes.layer_width.unwrap_or(self.layer_width),
+            infill_type: changes.infill_type.unwrap_or(self.infill_type),
+            infill_percentage: changes.infill_percentage.unwrap_or(self.infill_percentage),
+            infill_perimeter_overlap_percentage: changes.infill_perimeter_overlap_percentage.unwrap_or(self.infill_perimeter_overlap_percentage),
+            inner_permimeters_first: changes.inner_permimeters_first.unwrap_or(self.inner_permimeters_first),
         }
     }
 }
@@ -279,6 +284,8 @@ pub struct PartialSettings {
     pub ending_gcode: Option<String>,
 
     pub other_files: Option<Vec<String>>,
+
+    pub layer_settings: Option<Vec<(LayerRange,PartialLayerSettings)>>
 }
 
 impl PartialSettings {
@@ -296,11 +303,8 @@ impl PartialSettings {
             retract_lift_z: self.retract_lift_z.ok_or("retract_lift_z")?,
             retract_speed: self.retract_speed.ok_or("retract_speed")?,
             speed: self.speed.ok_or("speed")?,
-            first_layer_speed: self.first_layer_speed.ok_or("first_layer_speed")?,
             acceleration: self.acceleration.ok_or("acceleration")?,
             infill_percentage: self.infill_percentage.ok_or("infill_percentage")?,
-            first_layer_height: self.first_layer_height.ok_or("first_layer_height")?,
-            first_layer_width: self.first_layer_width.ok_or("first_layer_width")?,
             inner_permimeters_first: self
                 .inner_permimeters_first
                 .ok_or("inner_permimeters_first")?,
@@ -320,6 +324,8 @@ impl PartialSettings {
             infill_type: self.infill_type.ok_or("infill_type")?,
             starting_gcode: self.starting_gcode.ok_or("starting_gcode")?,
             ending_gcode: self.ending_gcode.ok_or("ending_gcode")?,
+
+            layer_settings: self.layer_settings.unwrap_or(vec![])
         };
 
         Ok(settings)
@@ -389,6 +395,65 @@ impl PartialSettings {
                 .or_else(|| other.starting_gcode.clone()),
             ending_gcode: self.ending_gcode.clone().or(other.ending_gcode),
             other_files: None,
+            layer_settings: {
+                match (self.layer_settings.as_ref(),other.layer_settings.as_ref()) {
+                    (None , None) => None,
+                    (None , Some(v)) | (Some(v) , None)=> Some(v.clone()),
+                    (Some(a) , Some(b)) => {
+                        let mut v = vec![];
+                        v.append(&mut a.clone());
+                        v.append(&mut b.clone());
+                        Some(v)
+                    },
+                }
+            }
+        }
+    }
+}
+
+#[derive(Deserialize,Serialize, Debug,Clone)]
+pub enum LayerRange{
+    SingleLayer(usize),
+    LayerRange{start: usize, end: usize},
+    HeightRange{start: f64, end: f64},
+}
+
+#[derive(Serialize, Deserialize, Debug,Default,Clone)]
+pub struct PartialLayerSettings {
+    pub layer_height: Option<f64>,
+
+    pub speed: Option<MovementParameter>,
+    pub acceleration: Option<MovementParameter>,
+
+    pub layer_width: Option<f64>,
+
+    pub infill_type: Option<PartialInfillTypes>,
+    pub infill_percentage: Option<f64>,
+    pub infill_perimeter_overlap_percentage: Option<f64>,
+    pub inner_permimeters_first: Option<bool>,
+}
+
+impl PartialLayerSettings{
+    fn combine(&self, other: &PartialLayerSettings) -> PartialLayerSettings {
+        PartialLayerSettings {
+            layer_height: self.layer_height.or(other.layer_height),
+            layer_width: self.layer_width.or(other.layer_width),
+            speed: self.speed.clone().or_else(|| other.speed.clone()),
+            acceleration: self
+                .acceleration
+                .clone()
+                .or_else(|| other.acceleration.clone()),
+            infill_percentage: self.infill_percentage.or(other.infill_percentage),
+
+            inner_permimeters_first: self
+                .inner_permimeters_first
+                .or(other.inner_permimeters_first),
+
+            infill_perimeter_overlap_percentage: self
+                .infill_perimeter_overlap_percentage
+                .or(other.infill_perimeter_overlap_percentage),
+            infill_type: self.infill_type.or(other.infill_type),
+
         }
     }
 }
