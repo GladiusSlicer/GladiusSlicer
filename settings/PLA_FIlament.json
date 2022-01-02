@@ -4,8 +4,16 @@
     "density":1.24,
     "cost":24.99,
     "extruder_temp":210.0,
-    "first_layer_extruder_temp":215.0,
     "bed_temp":60.0,
-    "first_layer_bed_temp":60.0
-  }
+  },
+
+  "layer_settings" : [
+    [
+      {"SingleLayer":0},
+      {
+        "extruder_temp":215.0
+      }
+    ]
+
+  ]
 }

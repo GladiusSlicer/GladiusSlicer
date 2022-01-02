@@ -1,0 +1,73 @@
+{
+  "other_files" : [
+    "settings\\PLA_Filament.json",
+    "settings\\PrusaMk3.json",
+    "settings\\0.2_layer_height.json"
+  ],
+
+  "layer_settings" : [
+    [
+      {"HeightRange":{"start":1.6,"end":11.6}},
+      {
+        "extruder_temp":225.0
+      }
+    ],
+    [
+      {"HeightRange":{"start":11.6,"end":21.6}},
+      {
+        "extruder_temp":220.0
+      }
+    ],
+    [
+      {"HeightRange":{"start":21.6,"end":31.6}},
+      {
+        "extruder_temp":215.0
+      }
+    ],
+    [
+      {"HeightRange":{"start":31.6,"end":41.6}},
+      {
+        "extruder_temp":210.0
+      }
+    ],
+    [
+      {"HeightRange":{"start":41.6,"end":51.6}},
+      {
+        "extruder_temp":205.0
+      }
+    ],
+    [
+      {"HeightRange":{"start":51.6,"end":61.6}},
+      {
+        "extruder_temp":200.0
+      }
+    ],
+    [
+      {"HeightRange":{"start":61.6,"end":71.6}},
+      {
+        "extruder_temp":195.0
+      }
+    ],
+    [
+      {"HeightRange":{"start":71.6,"end":81.6}},
+      {
+        "extruder_temp":190.0
+      }
+    ],
+    [
+      {"HeightRange":{"start":81.6,"end":91.6}},
+      {
+        "extruder_temp":185.0
+      }
+    ],
+    [
+      {"HeightRange":{"start":91.6,"end":101.6}},
+      {
+        "extruder_temp":180.0
+      }
+    ]
+
+
+  ]
+
+}

@@ -446,21 +446,15 @@ fn main() {
                 .into_iter()
                 .enumerate()
                 .map(|(layer_num, (layer, mut slice))| {
+
+                    let layer_settings = settings.get_layer_settings(layer_num,layer);
                     let mut moves = vec![];
                     moves.push(Command::ChangeObject { object: object_num });
                     moves.push(Command::LayerChange { z: layer });
                     moves.push(Command::SetState {
                         new_state: StateChange {
-                            extruder_temp: Some(if layer_num == 0 {
-                                settings.filament.first_layer_extruder_temp
-                            } else {
-                                settings.filament.extruder_temp
-                            }),
-                            bed_temp: Some(if layer_num == 0 {
-                                settings.filament.first_layer_bed_temp
-                            } else {
-                                settings.filament.bed_temp
-                            }),
+                            extruder_temp: Some(layer_settings.extruder_temp),
+                            bed_temp: Some(layer_settings.bed_temp),
                             fan_speed: Some(if layer_num < settings.fan.disable_fan_for_layers {
                                 0.0
                             } else {
@@ -728,13 +722,15 @@ fn convert(
 
     let mut start = settings.starting_gcode.clone();
     let mut write_buf = BufWriter::new(write);
+    let layer_settings = settings.get_layer_settings(0,0.0);
+
     start = start.replace(
         "[First Layer Extruder Temp]",
-        &format!("{:.1}", settings.filament.first_layer_extruder_temp),
+        &format!("{:.1}", layer_settings.extruder_temp),
     );
     start = start.replace(
         "[First Layer Bed Temp]",
-        &format!("{:.1}", settings.filament.first_layer_bed_temp),
+        &format!("{:.1}", layer_settings.bed_temp),
     );
 
     writeln!(write_buf, "{}", start)?;

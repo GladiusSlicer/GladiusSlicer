@@ -26,8 +26,9 @@ pub fn unary_optimizer(cmds: &mut Vec<Command>) {
         Command::LayerChange { .. } => true,
         Command::ChangeObject { .. } => true,
         Command::SetState { new_state } => {
-            !(new_state.extruder_temp.is_none()
+            !(new_state.acceleration .is_none()
                 && new_state.movement_speed.is_none()
+                && new_state.fan_speed.is_none()
                 && new_state.retract.is_none()
                 && new_state.extruder_temp.is_none()
                 && new_state.bed_temp.is_none())
@@ -91,13 +92,18 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                         new_state: f_state.combine(&s_state),
                     });
                 }
-                (Command::SetState { new_state: f_state }, Command::MoveTo { end }) => {
+                (Command::SetState { new_state:  mut f_state }, Command::MoveTo { end }) => {
                     if f_state.retract == Some(true)
                         && Line::new(current_pos, end).euclidean_length()
                             < settings.minimum_retract_distance
                     {
+
                         current_pos = end;
-                        return Ok(Command::MoveTo { end });
+
+                        //remove retract command
+                        f_state.retract = None;
+
+                        return Err((Command::SetState { new_state: f_state },Command::MoveTo { end }));
                     } else {
                         current_pos = end;
                     }

@@ -127,6 +127,8 @@ impl Default for Settings {
                         bridge: 20.0,
                     }) ,
                     layer_height: Some(0.3),
+                    bed_temp: Some(60.0),
+                    extruder_temp: Some(210.0),
                     .. Default::default()
                 })
             ]
@@ -159,6 +161,8 @@ impl Settings {
             infill_percentage: changes.infill_percentage.unwrap_or(self.infill_percentage),
             infill_perimeter_overlap_percentage: changes.infill_perimeter_overlap_percentage.unwrap_or(self.infill_perimeter_overlap_percentage),
             inner_permimeters_first: changes.inner_permimeters_first.unwrap_or(self.inner_permimeters_first),
+            bed_temp: changes.bed_temp.unwrap_or(self.filament.bed_temp),
+            extruder_temp: changes.extruder_temp.unwrap_or(self.filament.extruder_temp),
         }
     }
 }
@@ -175,6 +179,8 @@ pub struct LayerSettings {
     pub infill_percentage: f64,
     pub infill_perimeter_overlap_percentage: f64,
     pub inner_permimeters_first: bool,
+    pub bed_temp: f64,
+    pub extruder_temp: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -194,9 +200,7 @@ pub struct FilamentSettings {
     pub density: f64,
     pub cost: f64,
     pub extruder_temp: f64,
-    pub first_layer_extruder_temp: f64,
     pub bed_temp: f64,
-    pub first_layer_bed_temp: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -214,9 +218,7 @@ impl Default for FilamentSettings {
             density: 1.24,
             cost: 24.99,
             extruder_temp: 210.0,
-            first_layer_extruder_temp: 215.0,
             bed_temp: 60.0,
-            first_layer_bed_temp: 60.0,
         }
     }
 }
@@ -431,6 +433,8 @@ pub struct PartialLayerSettings {
     pub infill_percentage: Option<f64>,
     pub infill_perimeter_overlap_percentage: Option<f64>,
     pub inner_permimeters_first: Option<bool>,
+    pub bed_temp: Option<f64>,
+    pub extruder_temp: Option<f64>,
 }
 
 impl PartialLayerSettings{
@@ -449,10 +453,13 @@ impl PartialLayerSettings{
                 .inner_permimeters_first
                 .or(other.inner_permimeters_first),
 
+            bed_temp: self.bed_temp.or(other.bed_temp),
+            extruder_temp: self.extruder_temp.or(other.extruder_temp),
             infill_perimeter_overlap_percentage: self
                 .infill_perimeter_overlap_percentage
                 .or(other.infill_perimeter_overlap_percentage),
             infill_type: self.infill_type.or(other.infill_type),
+
 
         }
     }
