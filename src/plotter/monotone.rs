@@ -2,6 +2,8 @@ use geo::{Coordinate, Polygon};
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
+use geo::simplifyvw::SimplifyVWPreserve;
+use geo_svg::*;
 
 #[derive(Debug)]
 pub struct MonotoneSection {
@@ -52,8 +54,8 @@ enum Orientation {
 }
 
 pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
-    let mut mono_points = std::iter::once(poly.exterior())
-        .chain(poly.interiors().iter())
+    let mut mono_points = std::iter::once(poly.simplifyvw_preserve(&0.01).exterior())
+        .chain(poly.simplifyvw_preserve(&0.01).interiors().iter())
         .map(|line_string| {
             line_string
                 .0
@@ -157,7 +159,13 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                 let index = sweep_line_storage
                     .iter()
                     .position(|section| *section.right_chain.last().unwrap() == point.pos)
-                    .unwrap_or_else(|| panic!("right error {:?} {:?}", point, sweep_line_storage));
+                    .unwrap_or_else(|| panic!("right error {:?}\n {}", point, poly.to_svg()
+                        .with_stroke_width(0.01)
+                        .with_fill_color(Color::Named("red"))
+                        .with_stroke_color(Color::Rgb(200, 0, 100))
+                        .with_fill_opacity(0.7))
+
+                    );
 
                 sweep_line_storage[index].right_chain.push(point.next);
 

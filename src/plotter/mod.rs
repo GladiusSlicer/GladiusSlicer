@@ -15,6 +15,7 @@ use geo::*;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
+use geo::simplifyvw::SimplifyVWPreserve;
 use crate::Settings;
 
 pub struct Slice {
@@ -39,7 +40,7 @@ impl Slice {
         let layer_settings= settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
 
         Slice {
-            main_polygon: MultiPolygon(vec![polygon.clone()]),
+            main_polygon: MultiPolygon(vec![polygon.simplifyvw_preserve(&0.01).clone()]),
             remaining_area: MultiPolygon(vec![polygon]),
             support_interface: None,
             support_tower: None,
@@ -88,7 +89,7 @@ impl Slice {
         let layer_settings= settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
 
         Slice {
-            main_polygon: multi_polygon.clone(),
+            main_polygon: multi_polygon.simplifyvw_preserve(&0.01),
             remaining_area: multi_polygon,
             support_interface: None,
             support_tower: None,
