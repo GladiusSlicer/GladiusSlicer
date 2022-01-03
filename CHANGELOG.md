@@ -8,9 +8,11 @@
 - Added brim support ( optional setting brim_width)
 - Added settings dependent on Layer height
 - Added temp tower example
+- Infill hugs walls now to reduce retractions
 
 ### Fixes
 - Fixed issue with the optimizer removing state changes before short moves
+- Fixed issue with monotone panicing
 
 ## [0.1.1]
 - Release to include binaries 
