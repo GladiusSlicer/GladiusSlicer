@@ -205,9 +205,13 @@ pub fn spaced_fill_polygon(
                 let mut moves = vec![];
 
                 loop {
+                    let mut connect_chain = vec![];
                     while left_index < section.left_chain.len()
                         && section.left_chain[left_index].y > current_y
                     {
+                        if orient{
+                            connect_chain.push(section.left_chain[left_index]);
+                        }
                         left_index += 1;
                         line_change = true;
                     }
@@ -219,6 +223,9 @@ pub fn spaced_fill_polygon(
                     while right_index < section.right_chain.len()
                         && section.right_chain[right_index].y > current_y
                     {
+                        if !orient{
+                            connect_chain.push(section.right_chain[right_index]);
+                        }
                         right_index += 1;
                         line_change = true;
                     }
@@ -235,6 +242,31 @@ pub fn spaced_fill_polygon(
                     let left_point = point_lerp(&left_top, &left_bot, current_y);
                     let right_point = point_lerp(&right_top, &right_bot, current_y);
 
+
+
+                    //add moves to connect lines together
+                    if start_point.is_some(){
+                        //Only if not first point
+                        if let Some(mut y)= connect_chain.get(0).map(|c| c.y){
+                            for point in connect_chain{
+                                moves.push(Move {
+                                    end: point,
+                                    //don''t fill lateral y moves
+                                    move_type: if y == point.y {
+                                        MoveType::Travel
+                                    }
+                                    else{
+                                        fill_type
+                                    },
+                                    width: settings.layer_width,
+                                });
+
+                                y = point.y;
+                            }
+                        }
+
+                    }
+
                     start_point = start_point.or(Some(Coordinate {
                         x: left_point.x,
                         y: current_y,
@@ -246,11 +278,7 @@ pub fn spaced_fill_polygon(
                                 x: left_point.x,
                                 y: current_y,
                             },
-                            move_type: if line_change {
-                                MoveType::Travel
-                            } else {
-                                fill_type
-                            },
+                            move_type: fill_type,
                             width: settings.layer_width,
                         });
 
@@ -268,11 +296,7 @@ pub fn spaced_fill_polygon(
                                 x: right_point.x,
                                 y: current_y,
                             },
-                            move_type: if line_change {
-                                MoveType::Travel
-                            } else {
-                                fill_type
-                            },
+                            move_type: fill_type,
                             width: settings.layer_width,
                         });
 

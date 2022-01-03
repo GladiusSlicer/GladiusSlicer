@@ -14,7 +14,7 @@ pub fn inset_polygon_recursive(
     layer_left: usize,
 ) -> Option<MoveChain> {
     let mut move_chains = vec![];
-    poly.offset_from(-settings.layer_width / 2.0 );
+    let inset_poly = poly.offset_from(-settings.layer_width / 2.0 );
 
     for raw_polygon in inset_poly.0.iter() {
         let polygon = raw_polygon.simplify(&0.01);
@@ -61,7 +61,7 @@ pub fn inset_polygon_recursive(
         }
 
         if layer_left != 0 {
-            let rec_inset_poly = polygon.offset_set(-settings.layer_width / 2.0);
+            let rec_inset_poly = polygon.offset_from(-settings.layer_width / 2.0);
 
             for polygon_rec in rec_inset_poly {
                 if let Some(mc) = inset_polygon_recursive(
