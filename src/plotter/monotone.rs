@@ -53,7 +53,17 @@ enum Orientation {
     Right,
 }
 
+/// Divides a Polygon into Y-Monotone sections.
+///
+/// The sections will only intersect any line perpendicular to the y-axis in two places.
+///
+/// # Arguments
+///
+/// * `poly` - the polygon to divide
 pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
+
+    //Convert polygon to Monotone points
+    //Simplify to remove self intersections
     let mut mono_points = std::iter::once(poly.simplifyvw_preserve(&0.01).exterior())
         .chain(poly.simplifyvw_preserve(&0.01).interiors().iter())
         .map(|line_string| {
@@ -63,27 +73,23 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                 .take(line_string.0.len() - 1)
                 .circular_tuple_windows::<(&Coordinate<f64>, &Coordinate<f64>, &Coordinate<f64>)>()
                 .map(|(&next, &point, &prev)| {
+
+                    // Identify what type of point this is
                     let point_type = if isabove(&point, &prev) && isabove(&point, &next) {
                         if orientation(&prev, &point, &next) != Orientation::Right {
-                            //println!("add split {:?} {:?} {:?}",&prev,&point,&next);
                             PointType::Split
                         } else {
-                            //println!("add start");
                             PointType::Start
                         }
                     } else if !isabove(&point, &prev) && !isabove(&point, &next) {
                         if orientation(&prev, &point, &next) != Orientation::Right {
-                            //println!("add merge");
                             PointType::Merge
                         } else {
-                            //println!("add end");
                             PointType::End
                         }
                     } else if isabove(&point, &prev) && !isabove(&point, &next) {
-                        //println!("add left");
                         PointType::Left
                     } else {
-                        //println!("add right");
                         PointType::Right
                     };
 
@@ -102,9 +108,9 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
     let mut completed_sections: Vec<MonotoneSection> = vec![];
 
     while let Some(point) = mono_points.pop() {
-        //println!("Type: {:?}", point.point_type);
-        //println!("sweep: {:?}", sweep_line_storage);
+
         match point.point_type {
+            //Handle Start Point
             PointType::Start => {
                 let new_section = MonotoneSection {
                     left_chain: vec![point.pos, point.prev],
@@ -125,10 +131,8 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                     })
                     .unwrap_or(sweep_line_storage.len());
                 sweep_line_storage.insert(index, new_section);
-
-                //println!("Start  {:?}" , point.pos);
-                //println!("Start add {:?} {:?}" , point.prev, point.next);
             }
+            //Handle End Point
             PointType::End => {
                 let index = sweep_line_storage
                     .iter()
@@ -140,11 +144,11 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                         )
                     });
 
+                //The section what was finished should be returned
                 let removed_section = sweep_line_storage.remove(index);
-
-                //println!("end add {:?} ", removed_section);
                 completed_sections.push(removed_section);
             }
+            //Handle Left Point
             PointType::Left => {
                 let index = sweep_line_storage
                     .iter()
@@ -152,9 +156,8 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                     .unwrap_or_else(|| panic!("left error {:?} {:?}", point, sweep_line_storage));
 
                 sweep_line_storage[index].left_chain.push(point.prev);
-
-                //println!("Left add {:?}" , point.prev);
             }
+            //Handle Right Point
             PointType::Right => {
                 let index = sweep_line_storage
                     .iter()
@@ -169,11 +172,12 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
 
                 sweep_line_storage[index].right_chain.push(point.next);
 
-                //println!("Right add {:?}" , point.next);
             }
+
+            //Handle Merge Point
             PointType::Merge => {
                 let index = sweep_line_storage.iter().position(|section| *section.right_chain.last().unwrap() == point.pos).unwrap_or_else( || panic!("Merge point must be in the storage as the end of a chain{:?} |||| {:?}", point, sweep_line_storage));
-                //println!("Merge {:?}" , &point.pos);
+                
                 let mut right_section = sweep_line_storage.remove(index + 1);
                 let left_section = &mut sweep_line_storage[index];
 
@@ -190,16 +194,14 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
 
                 right_section.right_chain.push(break_point);
 
-                //println!("merge add {:?} ", right_section);
                 completed_sections.push(right_section);
 
                 left_section.right_chain.push(break_point);
                 left_section.right_chain.push(break_point_low);
 
-                //println!("Merge break {:?}" , break_point);
-                //("Merge end {:?}" , break_point_low);
             }
 
+            //Handle Split Point
             PointType::Split => {
                 //find the section that will be split up
                 let index = sweep_line_storage
@@ -231,9 +233,6 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
 
                 let break_point = point_lerp(break_point_high, &break_point_low, point.pos.y);
 
-                //println!("split point {:?}", point.pos);
-                //println!("break point {:?}", break_point);
-
                 old_section.right_chain.push(break_point);
                 old_section.right_chain.push(point.pos);
                 old_section.right_chain.push(point.next);
@@ -247,7 +246,6 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
         }
     }
 
-    //println!("Monotone sections {}",completed_sections.len());
 
     completed_sections
 }
