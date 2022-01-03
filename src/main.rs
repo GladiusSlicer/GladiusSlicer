@@ -235,17 +235,21 @@ fn main() {
                 //Advance to the correct height
                 let layer_height = settings.get_layer_settings(layer_count,layer).layer_height;
 
+                let bottom_height = layer;
                 layer += layer_height / 2.0;
                 tower_iter.advance_to_height(layer).expect("Error Creating Tower. Model most likely needs repair. Please Repair and run again.");
                 layer += layer_height / 2.0;
 
+                let top_height = layer;
+
                 first_layer = false;
 
                 //Get the ordered lists of points
-                (layer, tower_iter.get_points())
+                (bottom_height,top_height, tower_iter.get_points())
             })
-            .take_while(|(_, layer_loops)| !layer_loops.is_empty())
-            .map(|(l, layer_loops)| {
+            .take_while(|(_, _,layer_loops)| !layer_loops.is_empty())
+            .enumerate()
+            .map(|(count,(bot,top, layer_loops))| {
                 //Add this slice to the
                 let slice = Slice::from_multiple_point_loop(
                     layer_loops
@@ -257,8 +261,12 @@ fn main() {
                                 .collect::<Vec<Coordinate<f64>>>()
                         })
                         .collect(),
+                    bot,
+                    top,
+                    count,
+                    &settings
                 );
-                (l, slice)
+                slice
             })
             .collect();
 
@@ -277,7 +285,7 @@ fn main() {
                     .layers
                     .iter()
                     .take(skirt.layers)
-                    .map(|m| m.1.get_entire_slice_polygon())
+                    .map(|m| m.get_entire_slice_polygon())
             })
             .flatten()
             .fold(
@@ -287,7 +295,6 @@ fn main() {
                     .layers
                     .get(0)
                     .expect("Object needs a Slice")
-                    .1
                     .get_entire_slice_polygon()
                     .clone(),
                 |a, b| a.union_with(b),
@@ -302,8 +309,8 @@ fn main() {
             .iter_mut()
             .take(skirt.layers)
             .enumerate()
-            .for_each(|(layer_num, (height, slice))| {
-                slice.generate_skirt(&convex_hull, &settings.get_layer_settings(layer_num,*height), skirt)
+            .for_each(|(layer_num, slice)| {
+                slice.generate_skirt(&convex_hull, skirt)
             })
     }
 
@@ -315,7 +322,7 @@ fn main() {
         let first_layer_multipolygon :MultiPolygon<f64> = MultiPolygon(
             objects.iter()
                 .map(|poly| {
-                    poly.layers.get(0).expect("Object needs a Slice").1
+                    poly.layers.get(0).expect("Object needs a Slice")
                         .get_entire_slice_polygon()
                         .0
                         .clone()
@@ -332,8 +339,7 @@ fn main() {
             .layers
             .get_mut(0)
             .expect("Object needs a Slice")
-             .1
-            .generate_brim(first_layer_multipolygon,&settings.get_layer_settings(0,0.0),*width);
+            .generate_brim(first_layer_multipolygon,*width);
 
 
     }
@@ -348,31 +354,26 @@ fn main() {
         slices
             .par_iter_mut()
             .enumerate()
-            .for_each(|(layer_num, (layer, slice))| {
+            .for_each(|(layer_num,  slice)| {
                 slice.slice_perimeters_into_chains(
-                    &settings.get_layer_settings(layer_num,*layer),
                     settings.number_of_perimeters,
                 );
             });
 
         println!("Generating Moves: Bridging");
         (1..slices.len()).into_iter().for_each(|q| {
-            let below = slices[q - 1].1.get_entire_slice_polygon().clone();
+            let below = slices[q - 1].get_entire_slice_polygon().clone();
 
-            let height = slices[q].0;
             slices[q]
-                .1
-                .fill_solid_bridge_area(&below, &settings.get_layer_settings(q,height));
+                .fill_solid_bridge_area(&below);
         });
 
         println!("Generating Moves: Top Layer");
         (0..slices.len() - 1).into_iter().for_each(|q| {
-            let above = slices[q + 1].1.get_entire_slice_polygon().clone();
+            let above = slices[q + 1].get_entire_slice_polygon().clone();
 
-            let height = slices[q].0;
             slices[q]
-                .1
-                .fill_solid_top_layer(&above, &settings.get_layer_settings(q,height), q);
+                .fill_solid_top_layer(&above, q);
         });
         //Combine layer to form support
 
@@ -386,36 +387,32 @@ fn main() {
             .for_each(|q| {
                 let below = slices[(q - bottom_layers + 1)..q]
                     .iter()
-                    .map(|m| m.1.get_entire_slice_polygon())
+                    .map(|m| m.get_entire_slice_polygon())
                     .fold(
                         slices
                             .get(q - bottom_layers)
                             .expect("Bounds Checked above")
-                            .1
                             .get_entire_slice_polygon()
                             .clone(),
                         |a, b| a.intersection_with(b),
                     );
                 let above = slices[q + 1..q + top_layers + 1]
                     .iter()
-                    .map(|m| m.1.get_entire_slice_polygon())
+                    .map(|m| m.get_entire_slice_polygon())
                     .fold(
                         slices
                             .get(q + 1)
                             .expect("Bounds Checked above")
-                            .1
                             .get_entire_slice_polygon()
                             .clone(),
                         |a, b| a.intersection_with(b),
                     );
                 let intersection = below.intersection_with(&above);
 
-                let height = slices[q].0;
                 slices
                     .get_mut(q)
                     .expect("Bounds Checked above")
-                    .1
-                    .fill_solid_subtracted_area(&intersection, &settings.get_layer_settings(q,height), q)
+                    .fill_solid_subtracted_area(&intersection, q)
             });
 
         println!("Generating Moves: Fill Areas");
@@ -423,13 +420,11 @@ fn main() {
         slices
             .par_iter_mut()
             .enumerate()
-            .for_each(|(layer_num, (layer, slice))| {
+            .for_each(|(layer_num, slice)| {
                 slice.fill_remaining_area(
-                    &settings.get_layer_settings(layer_num,*layer),
                     layer_num < settings.bottom_layers
                         || settings.top_layers + layer_num + 1 > slice_count,
                     layer_num,
-                    *layer,
                 );
             });
     });
@@ -445,12 +440,12 @@ fn main() {
                 .layers
                 .into_iter()
                 .enumerate()
-                .map(|(layer_num, (layer, mut slice))| {
+                .map(|(layer_num, mut slice)| {
 
-                    let layer_settings = settings.get_layer_settings(layer_num,layer);
+                    let layer_settings = settings.get_layer_settings(layer_num,slice.top_height);
                     let mut moves = vec![];
                     moves.push(Command::ChangeObject { object: object_num });
-                    moves.push(Command::LayerChange { z: layer });
+                    moves.push(Command::LayerChange { z: slice.top_height });
                     moves.push(Command::SetState {
                         new_state: StateChange {
                             extruder_temp: Some(layer_settings.extruder_temp),
@@ -466,13 +461,12 @@ fn main() {
                         },
                     });
                     slice.slice_into_commands(
-                        &settings.get_layer_settings(layer_num,layer),
                         &mut moves,
-                        layer - last_layer,
+                        slice.top_height - last_layer,
                     );
 
-                    last_layer = layer;
-                    (layer, moves)
+                    last_layer = slice.top_height;
+                    (slice.top_height, moves)
                 })
                 .collect::<Vec<(f64, Vec<Command>)>>()
         })

@@ -72,7 +72,7 @@ impl std::ops::Mul<Transform> for Transform{
 */
 
 pub struct Object {
-    pub layers: Vec<(f64, Slice)>,
+    pub layers: Vec<Slice>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

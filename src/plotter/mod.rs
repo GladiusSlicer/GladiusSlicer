@@ -15,34 +15,43 @@ use geo::*;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
+use crate::Settings;
 
 pub struct Slice {
     main_polygon: MultiPolygon<f64>,
     remaining_area: MultiPolygon<f64>,
-    solid_infill: Option<MultiPolygon<f64>>,
-    normal_infill: Option<MultiPolygon<f64>>,
+    support_interface: Option<MultiPolygon<f64>>,
+    support_tower: Option<MultiPolygon<f64>>,
     fixed_chains: Vec<MoveChain>,
     chains: Vec<MoveChain>,
+    pub bottom_height: f64,
+    pub top_height: f64,
+    layer_settings: LayerSettings,
 }
 
 impl Slice {
-    pub fn from_single_point_loop<I>(line: I) -> Self
+    pub fn from_single_point_loop<I>(line: I, bottom_height: f64, top_height: f64,layer_count: usize, settings: &Settings) -> Self
     where
         I: Iterator<Item = (f64, f64)>,
     {
         let polygon = Polygon::new(LineString::from_iter(line), vec![]);
 
+        let layer_settings= settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
+
         Slice {
             main_polygon: MultiPolygon(vec![polygon.clone()]),
             remaining_area: MultiPolygon(vec![polygon]),
-            solid_infill: None,
-            normal_infill: None,
+            support_interface: None,
+            support_tower: None,
             fixed_chains: vec![],
             chains: vec![],
+            bottom_height,
+            top_height,
+            layer_settings
         }
     }
 
-    pub fn from_multiple_point_loop(lines: MultiLineString<f64>) -> Self {
+    pub fn from_multiple_point_loop(lines: MultiLineString<f64>, bottom_height: f64, top_height: f64,layer_count: usize, settings: &Settings) -> Self {
         let mut lines_and_area: Vec<(LineString<f64>, f64)> = lines
             .into_iter()
             .map(|line| {
@@ -76,14 +85,23 @@ impl Slice {
 
         let multi_polygon: MultiPolygon<f64> = MultiPolygon(polygons);
 
+        let layer_settings= settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
+
         Slice {
             main_polygon: multi_polygon.clone(),
             remaining_area: multi_polygon,
-            solid_infill: None,
-            normal_infill: None,
+            support_interface: None,
+            support_tower: None,
             chains: vec![],
             fixed_chains: vec![],
+            bottom_height,
+            top_height,
+            layer_settings
         }
+    }
+
+    pub fn get_height(&self) -> f64{
+        (self.bottom_height+ self.top_height) / 2.0
     }
 
     pub fn get_entire_slice_polygon(&self) -> &MultiPolygon<f64> {
@@ -92,12 +110,11 @@ impl Slice {
 
     pub fn slice_perimeters_into_chains(
         &mut self,
-        settings: &LayerSettings,
         number_of_perimeters: usize,
     ) {
         if let Some(mc) = inset_polygon_recursive(
             &self.remaining_area,
-            settings,
+            &self.layer_settings,
             true,
             number_of_perimeters - 1,
         ) {
@@ -106,25 +123,23 @@ impl Slice {
 
         self.remaining_area = self
             .remaining_area
-            .offset_from(-settings.layer_width * number_of_perimeters as f64);
+            .offset_from(-self.layer_settings.layer_width * number_of_perimeters as f64);
     }
 
     pub fn fill_remaining_area(
         &mut self,
-        settings: &LayerSettings,
         solid: bool,
         layer_count: usize,
-        layer_height: f64,
     ) {
         //For each region still available fill wih infill
         for poly in &self.remaining_area {
             if solid {
                 let new_moves = solid_infill_polygon(
                     poly,
-                    settings,
+                    &self.layer_settings,
                     MoveType::SolidInfill,
                     layer_count,
-                    layer_height,
+                    self.get_height(),
                 );
 
                 for chain in new_moves {
@@ -133,10 +148,10 @@ impl Slice {
             } else {
                 let new_moves = partial_infill_polygon(
                     &poly,
-                    settings,
-                    settings.infill_percentage,
+                    &self.layer_settings,
+                    self.layer_settings.infill_percentage,
                     layer_count,
-                    layer_height,
+                    self.get_height()
                 );
 
                 for chain in new_moves {
@@ -149,7 +164,6 @@ impl Slice {
     pub fn fill_solid_subtracted_area(
         &mut self,
         other: &MultiPolygon<f64>,
-        settings: &LayerSettings,
         layer_count: usize,
     ) {
         //For each area not in this slice that is in the other polygon, fill solid
@@ -157,17 +171,18 @@ impl Slice {
         let solid_area = self
             .remaining_area
             .difference_with(other)
-            .offset_from(settings.layer_width * 4.0)
+            .offset_from(self.layer_settings.layer_width * 4.0)
             .intersection_with(&self.remaining_area);
 
         let angle = 45.0 + (120_f64) * layer_count as f64;
 
+        let layer_settings = &self.layer_settings;
         self.chains.extend(
             &mut solid_area
                 .0
                 .iter()
                 .map(|poly| {
-                    linear_fill_polygon(&poly, settings, MoveType::SolidInfill, angle).into_iter()
+                    linear_fill_polygon(&poly,layer_settings, MoveType::SolidInfill, angle).into_iter()
                 })
                 .flatten(),
         );
@@ -178,16 +193,16 @@ impl Slice {
     pub fn fill_solid_bridge_area(
         &mut self,
         layer_below: &MultiPolygon<f64>,
-        settings: &LayerSettings,
     ) {
         //For each area not in this slice that is in the other polygon, fill solid
 
         let solid_area = self
             .remaining_area
             .difference_with(layer_below)
-            .offset_from(settings.layer_width * 4.0)
+            .offset_from(self.layer_settings.layer_width * 4.0)
             .intersection_with(&self.remaining_area);
 
+         let layer_settings = &self.layer_settings;
         self.chains.extend(
             &mut solid_area
                 .0
@@ -199,9 +214,9 @@ impl Slice {
                     if angle < 0.0 {
                         angle += 180.0;
                     }
-                    //println!("angle {}", angle);
 
-                    linear_fill_polygon(poly, settings, MoveType::Bridging, angle).into_iter()
+
+                    linear_fill_polygon(poly, layer_settings, MoveType::Bridging, angle).into_iter()
                 })
                 .flatten(),
         );
@@ -212,7 +227,6 @@ impl Slice {
     pub fn fill_solid_top_layer(
         &mut self,
         layer_above: &MultiPolygon<f64>,
-        settings: &LayerSettings,
         layer_count: usize,
     ) {
         //For each area not in this slice that is in the other polygon, fill solid
@@ -220,13 +234,13 @@ impl Slice {
         let solid_area = self
             .remaining_area
             .difference_with(layer_above)
-            .offset_from(settings.layer_width * 4.0)
+            .offset_from(self.layer_settings.layer_width * 4.0)
             .intersection_with(&self.remaining_area);
 
         for poly in &solid_area {
             let angle = 45.0 + (120_f64) * layer_count as f64;
 
-            let new_moves = linear_fill_polygon(&poly, settings, MoveType::TopSolidInfill, angle);
+            let new_moves = linear_fill_polygon(&poly, &self.layer_settings, MoveType::TopSolidInfill, angle);
 
             for chain in new_moves {
                 self.chains.push(chain);
@@ -239,7 +253,6 @@ impl Slice {
     pub fn generate_skirt(
         &mut self,
         convex_polygon: &Polygon<f64>,
-        settings: &LayerSettings,
         skirt_settings: &SkirtSettings,
     ) {
         let offset_hull_multi = convex_polygon.offset_from(skirt_settings.distance);
@@ -254,7 +267,7 @@ impl Slice {
             .map(|(&_start, &end)| Move {
                 end,
                 move_type: MoveType::OuterPerimeter,
-                width: settings.layer_width,
+                width: self.layer_settings.layer_width,
             })
             .collect();
 
@@ -266,12 +279,12 @@ impl Slice {
     pub fn generate_brim(
         &mut self,
         entire_first_layer: MultiPolygon<f64>,
-        settings: &LayerSettings,
         brim_width: f64,
     ) {
-       self.fixed_chains.extend ((0..((brim_width / settings.layer_width).floor() as usize))
+        let layer_settings = &self.layer_settings;
+       self.fixed_chains.extend ((0..((brim_width / self.layer_settings.layer_width).floor() as usize))
             .rev()
-            .map(|i| (i as f64 *settings.layer_width)+ (settings.layer_width/2.0))
+            .map(|i| (i as f64 *layer_settings.layer_width)+ (layer_settings.layer_width/2.0))
             .map(|distance| entire_first_layer.offset_from(distance))
             .map(|multi| {
 
@@ -284,7 +297,7 @@ impl Slice {
                         .map(|(&_start, &end)| Move {
                             end,
                             move_type: MoveType::OuterPerimeter,
-                            width: settings.layer_width,
+                            width: layer_settings.layer_width,
                         })
                         .collect();
 
@@ -300,7 +313,6 @@ impl Slice {
 
     pub fn slice_into_commands(
         &mut self,
-        settings: &LayerSettings,
         commands: &mut Vec<Command>,
         layer_thickness: f64,
     ) {
@@ -355,7 +367,7 @@ impl Slice {
                     moves: full_moves,
                     start_point: starting_point,
                 }
-                .create_commands(settings, layer_thickness),
+                .create_commands(&self.layer_settings, layer_thickness),
             );
         }
     }
