@@ -377,42 +377,58 @@ fn main() {
         });
         //Combine layer to form support
 
-        println!("Generating Moves: Above and below support");
-
         let top_layers = settings.top_layers;
         let bottom_layers = settings.bottom_layers;
 
-        (bottom_layers..slices.len() - top_layers)
-            .into_iter()
-            .for_each(|q| {
-                let below = slices[(q - bottom_layers + 1)..q]
-                    .iter()
-                    .map(|m| m.get_entire_slice_polygon())
-                    .fold(
-                        slices
-                            .get(q - bottom_layers)
-                            .expect("Bounds Checked above")
-                            .get_entire_slice_polygon()
-                            .clone(),
-                        |a, b| a.intersection_with(b),
-                    );
-                let above = slices[q + 1..q + top_layers + 1]
-                    .iter()
-                    .map(|m| m.get_entire_slice_polygon())
-                    .fold(
-                        slices
-                            .get(q + 1)
-                            .expect("Bounds Checked above")
-                            .get_entire_slice_polygon()
-                            .clone(),
-                        |a, b| a.intersection_with(b),
-                    );
-                let intersection = below.intersection_with(&above);
+        //Make sure at least 1 layer will not be solid
+        if slices.len() > bottom_layers+top_layers {
+            println!("Generating Moves: Above and below support");
 
-                slices
-                    .get_mut(q)
-                    .expect("Bounds Checked above")
-                    .fill_solid_subtracted_area(&intersection, q)
+            (bottom_layers..slices.len() - top_layers)
+                .into_iter()
+                .for_each(|q| {
+                    let below = if bottom_layers != 0 {
+                        Some(slices[(q - bottom_layers + 1)..q]
+                            .iter()
+                            .map(|m| m.get_entire_slice_polygon())
+                            .fold(
+                                slices
+                                    .get(q - bottom_layers)
+                                    .expect("Bounds Checked above")
+                                    .get_entire_slice_polygon()
+                                    .clone(),
+                                |a, b| a.intersection_with(b),
+                            ))
+                    } else {
+                       None
+                    };
+                    let above = if top_layers != 0 {
+                        Some(slices[q + 1..q + top_layers + 1]
+                            .iter()
+                            .map(|m| m.get_entire_slice_polygon())
+                            .fold(
+                                slices
+                                    .get(q + 1)
+                                    .expect("Bounds Checked above")
+                                    .get_entire_slice_polygon()
+                                    .clone(),
+                                |a, b| a.intersection_with(b),
+                            ))
+                    } else {
+                        None
+                    };
+                    if let Some(intersection) = match (above,below){
+                        (None, None) => {None}
+                        (None, Some(poly)) | ( Some(poly),None)  => {Some(poly)}
+                        (Some(polya), Some(polyb))  => {Some(polya.intersection_with(&polyb))}
+                    } {
+                            slices
+                                .get_mut(q)
+                                .expect("Bounds Checked above")
+                                .fill_solid_subtracted_area(&intersection, q);
+                    }
+                });
+        }
             });
 
         println!("Generating Moves: Fill Areas");
