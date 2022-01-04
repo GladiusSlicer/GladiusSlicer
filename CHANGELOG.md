@@ -13,6 +13,8 @@
 ### Fixes
 - Fixed issue with the optimizer removing state changes before short moves
 - Fixed issue with monotone panicing
+- Fixed issue with 0 fill prints
+- Fixed Issue with large and small amounts of infill layers
 
 ## [0.1.1]
 - Release to include binaries 

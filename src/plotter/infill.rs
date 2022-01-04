@@ -84,6 +84,9 @@ pub fn partial_infill_polygon(
     _layer_count: usize,
     layer_height: f64,
 ) -> Vec<MoveChain> {
+    if fill_ratio < f64::EPSILON{
+        return vec![];
+    }
     match settings.infill_type {
         PartialInfillTypes::Linear => partial_linear_fill_polygon(
             poly,
