@@ -1,0 +1,25 @@
+#Credits for provided Test Models
+- Lucas Ince/MrHatMan
+  - FTC BLue Circle
+  - FTC Red Square
+  - Square Test
+  - Nut Tower
+  - Ring
+  - Ring Big
+  - Target
+  - Test
+  - Test Nut
+  - Test Ramp
+  - Test Simple
+  - Test Towers
+  - Test Towers 2
+- \#3DBenchy and the 3DBenchy.com
+  - 3DBenchy
+- MCroucher (https://www.thingiverse.com/thing:24238)
+  - 5mm Calibration Cube
+- walter (https://www.thingiverse.com/thing:476845)
+  - Bridging Test 200
+- gaaZolee (https://www.thingiverse.com/thing:2729076)
+  - Smart Temperature Tower PLA 180-225
+- Alex2667 (https://www.thingiverse.com/thing:3051094)
+  - Tolerance Test
