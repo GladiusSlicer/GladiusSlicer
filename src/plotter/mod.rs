@@ -2,6 +2,7 @@ mod infill;
 mod monotone;
 mod perimeter;
 pub mod polygon_operations;
+mod support;
 
 pub use crate::plotter::infill::*;
 use crate::plotter::perimeter::*;

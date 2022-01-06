@@ -10,6 +10,7 @@ pub struct Settings {
     pub filament: FilamentSettings,
     pub fan: FanSettings,
     pub skirt: Option<SkirtSettings>,
+    pub support: Option<SupportSettings>,
 
     pub nozzle_diameter: f64,
 
@@ -63,6 +64,8 @@ impl Default for Settings {
             retract_lift_z: 0.6,
             retract_speed: 35.0,
 
+            support: None,
+
             speed: MovementParameter {
                 inner_perimeter: 5.0,
                 outer_perimeter: 5.0,
@@ -71,6 +74,7 @@ impl Default for Settings {
                 infill: 200.0,
                 travel: 180.0,
                 bridge: 30.0,
+                support: 50.0
             },
             acceleration: MovementParameter {
                 inner_perimeter: 800.0,
@@ -80,6 +84,7 @@ impl Default for Settings {
                 infill: 1000.0,
                 travel: 1000.0,
                 bridge: 1000.0,
+                support: 1000.0,
             },
 
             infill_percentage: 0.2,
@@ -125,6 +130,7 @@ impl Default for Settings {
                         infill: 20.0,
                         travel: 5.0,
                         bridge: 20.0,
+                        support: 20.0,
                     }) ,
                     layer_height: Some(0.3),
                     bed_temp: Some(60.0),
@@ -192,6 +198,7 @@ pub struct MovementParameter {
     pub infill: f64,
     pub travel: f64,
     pub bridge: f64,
+    pub support: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -235,6 +242,12 @@ impl Default for FanSettings {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SupportSettings {
+    pub max_overhang_angle: f64,
+    pub support_spacing: f64
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SkirtSettings {
     pub layers: usize,
     pub distance: f64,
@@ -248,6 +261,7 @@ pub struct PartialSettings {
     pub filament: Option<FilamentSettings>,
     pub fan: Option<FanSettings>,
     pub skirt: Option<SkirtSettings>,
+    pub support: Option<SupportSettings>,
 
     pub nozzle_diameter: Option<f64>,
 
@@ -300,6 +314,7 @@ impl PartialSettings {
             filament: self.filament.ok_or("filament")?,
             fan: self.fan.ok_or("fan")?,
             skirt: self.skirt,
+            support: self.support,
             nozzle_diameter: self.nozzle_diameter.ok_or("nozzle_diameter")?,
             retract_length: self.retract_length.ok_or("retract_length")?,
             retract_lift_z: self.retract_lift_z.ok_or("retract_lift_z")?,
@@ -358,6 +373,7 @@ impl PartialSettings {
             filament: self.filament.clone().or_else(|| other.filament.clone()),
             fan: self.fan.clone().or_else(|| other.fan.clone()),
             skirt: self.skirt.clone().or_else(|| other.skirt.clone()),
+            support: self.support.clone().or_else(|| other.support.clone()),
             nozzle_diameter: self.nozzle_diameter.or(other.nozzle_diameter),
             retract_length: self.retract_length.or(other.retract_length),
             retract_lift_z: self.retract_lift_z.or(other.retract_lift_z),

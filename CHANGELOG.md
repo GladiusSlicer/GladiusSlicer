@@ -9,6 +9,7 @@
 - Added settings dependent on Layer height
 - Added temp tower example
 - Infill hugs walls now to reduce retractions
+- Basic Supports where added ( Experimental Only )
 
 ### Fixes
 - Fixed issue with the optimizer removing state changes before short moves

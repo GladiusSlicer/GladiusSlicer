@@ -210,8 +210,16 @@ impl MoveChain {
                         });
                     }
                     MoveType::Support => {
-                        //cmds.push(Command::SetState { new_state: StateChange { BedTemp: None, ExtruderTemp: None, MovementSpeed: Some(settings.infill_speed), Retract: Some(false) } });
-                        todo!()
+                        cmds.push(Command::SetState {
+                            new_state: StateChange {
+                                bed_temp: None,
+                                extruder_temp: None,
+                                fan_speed: None,
+                                movement_speed: Some(settings.speed.support),
+                                acceleration: Some(settings.acceleration.support),
+                                retract: Some(false),
+                            },
+                        });
                     }
                     MoveType::Travel => {
                         cmds.push(Command::SetState {

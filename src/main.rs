@@ -429,7 +429,23 @@ fn main() {
                     }
                 });
         }
+
+        if let Some(support) = &settings.support {
+            println!("Generating Moves: Support");
+            (1..slices.len()).into_iter().rev().for_each(|q| {
+                //todo Fix this, it feels hacky
+                if let [ref mut layer, ref mut above,..] = &mut slices[(q-1..=q)] {
+                    layer.add_support_polygons(&above, &support);
+                }
+                else{
+                    unreachable!()
+                }
             });
+
+            for slice in slices.iter_mut(){
+                slice.fill_support_polygons(&support);
+            }
+        }
 
         println!("Generating Moves: Fill Areas");
         //Fill all remaining areas

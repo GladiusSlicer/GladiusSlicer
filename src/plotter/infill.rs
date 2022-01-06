@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use geo::prelude::*;
 use geo::*;
 use geo_clipper::*;
+use crate::PolygonOperations;
 
 pub trait SolidInfillFill {
     fn fill(&self, filepath: &str) -> Vec<MoveChain>;
@@ -28,8 +29,13 @@ pub fn linear_fill_polygon(
 ) -> Vec<MoveChain> {
     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-    let mut new_moves =
-        spaced_fill_polygon(&rotate_poly, settings, fill_type, settings.layer_width, 0.0);
+    let mut new_moves : Vec<MoveChain> =rotate_poly.offset_from(((-settings.layer_width / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage)) + (settings.layer_width / 2.0))
+        .iter()
+        .map(|polygon|{
+            spaced_fill_polygon(polygon, settings, fill_type, settings.layer_width, 0.0)
+        })
+        .flatten()
+        .collect();
 
     for chain in new_moves.iter_mut() {
         chain.rotate(-angle.to_radians());
@@ -48,7 +54,39 @@ pub fn partial_linear_fill_polygon(
 ) -> Vec<MoveChain> {
     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-    let mut new_moves = spaced_fill_polygon(&rotate_poly, settings, fill_type, spacing, offset);
+    let mut new_moves : Vec<MoveChain>  =rotate_poly.offset_from(((-settings.layer_width / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage)) + (settings.layer_width / 2.0))
+        .iter()
+        .map(|polygon|{
+            spaced_fill_polygon(polygon, settings, fill_type, spacing, offset)
+        })
+        .flatten()
+        .collect();
+
+    for chain in new_moves.iter_mut() {
+        chain.rotate(-angle.to_radians());
+    }
+
+    new_moves
+}
+
+pub fn support_linear_fill_polygon(
+    poly: &Polygon<f64>,
+    settings: &LayerSettings,
+    fill_type: MoveType,
+    spacing: f64,
+    angle: f64,
+    offset: f64,
+) -> Vec<MoveChain> {
+    let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+
+
+    let mut new_moves : Vec<MoveChain>  = rotate_poly.offset_from(-settings.layer_width  / 2.0 )
+        .iter()
+        .map(|polygon|{
+            spaced_fill_polygon(&polygon, settings, fill_type, spacing, offset)
+        })
+        .flatten()
+        .collect();
 
     for chain in new_moves.iter_mut() {
         chain.rotate(-angle.to_radians());
@@ -179,152 +217,143 @@ pub fn spaced_fill_polygon(
     spacing: f64,
     offset: f64,
 ) -> Vec<MoveChain> {
-    poly.offset(
-        ((-settings.layer_width / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage))
-            + (settings.layer_width / 2.0),
-        JoinType::Square,
-        EndType::ClosedPolygon,
-        100000.0,
-    )
-    .iter()
-    .filter(|poly| poly.unsigned_area() > 1.0)
-    .map(|poly| {
-        get_monotone_sections(poly)
-            .iter()
-            .filter_map(|section| {
-                let mut current_y = (((section.left_chain[0].y + offset) / spacing).floor()
-                    - (offset / spacing))
-                    * spacing;
 
-                let mut orient = true;
+    get_monotone_sections(poly)
+        .iter()
+        .filter_map(|section| {
+            let mut current_y = (((section.left_chain[0].y + offset) / spacing).floor()
+                - (offset / spacing))
+                * spacing;
 
-                let mut start_point = None;
+            let mut orient = true;
 
-                let mut line_change = true;
+            let mut start_point = None;
 
-                let mut left_index = 0;
-                let mut right_index = 0;
+            let mut line_change = true;
 
-                let mut moves = vec![];
+            let mut left_index = 0;
+            let mut right_index = 0;
 
-                loop {
-                    let mut connect_chain = vec![];
-                    while left_index < section.left_chain.len()
-                        && section.left_chain[left_index].y > current_y
-                    {
-                        if orient{
-                            connect_chain.push(section.left_chain[left_index]);
-                        }
-                        left_index += 1;
-                        line_change = true;
+            let mut moves = vec![];
+
+            loop {
+                let mut connect_chain = vec![];
+                while left_index < section.left_chain.len()
+                    && section.left_chain[left_index].y > current_y
+                {
+                    if orient{
+                        connect_chain.push(section.left_chain[left_index]);
                     }
-
-                    if left_index == section.left_chain.len() {
-                        break;
-                    }
-
-                    while right_index < section.right_chain.len()
-                        && section.right_chain[right_index].y > current_y
-                    {
-                        if !orient{
-                            connect_chain.push(section.right_chain[right_index]);
-                        }
-                        right_index += 1;
-                        line_change = true;
-                    }
-
-                    if right_index == section.right_chain.len() {
-                        break;
-                    }
-
-                    let left_top = section.left_chain[left_index - 1];
-                    let left_bot = section.left_chain[left_index];
-                    let right_top = section.right_chain[right_index - 1];
-                    let right_bot = section.right_chain[right_index];
-
-                    let left_point = point_lerp(&left_top, &left_bot, current_y);
-                    let right_point = point_lerp(&right_top, &right_bot, current_y);
-
-
-
-                    //add moves to connect lines together
-                    if start_point.is_some(){
-                        //Only if not first point
-                        if let Some(mut y)= connect_chain.get(0).map(|c| c.y){
-                            for point in connect_chain{
-                                moves.push(Move {
-                                    end: point,
-                                    //don''t fill lateral y moves
-                                    move_type: if y == point.y {
-                                        MoveType::Travel
-                                    }
-                                    else{
-                                        fill_type
-                                    },
-                                    width: settings.layer_width,
-                                });
-
-                                y = point.y;
-                            }
-                        }
-
-                    }
-
-                    start_point = start_point.or(Some(Coordinate {
-                        x: left_point.x,
-                        y: current_y,
-                    }));
-
-                    if orient {
-                        moves.push(Move {
-                            end: Coordinate {
-                                x: left_point.x,
-                                y: current_y,
-                            },
-                            move_type: fill_type,
-                            width: settings.layer_width,
-                        });
-
-                        moves.push(Move {
-                            end: Coordinate {
-                                x: right_point.x,
-                                y: current_y,
-                            },
-                            move_type: fill_type,
-                            width: settings.layer_width,
-                        });
-                    } else {
-                        moves.push(Move {
-                            end: Coordinate {
-                                x: right_point.x,
-                                y: current_y,
-                            },
-                            move_type: fill_type,
-                            width: settings.layer_width,
-                        });
-
-                        moves.push(Move {
-                            end: Coordinate {
-                                x: left_point.x,
-                                y: current_y,
-                            },
-                            move_type: fill_type,
-                            width: settings.layer_width,
-                        });
-                    }
-
-                    orient = !orient;
-                    current_y -= spacing;
-                    line_change = false;
+                    left_index += 1;
+                    line_change = true;
                 }
 
-                start_point.map(|start_point| MoveChain { start_point, moves })
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
-    })
-    .flatten()
-    .collect()
+                if left_index == section.left_chain.len() {
+                    break;
+                }
+
+                while right_index < section.right_chain.len()
+                    && section.right_chain[right_index].y > current_y
+                {
+                    if !orient{
+                        connect_chain.push(section.right_chain[right_index]);
+                    }
+                    right_index += 1;
+                    line_change = true;
+                }
+
+                if right_index == section.right_chain.len() {
+                    break;
+                }
+
+                let left_top = section.left_chain[left_index - 1];
+                let left_bot = section.left_chain[left_index];
+                let right_top = section.right_chain[right_index - 1];
+                let right_bot = section.right_chain[right_index];
+
+                let left_point = point_lerp(&left_top, &left_bot, current_y);
+                let right_point = point_lerp(&right_top, &right_bot, current_y);
+
+
+
+                //add moves to connect lines together
+                if start_point.is_some(){
+                    //Only if not first point
+                    if let Some(mut y)= connect_chain.get(0).map(|c| c.y){
+                        for point in connect_chain{
+                            moves.push(Move {
+                                end: point,
+                                //don''t fill lateral y moves
+                                move_type: if y == point.y {
+                                    MoveType::Travel
+                                }
+                                else{
+                                    fill_type
+                                },
+                                width: settings.layer_width,
+                            });
+
+                            y = point.y;
+                        }
+                    }
+
+                }
+
+                start_point = start_point.or(Some(Coordinate {
+                    x: left_point.x,
+                    y: current_y,
+                }));
+
+                if orient {
+                    moves.push(Move {
+                        end: Coordinate {
+                            x: left_point.x,
+                            y: current_y,
+                        },
+                        move_type: fill_type,
+                        width: settings.layer_width,
+                    });
+
+                    moves.push(Move {
+                        end: Coordinate {
+                            x: right_point.x,
+                            y: current_y,
+                        },
+                        move_type: fill_type,
+                        width: settings.layer_width,
+                    });
+                } else {
+                    moves.push(Move {
+                        end: Coordinate {
+                            x: right_point.x,
+                            y: current_y,
+                        },
+                        move_type: fill_type,
+                        width: settings.layer_width,
+                    });
+
+                    moves.push(Move {
+                        end: Coordinate {
+                            x: left_point.x,
+                            y: current_y,
+                        },
+                        move_type: fill_type,
+                        width: settings.layer_width,
+                    });
+                }
+
+                orient = !orient;
+                current_y -= spacing;
+                line_change = false;
+            }
+
+            start_point.map(|start_point| MoveChain { start_point, moves })
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .collect()
+
+
 }
 
 #[inline]
