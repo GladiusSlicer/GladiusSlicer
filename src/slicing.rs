@@ -1,0 +1,55 @@
+use crate::*;
+use geo::*;
+
+pub fn slice(towers: &Vec<TriangleTower>, settings: &Settings) -> Vec<Object> {
+    towers.into_iter().map(|tower| {
+        let mut tower_iter = TriangleTowerIterator::new(&tower);
+
+        let mut layer = 0.0;
+
+        let mut first_layer = true;
+
+        let slices: Vec<_> = std::iter::repeat(())
+            .enumerate()
+            .map(|(layer_count, _)| {
+                //Advance to the correct height
+                let layer_height = settings.get_layer_settings(layer_count, layer).layer_height;
+
+                let bottom_height = layer;
+                layer += layer_height / 2.0;
+                tower_iter.advance_to_height(layer).expect("Error Creating Tower. Model most likely needs repair. Please Repair and run again.");
+                layer += layer_height / 2.0;
+
+                let top_height = layer;
+
+                first_layer = false;
+
+                //Get the ordered lists of points
+                (bottom_height, top_height, tower_iter.get_points())
+            })
+            .take_while(|(_, _, layer_loops)| !layer_loops.is_empty())
+            .enumerate()
+            .map(|(count, (bot, top, layer_loops))| {
+                //Add this slice to the
+                let slice = Slice::from_multiple_point_loop(
+                    layer_loops
+                        .iter()
+                        .map(|verts| {
+                            verts
+                                .iter()
+                                .map(|v| Coordinate { x: v.x, y: v.y })
+                                .collect::<Vec<Coordinate<f64>>>()
+                        })
+                        .collect(),
+                    bot,
+                    top,
+                    count,
+                    &settings
+                );
+                slice
+            })
+            .collect();
+
+        Object { layers: slices }
+    }).collect()
+}

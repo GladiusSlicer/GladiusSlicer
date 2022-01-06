@@ -632,3 +632,18 @@ impl<'s> TriangleTowerIterator<'s> {
         points_vec
     }
 }
+
+pub fn create_towers(models: &Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>) -> Vec<TriangleTower>{
+    models
+        .into_iter()
+        .map(|(vertices, triangles)| {
+            match TriangleTower::from_triangles_and_vertices(&triangles, vertices.clone()) {
+                Ok(tower) => tower,
+                Err(err) => {
+                    err.show_error_message();
+                    std::process::exit(-1);
+                }
+            }
+        })
+        .collect()
+}
