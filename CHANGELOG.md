@@ -10,6 +10,7 @@
 - Added temp tower example
 - Infill hugs walls now to reduce retractions
 - Basic Supports where added ( Experimental Only )
+- Reorganization code to better support plugins in the future
 
 ### Fixes
 - Fixed issue with the optimizer removing state changes before short moves

@@ -4,8 +4,8 @@ use crate::types::{Move, MoveChain, MoveType};
 use geo::prelude::*;
 use geo::*;
 
-use itertools::Itertools;
 use crate::PolygonOperations;
+use itertools::Itertools;
 
 pub fn inset_polygon_recursive(
     poly: &MultiPolygon<f64>,
@@ -14,7 +14,7 @@ pub fn inset_polygon_recursive(
     layer_left: usize,
 ) -> Option<MoveChain> {
     let mut move_chains = vec![];
-    let inset_poly = poly.offset_from(-settings.layer_width / 2.0 );
+    let inset_poly = poly.offset_from(-settings.layer_width / 2.0);
 
     for raw_polygon in inset_poly.0.iter() {
         let polygon = raw_polygon.simplify(&0.01);

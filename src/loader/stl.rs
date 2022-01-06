@@ -4,7 +4,10 @@ use std::io::BufReader;
 pub struct STLLoader {}
 
 impl Loader for STLLoader {
-    fn load(&self, filepath: &str) -> Result<Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, SlicerErrors> {
+    fn load(
+        &self,
+        filepath: &str,
+    ) -> Result<Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, SlicerErrors> {
         let file = std::fs::OpenOptions::new()
             .read(true)
             .open(filepath)

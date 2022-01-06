@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use crate::plotter::PartialInfillTypes;
 use serde::{Deserialize, Serialize};
 
@@ -45,7 +44,7 @@ pub struct Settings {
     pub starting_gcode: String,
     pub ending_gcode: String,
 
-    pub layer_settings: Vec<(LayerRange,PartialLayerSettings)>
+    pub layer_settings: Vec<(LayerRange, PartialLayerSettings)>,
 }
 
 impl Default for Settings {
@@ -74,7 +73,7 @@ impl Default for Settings {
                 infill: 200.0,
                 travel: 180.0,
                 bridge: 30.0,
-                support: 50.0
+                support: 50.0,
             },
             acceleration: MovementParameter {
                 inner_perimeter: 800.0,
@@ -120,9 +119,11 @@ impl Default for Settings {
                                 M107 ; disable fan\n"
                 .to_string(),
             brim_width: None,
-            layer_settings: vec![
-                (LayerRange::SingleLayer(0), PartialLayerSettings{layer_width: Some(0.6),speed:
-                    Some( MovementParameter {
+            layer_settings: vec![(
+                LayerRange::SingleLayer(0),
+                PartialLayerSettings {
+                    layer_width: Some(0.6),
+                    speed: Some(MovementParameter {
                         inner_perimeter: 5.0,
                         outer_perimeter: 5.0,
                         solid_top_infill: 20.0,
@@ -131,42 +132,45 @@ impl Default for Settings {
                         travel: 5.0,
                         bridge: 20.0,
                         support: 20.0,
-                    }) ,
+                    }),
                     layer_height: Some(0.3),
                     bed_temp: Some(60.0),
                     extruder_temp: Some(210.0),
-                    .. Default::default()
-                })
-            ]
+                    ..Default::default()
+                },
+            )],
         }
     }
 }
 
 impl Settings {
     pub fn get_layer_settings(&self, layer: usize, height: f64) -> LayerSettings {
-
         let changes = self
             .layer_settings
             .iter()
-            .filter( |(layer_range,_)| {
-                match layer_range {
-                    LayerRange::LayerRange {end, start} => *start <= layer&& layer <= *end,
-                    LayerRange::HeightRange {end, start} => *start <= height && height <= *end,
-                    LayerRange::SingleLayer (filter_layer) => *filter_layer == layer,
-                }
-            } )
-            .map(|(lr,pls)| pls)
-            .fold(PartialLayerSettings::default(),|a,b| a.combine(b));
+            .filter(|(layer_range, _)| match layer_range {
+                LayerRange::LayerRange { end, start } => *start <= layer && layer <= *end,
+                LayerRange::HeightRange { end, start } => *start <= height && height <= *end,
+                LayerRange::SingleLayer(filter_layer) => *filter_layer == layer,
+            })
+            .map(|(_lr, pls)| pls)
+            .fold(PartialLayerSettings::default(), |a, b| a.combine(b));
 
         LayerSettings {
             layer_height: changes.layer_height.unwrap_or(self.layer_height),
-            speed: changes.speed.unwrap_or(self.speed.clone()),
-            acceleration: changes.acceleration.unwrap_or(self.acceleration.clone()),
+            speed: changes.speed.unwrap_or_else(|| self.speed.clone()),
+            acceleration: changes
+                .acceleration
+                .unwrap_or_else(|| self.acceleration.clone()),
             layer_width: changes.layer_width.unwrap_or(self.layer_width),
             infill_type: changes.infill_type.unwrap_or(self.infill_type),
             infill_percentage: changes.infill_percentage.unwrap_or(self.infill_percentage),
-            infill_perimeter_overlap_percentage: changes.infill_perimeter_overlap_percentage.unwrap_or(self.infill_perimeter_overlap_percentage),
-            inner_permimeters_first: changes.inner_permimeters_first.unwrap_or(self.inner_permimeters_first),
+            infill_perimeter_overlap_percentage: changes
+                .infill_perimeter_overlap_percentage
+                .unwrap_or(self.infill_perimeter_overlap_percentage),
+            inner_permimeters_first: changes
+                .inner_permimeters_first
+                .unwrap_or(self.inner_permimeters_first),
             bed_temp: changes.bed_temp.unwrap_or(self.filament.bed_temp),
             extruder_temp: changes.extruder_temp.unwrap_or(self.filament.extruder_temp),
         }
@@ -244,7 +248,7 @@ impl Default for FanSettings {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SupportSettings {
     pub max_overhang_angle: f64,
-    pub support_spacing: f64
+    pub support_spacing: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -301,7 +305,7 @@ pub struct PartialSettings {
 
     pub other_files: Option<Vec<String>>,
 
-    pub layer_settings: Option<Vec<(LayerRange,PartialLayerSettings)>>
+    pub layer_settings: Option<Vec<(LayerRange, PartialLayerSettings)>>,
 }
 
 impl PartialSettings {
@@ -342,7 +346,7 @@ impl PartialSettings {
             starting_gcode: self.starting_gcode.ok_or("starting_gcode")?,
             ending_gcode: self.ending_gcode.ok_or("ending_gcode")?,
 
-            layer_settings: self.layer_settings.unwrap_or(vec![])
+            layer_settings: self.layer_settings.unwrap_or(vec![]),
         };
 
         Ok(settings)
@@ -414,29 +418,29 @@ impl PartialSettings {
             ending_gcode: self.ending_gcode.clone().or(other.ending_gcode),
             other_files: None,
             layer_settings: {
-                match (self.layer_settings.as_ref(),other.layer_settings.as_ref()) {
-                    (None , None) => None,
-                    (None , Some(v)) | (Some(v) , None)=> Some(v.clone()),
-                    (Some(a) , Some(b)) => {
+                match (self.layer_settings.as_ref(), other.layer_settings.as_ref()) {
+                    (None, None) => None,
+                    (None, Some(v)) | (Some(v), None) => Some(v.clone()),
+                    (Some(a), Some(b)) => {
                         let mut v = vec![];
                         v.append(&mut a.clone());
                         v.append(&mut b.clone());
                         Some(v)
-                    },
+                    }
                 }
-            }
+            },
         }
     }
 }
 
-#[derive(Deserialize,Serialize, Debug,Clone)]
-pub enum LayerRange{
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum LayerRange {
     SingleLayer(usize),
-    LayerRange{start: usize, end: usize},
-    HeightRange{start: f64, end: f64},
+    LayerRange { start: usize, end: usize },
+    HeightRange { start: f64, end: f64 },
 }
 
-#[derive(Serialize, Deserialize, Debug,Default,Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct PartialLayerSettings {
     pub layer_height: Option<f64>,
 
@@ -453,7 +457,7 @@ pub struct PartialLayerSettings {
     pub extruder_temp: Option<f64>,
 }
 
-impl PartialLayerSettings{
+impl PartialLayerSettings {
     fn combine(&self, other: &PartialLayerSettings) -> PartialLayerSettings {
         PartialLayerSettings {
             layer_height: self.layer_height.or(other.layer_height),
@@ -475,8 +479,6 @@ impl PartialLayerSettings{
                 .infill_perimeter_overlap_percentage
                 .or(other.infill_perimeter_overlap_percentage),
             infill_type: self.infill_type.or(other.infill_type),
-
-
         }
     }
 }

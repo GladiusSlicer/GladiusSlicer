@@ -49,7 +49,7 @@ struct ThreeMFItem {
 
 #[derive(Deserialize, Debug)]
 struct ThreeMFComponents {
-    component : Vec<ThreeMFComponent>
+    component: Vec<ThreeMFComponent>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -87,7 +87,10 @@ struct ThreeMFTriangles {
 pub struct ThreeMFLoader {}
 
 impl Loader for ThreeMFLoader {
-    fn load(&self, filepath: &str) -> Result<Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, SlicerErrors> {
+    fn load(
+        &self,
+        filepath: &str,
+    ) -> Result<Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, SlicerErrors> {
         let zipfile = std::fs::File::open(filepath).unwrap();
 
         let mut archive =
@@ -114,50 +117,51 @@ impl Loader for ThreeMFLoader {
 
         let model: ThreeMFModel = serde_xml_rs::de::from_reader(model_file).unwrap();
 
-         model.build.item.iter().map(|item|{
-            let (mut v,t) =handle_object(item.objectid,&model.resources)?;
+        model
+            .build
+            .item
+            .iter()
+            .map(|item| {
+                let (mut v, t) = handle_object(item.objectid, &model.resources)?;
 
-            if let Some(t_str) = &item.transform{
-                let transform = get_transform_from_string(t_str)?;
+                if let Some(t_str) = &item.transform {
+                    let transform = get_transform_from_string(t_str)?;
 
-                for vert in v.iter_mut() {
-                    *vert = &transform * *vert;
+                    for vert in v.iter_mut() {
+                        *vert = &transform * *vert;
+                    }
                 }
-
-            }
-            Ok((v,t))
-        }).collect()
+                Ok((v, t))
+            })
+            .collect()
     }
 }
 
-
-fn handle_object(obj_index:usize, comps: &ThreeMFResource)  -> Result<(Vec<Vertex>, Vec<IndexedTriangle>),SlicerErrors> {
+fn handle_object(
+    obj_index: usize,
+    comps: &ThreeMFResource,
+) -> Result<(Vec<Vertex>, Vec<IndexedTriangle>), SlicerErrors> {
     let object = comps.object.iter().find(|obj| obj.id == obj_index).unwrap();
 
-    if let Some(mesh)= &object.mesh{
+    if let Some(mesh) = &object.mesh {
         Ok(handle_mesh(mesh))
-    }
-    else if let Some(components) = &object.components{
-
+    } else if let Some(components) = &object.components {
         let mut v = vec![];
         let mut t = vec![];
-        let mut start =0;
-        for component in &components.component{
+        let mut start = 0;
+        for component in &components.component {
             let (mut verts, mut triangles) = handle_object(component.objectid, comps)?;
 
-            if let Some(t_str) = &component.transform{
+            if let Some(t_str) = &component.transform {
                 let transform = get_transform_from_string(t_str)?;
-
-
 
                 for vert in verts.iter_mut() {
                     *vert = &transform * *vert;
                 }
-
             }
 
-            if start !=0{
-                for triangle in triangles.iter_mut(){
+            if start != 0 {
+                for triangle in triangles.iter_mut() {
                     triangle.verts[0] += start;
                     triangle.verts[1] += start;
                     triangle.verts[2] += start;
@@ -170,14 +174,13 @@ fn handle_object(obj_index:usize, comps: &ThreeMFResource)  -> Result<(Vec<Verte
             t.append(&mut triangles);
         }
 
-        Ok((v,t))
-    }
-    else{
+        Ok((v, t))
+    } else {
         Err(SlicerErrors::ThreemfLoadError)
     }
 }
 
-fn handle_mesh(mesh: &ThreeMFMesh)  -> (Vec<Vertex>, Vec<IndexedTriangle>) {
+fn handle_mesh(mesh: &ThreeMFMesh) -> (Vec<Vertex>, Vec<IndexedTriangle>) {
     let mut triangles = vec![];
     let vertices = mesh.vertices.list.clone();
 
@@ -206,22 +209,22 @@ fn handle_mesh(mesh: &ThreeMFMesh)  -> (Vec<Vertex>, Vec<IndexedTriangle>) {
         }
     }
 
-    (vertices,triangles)
+    (vertices, triangles)
 }
 
-fn get_transform_from_string(transform_string: &String) -> Result<Transform,SlicerErrors>{
-    let res_values : Result<Vec<f64>,_> = transform_string.split(' ').map(|str| str.parse()).collect();
+fn get_transform_from_string(transform_string: &str) -> Result<Transform, SlicerErrors> {
+    let res_values: Result<Vec<f64>, _> =
+        transform_string.split(' ').map(|str| str.parse()).collect();
 
-    let values = res_values.map_err(|_|SlicerErrors::ThreemfLoadError)?;
-    if values.len() != 12{
+    let values = res_values.map_err(|_| SlicerErrors::ThreemfLoadError)?;
+    if values.len() != 12 {
         Err(SlicerErrors::ThreemfLoadError)
-    }
-    else{
+    } else {
         let t = [
-            [values[0],values[3],values[6],values[9]],
-            [values[1],values[4],values[7],values[10]],
-            [values[2],values[5],values[8],values[11]],
-            [0.0,0.0,0.0,1.0]
+            [values[0], values[3], values[6], values[9]],
+            [values[1], values[4], values[7], values[10]],
+            [values[2], values[5], values[8], values[11]],
+            [0.0, 0.0, 0.0, 1.0],
         ];
         Ok(Transform(t))
     }

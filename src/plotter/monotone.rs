@@ -1,9 +1,9 @@
+use geo::simplifyvw::SimplifyVWPreserve;
 use geo::{Coordinate, Polygon};
+use geo_svg::*;
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
-use geo::simplifyvw::SimplifyVWPreserve;
-use geo_svg::*;
 
 #[derive(Debug)]
 pub struct MonotoneSection {
@@ -61,7 +61,6 @@ enum Orientation {
 ///
 /// * `poly` - the polygon to divide
 pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
-
     //Convert polygon to Monotone points
     //Simplify to remove self intersections
     let mut mono_points = std::iter::once(poly.simplifyvw_preserve(&0.01).exterior())
@@ -73,7 +72,6 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                 .take(line_string.0.len() - 1)
                 .circular_tuple_windows::<(&Coordinate<f64>, &Coordinate<f64>, &Coordinate<f64>)>()
                 .map(|(&next, &point, &prev)| {
-
                     // Identify what type of point this is
                     let point_type = if isabove(&point, &prev) && isabove(&point, &next) {
                         if orientation(&prev, &point, &next) != Orientation::Right {
@@ -108,7 +106,6 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
     let mut completed_sections: Vec<MonotoneSection> = vec![];
 
     while let Some(point) = mono_points.pop() {
-
         match point.point_type {
             //Handle Start Point
             PointType::Start => {
@@ -162,22 +159,25 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                 let index = sweep_line_storage
                     .iter()
                     .position(|section| *section.right_chain.last().unwrap() == point.pos)
-                    .unwrap_or_else(|| panic!("right error {:?}\n {}", point, poly.to_svg()
-                        .with_stroke_width(0.01)
-                        .with_fill_color(Color::Named("red"))
-                        .with_stroke_color(Color::Rgb(200, 0, 100))
-                        .with_fill_opacity(0.7))
-
-                    );
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "right error {:?}\n {}",
+                            point,
+                            poly.to_svg()
+                                .with_stroke_width(0.01)
+                                .with_fill_color(Color::Named("red"))
+                                .with_stroke_color(Color::Rgb(200, 0, 100))
+                                .with_fill_opacity(0.7)
+                        )
+                    });
 
                 sweep_line_storage[index].right_chain.push(point.next);
-
             }
 
             //Handle Merge Point
             PointType::Merge => {
                 let index = sweep_line_storage.iter().position(|section| *section.right_chain.last().unwrap() == point.pos).unwrap_or_else( || panic!("Merge point must be in the storage as the end of a chain{:?} |||| {:?}", point, sweep_line_storage));
-                
+
                 let mut right_section = sweep_line_storage.remove(index + 1);
                 let left_section = &mut sweep_line_storage[index];
 
@@ -198,7 +198,6 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
 
                 left_section.right_chain.push(break_point);
                 left_section.right_chain.push(break_point_low);
-
             }
 
             //Handle Split Point
@@ -245,7 +244,6 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
             }
         }
     }
-
 
     completed_sections
 }

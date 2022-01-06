@@ -4,10 +4,9 @@ use crate::types::{Move, MoveChain, MoveType};
 
 use serde::{Deserialize, Serialize};
 
+use crate::PolygonOperations;
 use geo::prelude::*;
 use geo::*;
-use geo_clipper::*;
-use crate::PolygonOperations;
 
 pub trait SolidInfillFill {
     fn fill(&self, filepath: &str) -> Vec<MoveChain>;
@@ -29,11 +28,13 @@ pub fn linear_fill_polygon(
 ) -> Vec<MoveChain> {
     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-    let mut new_moves : Vec<MoveChain> =rotate_poly.offset_from(((-settings.layer_width / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage)) + (settings.layer_width / 2.0))
+    let mut new_moves: Vec<MoveChain> = rotate_poly
+        .offset_from(
+            ((-settings.layer_width / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage))
+                + (settings.layer_width / 2.0),
+        )
         .iter()
-        .map(|polygon|{
-            spaced_fill_polygon(polygon, settings, fill_type, settings.layer_width, 0.0)
-        })
+        .map(|polygon| spaced_fill_polygon(polygon, settings, fill_type, settings.layer_width, 0.0))
         .flatten()
         .collect();
 
@@ -54,11 +55,13 @@ pub fn partial_linear_fill_polygon(
 ) -> Vec<MoveChain> {
     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-    let mut new_moves : Vec<MoveChain>  =rotate_poly.offset_from(((-settings.layer_width / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage)) + (settings.layer_width / 2.0))
+    let mut new_moves: Vec<MoveChain> = rotate_poly
+        .offset_from(
+            ((-settings.layer_width / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage))
+                + (settings.layer_width / 2.0),
+        )
         .iter()
-        .map(|polygon|{
-            spaced_fill_polygon(polygon, settings, fill_type, spacing, offset)
-        })
+        .map(|polygon| spaced_fill_polygon(polygon, settings, fill_type, spacing, offset))
         .flatten()
         .collect();
 
@@ -79,12 +82,10 @@ pub fn support_linear_fill_polygon(
 ) -> Vec<MoveChain> {
     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
-
-    let mut new_moves : Vec<MoveChain>  = rotate_poly.offset_from(-settings.layer_width  / 2.0 )
+    let mut new_moves: Vec<MoveChain> = rotate_poly
+        .offset_from(-settings.layer_width / 2.0)
         .iter()
-        .map(|polygon|{
-            spaced_fill_polygon(&polygon, settings, fill_type, spacing, offset)
-        })
+        .map(|polygon| spaced_fill_polygon(&polygon, settings, fill_type, spacing, offset))
         .flatten()
         .collect();
 
@@ -122,7 +123,7 @@ pub fn partial_infill_polygon(
     _layer_count: usize,
     layer_height: f64,
 ) -> Vec<MoveChain> {
-    if fill_ratio < f64::EPSILON{
+    if fill_ratio < f64::EPSILON {
         return vec![];
     }
     match settings.infill_type {
@@ -217,7 +218,6 @@ pub fn spaced_fill_polygon(
     spacing: f64,
     offset: f64,
 ) -> Vec<MoveChain> {
-
     get_monotone_sections(poly)
         .iter()
         .filter_map(|section| {
@@ -229,8 +229,6 @@ pub fn spaced_fill_polygon(
 
             let mut start_point = None;
 
-            let mut line_change = true;
-
             let mut left_index = 0;
             let mut right_index = 0;
 
@@ -241,11 +239,10 @@ pub fn spaced_fill_polygon(
                 while left_index < section.left_chain.len()
                     && section.left_chain[left_index].y > current_y
                 {
-                    if orient{
+                    if orient {
                         connect_chain.push(section.left_chain[left_index]);
                     }
                     left_index += 1;
-                    line_change = true;
                 }
 
                 if left_index == section.left_chain.len() {
@@ -255,11 +252,10 @@ pub fn spaced_fill_polygon(
                 while right_index < section.right_chain.len()
                     && section.right_chain[right_index].y > current_y
                 {
-                    if !orient{
+                    if !orient {
                         connect_chain.push(section.right_chain[right_index]);
                     }
                     right_index += 1;
-                    line_change = true;
                 }
 
                 if right_index == section.right_chain.len() {
@@ -274,20 +270,17 @@ pub fn spaced_fill_polygon(
                 let left_point = point_lerp(&left_top, &left_bot, current_y);
                 let right_point = point_lerp(&right_top, &right_bot, current_y);
 
-
-
                 //add moves to connect lines together
-                if start_point.is_some(){
+                if start_point.is_some() {
                     //Only if not first point
-                    if let Some(mut y)= connect_chain.get(0).map(|c| c.y){
-                        for point in connect_chain{
+                    if let Some(mut y) = connect_chain.get(0).map(|c| c.y) {
+                        for point in connect_chain {
                             moves.push(Move {
                                 end: point,
                                 //don''t fill lateral y moves
-                                move_type: if y == point.y {
+                                move_type: if (y - point.y).abs() < f64::EPSILON {
                                     MoveType::Travel
-                                }
-                                else{
+                                } else {
                                     fill_type
                                 },
                                 width: settings.layer_width,
@@ -296,7 +289,6 @@ pub fn spaced_fill_polygon(
                             y = point.y;
                         }
                     }
-
                 }
 
                 start_point = start_point.or(Some(Coordinate {
@@ -344,7 +336,6 @@ pub fn spaced_fill_polygon(
 
                 orient = !orient;
                 current_y -= spacing;
-                line_change = false;
             }
 
             start_point.map(|start_point| MoveChain { start_point, moves })
@@ -352,8 +343,6 @@ pub fn spaced_fill_polygon(
         .collect::<Vec<_>>()
         .into_iter()
         .collect()
-
-
 }
 
 #[inline]
