@@ -124,11 +124,11 @@ impl Slice {
         &self.main_polygon
     }
     pub fn get_support_polygon(&self) -> MultiPolygon<f64> {
-        match (self.support_tower.clone(),self.support_interface.clone()) {
-            (None,None) => { MultiPolygon(vec![])}
-            (Some(tower),None) => { tower}
-            (None,Some(interface)) => { interface}
-            (Some(tower),Some(interface)) => { tower.union_with(&interface)}
+        match (self.support_tower.clone(), self.support_interface.clone()) {
+            (None, None) => MultiPolygon(vec![]),
+            (Some(tower), None) => tower,
+            (None, Some(interface)) => interface,
+            (Some(tower), Some(interface)) => tower.union_with(&interface),
         }
     }
 
@@ -145,6 +145,20 @@ impl Slice {
         self.remaining_area = self
             .remaining_area
             .offset_from(-self.layer_settings.layer_width * number_of_perimeters as f64);
+    }
+
+    pub fn shrink_layer(&mut self) {
+        if let Some(shrink_ammount) = self.layer_settings.layer_shrink_amount {
+            self.support_tower = self
+                .support_tower
+                .as_ref()
+                .map(|tower| tower.offset_from(-shrink_ammount));
+            self.support_interface = self
+                .support_interface
+                .as_ref()
+                .map(|interface| interface.offset_from(-shrink_ammount));
+            self.remaining_area = self.remaining_area.offset_from(-shrink_ammount);
+        }
     }
 
     pub fn fill_remaining_area(&mut self, solid: bool, layer_count: usize) {

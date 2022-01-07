@@ -11,6 +11,7 @@
 - Infill hugs walls now to reduce retractions
 - Basic Supports where added ( Experimental Only )
 - Reorganization code to better support plugins in the future
+- Layer Shrink feature added ( Useful for expanding filaments or on first layer to combat elephants foot)
 
 ### Fixes
 - Fixed issue with the optimizer removing state changes before short moves

@@ -31,7 +31,8 @@
     "solid_top_infill":40.0,
 
     "travel": 180.0,
-    "bridge": 30.0
+    "bridge": 30.0,
+    "support": 50.0,
   },
   "acceleration" : {
     "outer_perimeter":800.0,
@@ -40,7 +41,8 @@
     "solid_infill":1000.0,
     "solid_top_infill":1000.0,
     "travel": 1000.0,
-    "bridge": 1000.0
+    "bridge": 1000.0,
+    "support": 1000.0
   },
 
   "number_of_perimeters": 2,
@@ -63,9 +65,11 @@
           "solid_infill":20.0,
           "solid_top_infill":20.0,
           "travel": 180.0,
-          "bridge": 20.0
+          "bridge": 20.0,
+          "support": 20.0,
         },
-        "width":0.4
+        "width":0.4,
+        "layer_shrink_amount" : 0.2,
       }
     ]
 

@@ -73,6 +73,9 @@ fn main() {
     objects.par_iter_mut().for_each(|object| {
         let mut slices = &mut object.layers;
 
+        //Shrink layer
+        ShrinkPass::pass(&mut slices, &settings);
+
         //Handle Perimeters
         PerimeterPass::pass(&mut slices, &settings);
 

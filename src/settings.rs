@@ -36,6 +36,8 @@ pub struct Settings {
 
     pub brim_width: Option<f64>,
 
+    pub layer_shrink_amount: Option<f64>,
+
     pub minimum_retract_distance: f64,
 
     pub infill_perimeter_overlap_percentage: f64,
@@ -139,6 +141,7 @@ impl Default for Settings {
                     ..Default::default()
                 },
             )],
+            layer_shrink_amount: None,
         }
     }
 }
@@ -158,6 +161,7 @@ impl Settings {
 
         LayerSettings {
             layer_height: changes.layer_height.unwrap_or(self.layer_height),
+            layer_shrink_amount: changes.layer_shrink_amount.or(self.layer_shrink_amount),
             speed: changes.speed.unwrap_or_else(|| self.speed.clone()),
             acceleration: changes
                 .acceleration
@@ -179,6 +183,8 @@ impl Settings {
 
 pub struct LayerSettings {
     pub layer_height: f64,
+
+    pub layer_shrink_amount: Option<f64>,
 
     pub speed: MovementParameter,
     pub acceleration: MovementParameter,
@@ -262,6 +268,8 @@ pub struct PartialSettings {
     pub layer_height: Option<f64>,
     pub layer_width: Option<f64>,
 
+    pub layer_shrink_amount: Option<f64>,
+
     pub filament: Option<FilamentSettings>,
     pub fan: Option<FanSettings>,
     pub skirt: Option<SkirtSettings>,
@@ -336,6 +344,7 @@ impl PartialSettings {
             print_y: self.print_y.ok_or("print_y")?,
             print_z: self.print_z.ok_or("print_z")?,
             brim_width: self.brim_width,
+            layer_shrink_amount: self.layer_shrink_amount,
             minimum_retract_distance: self
                 .minimum_retract_distance
                 .ok_or("minimum_retract_distance")?,
@@ -374,6 +383,7 @@ impl PartialSettings {
         PartialSettings {
             layer_height: self.layer_height.or(other.layer_height),
             layer_width: self.layer_width.or(other.layer_width),
+            layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
             filament: self.filament.clone().or_else(|| other.filament.clone()),
             fan: self.fan.clone().or_else(|| other.fan.clone()),
             skirt: self.skirt.clone().or_else(|| other.skirt.clone()),
@@ -444,6 +454,8 @@ pub enum LayerRange {
 pub struct PartialLayerSettings {
     pub layer_height: Option<f64>,
 
+    pub layer_shrink_amount: Option<f64>,
+
     pub speed: Option<MovementParameter>,
     pub acceleration: Option<MovementParameter>,
 
@@ -479,6 +491,7 @@ impl PartialLayerSettings {
                 .infill_perimeter_overlap_percentage
                 .or(other.infill_perimeter_overlap_percentage),
             infill_type: self.infill_type.or(other.infill_type),
+            layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
         }
     }
 }
