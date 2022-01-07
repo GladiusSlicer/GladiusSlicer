@@ -24,12 +24,12 @@ FLAGS:
     -v               Sets the level of verbosity
 
 OPTIONS:
-    -o <OUTPUT>            Sets the output file to use
-    -s <SETTINGS>          Sets the settings file to use
-    -c, --config <FILE>    Sets a custom config file
+    -o <OUTPUT>          Sets the output file to use
+    -s <SETTINGS>        Sets the settings file to use
 
 ARGS:
     <INPUT>...    Sets the input file to use
+
 
 ```
 
@@ -59,7 +59,8 @@ Settings files are hJSON, a human readable json that supports comments. Examples
 * STL File format
 * Layer slow down for small layers
 * Many other feature ( see settings file for more information)
-
+* Change settings based on layer
+* Elephant foot compensation
 
 ### In Progress
 * 3MF file format
@@ -70,24 +71,24 @@ Settings files are hJSON, a human readable json that supports comments. Examples
   * Traits have been started but no loading yet.
 * Arc Optimization
   * Started but buggy and not active
-* Code Dumentation
+* Code Documentation
   * Some code is documented
 * Useful Error Messages
   * Errors often aren't graceful
+* Support Generation
+  * Supports can be generated but they are poor
 
 ### Coming Shortly
-* Support Generation
+
 * Perimeter start options
 * Percentage Complete Gcode
-* Handle Errors Better
 * Octoprint integration
-* Change settings based on layer
-* Elephant foot compensation
 * Retraction Wipe
+* GUI
 
 ### Eventually
 * Multiple Extruder Support
-* GUI
+
 
 ### Supported Printers
 * I only own a Prusa Mk3
