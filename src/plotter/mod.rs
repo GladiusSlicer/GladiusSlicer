@@ -70,7 +70,7 @@ impl Slice {
         let mut lines_and_area: Vec<(LineString<f64>, f64)> = lines
             .into_iter()
             .map(|line| {
-                let area = line
+                let area : f64 = line
                     .clone()
                     .into_points()
                     .iter()
@@ -79,6 +79,7 @@ impl Slice {
                     .sum();
                 (line, area)
             })
+            .filter(|(_,area)| area.abs() > 0.0001)
             .collect();
 
         lines_and_area.sort_by(|(_l1, a1), (_l2, a2)| a2.partial_cmp(a1).unwrap());

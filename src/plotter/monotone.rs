@@ -63,8 +63,8 @@ enum Orientation {
 pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
     //Convert polygon to Monotone points
     //Simplify to remove self intersections
-    let mut mono_points = std::iter::once(poly.simplifyvw_preserve(&0.01).exterior())
-        .chain(poly.simplifyvw_preserve(&0.01).interiors().iter())
+    let mut mono_points = std::iter::once(poly.simplifyvw_preserve(&0.0001).exterior())
+        .chain(poly.simplifyvw_preserve(&0.0001).interiors().iter())
         .map(|line_string| {
             line_string
                 .0
