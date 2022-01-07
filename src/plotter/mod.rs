@@ -123,6 +123,14 @@ impl Slice {
     pub fn get_entire_slice_polygon(&self) -> &MultiPolygon<f64> {
         &self.main_polygon
     }
+    pub fn get_support_polygon(&self) -> MultiPolygon<f64> {
+        match (self.support_tower.clone(),self.support_interface.clone()) {
+            (None,None) => { MultiPolygon(vec![])}
+            (Some(tower),None) => { tower}
+            (None,Some(interface)) => { interface}
+            (Some(tower),Some(interface)) => { tower.union_with(&interface)}
+        }
+    }
 
     pub fn slice_perimeters_into_chains(&mut self, number_of_perimeters: usize) {
         if let Some(mc) = inset_polygon_recursive(

@@ -19,13 +19,17 @@ impl ObjectPass for BrimPass {
                 objects
                     .iter()
                     .map(|poly| {
-                        poly.layers
+                        let first_slice = poly.layers
                             .get(0)
-                            .expect("Object needs a Slice")
-                            .get_entire_slice_polygon()
+                            .expect("Object needs a Slice");
+
+                        first_slice.get_entire_slice_polygon()
                             .0
                             .clone()
                             .into_iter()
+                            .chain(
+                                first_slice.get_support_polygon().into_iter()
+                            )
                     })
                     .flatten()
                     .collect(),
@@ -38,6 +42,31 @@ impl ObjectPass for BrimPass {
                 .get_mut(0)
                 .expect("Object needs a Slice")
                 .generate_brim(first_layer_multipolygon, *width);
+        }
+    }
+}
+
+pub struct SupportTowerPass {}
+
+impl ObjectPass for SupportTowerPass {
+    fn pass(objects: &mut Vec<Object>, settings: &Settings) {
+        if let Some(support) = &settings.support {
+            println!("Generating Support Towers");
+            //Add to first object
+
+            objects
+                .par_iter_mut()
+                .for_each(|obj| {
+                    (1..obj.layers.len()).into_iter().rev().for_each(|q| {
+                        //todo Fix this, it feels hacky
+                        if let [ref mut layer, ref mut above, ..] = &mut obj.layers[(q - 1..=q)] {
+                            layer.add_support_polygons(&above, &support);
+                        } else {
+                            unreachable!()
+                        }
+                    });
+                });
+
         }
     }
 }
@@ -56,19 +85,12 @@ impl ObjectPass for SkirtPass {
                         .layers
                         .iter()
                         .take(skirt.layers)
-                        .map(|m| m.get_entire_slice_polygon())
+                        .map(|m| m.get_entire_slice_polygon().union_with(&m.get_support_polygon()))
                 })
                 .flatten()
                 .fold(
-                    objects
-                        .get(0)
-                        .expect("Needs an object")
-                        .layers
-                        .get(0)
-                        .expect("Object needs a Slice")
-                        .get_entire_slice_polygon()
-                        .clone(),
-                    |a, b| a.union_with(b),
+                    MultiPolygon(vec![]),
+                    |a, b| a.union_with(&b),
                 )
                 .convex_hull();
 
@@ -196,15 +218,6 @@ pub struct SupportPass {}
 impl SlicePass for SupportPass {
     fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
         if let Some(support) = &settings.support {
-            println!("Generating Moves: Support");
-            (1..slices.len()).into_iter().rev().for_each(|q| {
-                //todo Fix this, it feels hacky
-                if let [ref mut layer, ref mut above, ..] = &mut slices[(q - 1..=q)] {
-                    layer.add_support_polygons(&above, &support);
-                } else {
-                    unreachable!()
-                }
-            });
 
             for slice in slices.iter_mut() {
                 slice.fill_support_polygons(&support);

@@ -61,6 +61,9 @@ fn main() {
 
     println!("Generating Moves");
 
+    //Creates Support Towers
+    SupportTowerPass::pass(&mut objects, &settings);
+
     //Adds a skirt
     SkirtPass::pass(&mut objects, &settings);
 
