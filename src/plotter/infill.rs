@@ -273,22 +273,23 @@ pub fn spaced_fill_polygon(
                 //add moves to connect lines together
                 if start_point.is_some() {
                     //Only if not first point
-                    if let Some(mut y) = connect_chain.get(0).map(|c| c.y) {
-                        for point in connect_chain {
-                            moves.push(Move {
-                                end: point,
-                                //don''t fill lateral y moves
-                                move_type: if (y - point.y).abs() < f64::EPSILON {
-                                    MoveType::Travel
-                                } else {
-                                    fill_type
-                                },
-                                width: settings.layer_width,
-                            });
+                    let mut y = None;
 
-                            y = point.y;
-                        }
+                    for point in connect_chain {
+                        moves.push(Move {
+                            end: point,
+                            //don''t fill lateral y moves
+                            move_type: if y == Some(point.y) {
+                                MoveType::Travel
+                            } else {
+                                fill_type
+                            },
+                            width: settings.layer_width,
+                        });
+
+                        y = Some(point.y);
                     }
+
                 }
 
                 start_point = start_point.or(Some(Coordinate {
