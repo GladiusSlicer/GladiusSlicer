@@ -86,6 +86,9 @@ fn main() {
 
         //Fill Remaining areas
         FillAreaPass::pass(&mut slices, &settings);
+
+        //Order the move chains
+        OrderPass::pass(&mut slices, &settings);
     });
 
     println!("Convert into Commnds");

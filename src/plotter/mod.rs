@@ -308,44 +308,49 @@ impl Slice {
         );
     }
 
+    pub fn order_chains(&mut self){
+        //Order Chains for fastest print
+        let mut ordered_chains = if !self.chains.is_empty() {
+            let mut ordered_chains = vec![self.chains.swap_remove(0)];
+
+            while !self.chains.is_empty() {
+                let index = self
+                    .chains
+                    .iter()
+                    .position_min_by_key(|a| {
+                        OrderedFloat(
+                            ordered_chains
+                                .last()
+                                .unwrap()
+                                .moves
+                                .last()
+                                .unwrap()
+                                .end
+                                .euclidean_distance(&a.start_point),
+                        )
+                    })
+                    .unwrap();
+                let closest_chain = self.chains.remove(index);
+                ordered_chains.push(closest_chain);
+            }
+
+            ordered_chains
+        } else {
+            vec![]
+        };
+
+        self.chains = ordered_chains;
+    }
+
     pub fn slice_into_commands(&mut self, commands: &mut Vec<Command>, layer_thickness: f64) {
         if !self.fixed_chains.is_empty() {
-            //Order Chains for fastest print
-            let mut ordered_chains = if !self.chains.is_empty() {
-                let mut ordered_chains = vec![self.chains.swap_remove(0)];
-
-                while !self.chains.is_empty() {
-                    let index = self
-                        .chains
-                        .iter()
-                        .position_min_by_key(|a| {
-                            OrderedFloat(
-                                ordered_chains
-                                    .last()
-                                    .unwrap()
-                                    .moves
-                                    .last()
-                                    .unwrap()
-                                    .end
-                                    .euclidean_distance(&a.start_point),
-                            )
-                        })
-                        .unwrap();
-                    let closest_chain = self.chains.remove(index);
-                    ordered_chains.push(closest_chain);
-                }
-
-                ordered_chains
-            } else {
-                vec![]
-            };
 
             let mut full_moves = vec![];
             let starting_point = self.fixed_chains[0].start_point;
             for chain in self
                 .fixed_chains
                 .iter_mut()
-                .chain(ordered_chains.iter_mut())
+                .chain(self.chains.iter_mut())
             {
                 full_moves.push(Move {
                     end: chain.start_point,
