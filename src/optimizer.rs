@@ -5,20 +5,6 @@ use geo::euclidean_distance::EuclideanDistance;
 use geo::{Coordinate, Line};
 use itertools::Itertools;
 
-pub fn optimize_commands(cmds: &mut Vec<Command>, settings: &Settings) {
-    let mut size = cmds.len();
-    //arc_optomizer(cmds);
-    while {
-        state_optomizer(cmds);
-        unary_optimizer(cmds);
-        binary_optimizer(cmds, settings);
-
-        cmds.len() != size
-    } {
-        size = cmds.len()
-    }
-}
-
 pub fn unary_optimizer(cmds: &mut Vec<Command>) {
     cmds.retain(|cmd| match cmd {
         Command::MoveTo { .. } => true,

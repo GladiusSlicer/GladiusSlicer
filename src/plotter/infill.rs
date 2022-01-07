@@ -289,7 +289,6 @@ pub fn spaced_fill_polygon(
 
                         y = Some(point.y);
                     }
-
                 }
 
                 start_point = start_point.or(Some(Coordinate {

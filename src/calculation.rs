@@ -1,12 +1,15 @@
 use crate::*;
 
-pub struct CalculatedValues{
+pub struct CalculatedValues {
     pub plastic_used: f64,
     pub total_time: f64,
 }
 
-pub fn calculate_values(moves: & Vec<Command>, settings: &Settings) -> CalculatedValues{
-    let mut values = CalculatedValues{plastic_used: 0.0, total_time: 0.0};
+pub fn calculate_values(moves: &Vec<Command>, settings: &Settings) -> CalculatedValues {
+    let mut values = CalculatedValues {
+        plastic_used: 0.0,
+        total_time: 0.0,
+    };
 
     let mut current_speed = 0.0;
     let mut current_pos = Coordinate { x: 0.0, y: 0.0 };
@@ -56,5 +59,4 @@ pub fn calculate_values(moves: & Vec<Command>, settings: &Settings) -> Calculate
     }
 
     values
-
 }

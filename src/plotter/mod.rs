@@ -9,7 +9,7 @@ use crate::plotter::perimeter::*;
 use crate::plotter::polygon_operations::PolygonOperations;
 use crate::settings::{LayerSettings, SkirtSettings};
 use crate::types::{Command, Move, MoveChain, MoveType};
-use crate::Settings;
+use crate::{Object, Settings, StateChange};
 use geo::coordinate_position::CoordPos;
 use geo::coordinate_position::CoordinatePosition;
 use geo::prelude::*;
@@ -308,9 +308,9 @@ impl Slice {
         );
     }
 
-    pub fn order_chains(&mut self){
+    pub fn order_chains(&mut self) {
         //Order Chains for fastest print
-        let mut ordered_chains = if !self.chains.is_empty() {
+        let ordered_chains = if !self.chains.is_empty() {
             let mut ordered_chains = vec![self.chains.swap_remove(0)];
 
             while !self.chains.is_empty() {
@@ -344,14 +344,9 @@ impl Slice {
 
     pub fn slice_into_commands(&mut self, commands: &mut Vec<Command>, layer_thickness: f64) {
         if !self.fixed_chains.is_empty() {
-
             let mut full_moves = vec![];
             let starting_point = self.fixed_chains[0].start_point;
-            for chain in self
-                .fixed_chains
-                .iter_mut()
-                .chain(self.chains.iter_mut())
-            {
+            for chain in self.fixed_chains.iter_mut().chain(self.chains.iter_mut()) {
                 full_moves.push(Move {
                     end: chain.start_point,
                     move_type: MoveType::Travel,
@@ -427,4 +422,58 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
         .min_by(|(_, l_sum), (_, r_sum)| l_sum.partial_cmp(r_sum).unwrap())
         .map(|((x, y), _)| -90.0 - (y).atan2(x).to_degrees())
         .unwrap_or(0.0)
+}
+
+pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> Vec<Command> {
+    println!("Convert into Commnds");
+    let mut layer_moves: Vec<(f64, Vec<Command>)> = objects
+        .into_iter()
+        .enumerate()
+        .map(|(object_num, object)| {
+            let mut last_layer = 0.0;
+
+            object
+                .layers
+                .into_iter()
+                .enumerate()
+                .map(|(layer_num, mut slice)| {
+                    let layer_settings = settings.get_layer_settings(layer_num, slice.top_height);
+                    let mut moves = vec![];
+                    moves.push(Command::ChangeObject { object: object_num });
+                    moves.push(Command::LayerChange {
+                        z: slice.top_height,
+                    });
+                    moves.push(Command::SetState {
+                        new_state: StateChange {
+                            extruder_temp: Some(layer_settings.extruder_temp),
+                            bed_temp: Some(layer_settings.bed_temp),
+                            fan_speed: Some(if layer_num < settings.fan.disable_fan_for_layers {
+                                0.0
+                            } else {
+                                settings.fan.fan_speed
+                            }),
+                            movement_speed: None,
+                            acceleration: None,
+                            retract: None,
+                        },
+                    });
+                    slice.slice_into_commands(&mut moves, slice.top_height - last_layer);
+
+                    last_layer = slice.top_height;
+                    (slice.top_height, moves)
+                })
+                .collect::<Vec<(f64, Vec<Command>)>>()
+        })
+        .map(|a| a.into_iter())
+        .flatten()
+        .collect();
+
+    layer_moves
+        .sort_by(|(a, _), (b, _)| a.partial_cmp(b).expect("No NAN layer heights are allowed"));
+
+    layer_moves
+        .into_iter()
+        .map(|(_, layer_moves)| layer_moves)
+        .flatten()
+        .collect()
 }

@@ -238,14 +238,12 @@ impl SlicePass for FillAreaPass {
 pub struct OrderPass {}
 
 impl SlicePass for OrderPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
         println!("Generating Moves: Order Chains");
 
         //Fill all remaining areas
-        slices
-            .par_iter_mut()
-            .for_each(|slice| {
-                slice.order_chains();
-            });
+        slices.par_iter_mut().for_each(|slice| {
+            slice.order_chains();
+        });
     }
 }

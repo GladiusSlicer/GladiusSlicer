@@ -1,5 +1,4 @@
 use crate::*;
-use geo::*;
 
 pub fn slice(towers: &Vec<TriangleTower>, settings: &Settings) -> Vec<Object> {
     towers.into_iter().map(|tower| {

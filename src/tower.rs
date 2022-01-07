@@ -633,7 +633,7 @@ impl<'s> TriangleTowerIterator<'s> {
     }
 }
 
-pub fn create_towers(models: &Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>) -> Vec<TriangleTower>{
+pub fn create_towers(models: &Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>) -> Vec<TriangleTower> {
     models
         .into_iter()
         .map(|(vertices, triangles)| {

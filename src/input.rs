@@ -1,8 +1,9 @@
 use crate::*;
 
-pub fn files_input(settings_path: Option<&str>, input : Option<Vec<String>> ) -> (Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, Settings){
-
-
+pub fn files_input(
+    settings_path: Option<&str>,
+    input: Option<Vec<String>>,
+) -> (Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, Settings) {
     let settings_res: Result<Settings, SlicerErrors> = {
         if let Some(str) = settings_path {
             load_settings(str)
@@ -20,7 +21,6 @@ pub fn files_input(settings_path: Option<&str>, input : Option<Vec<String>> ) ->
             }
         }
     };
-
 
     println!("Loading Input");
 
@@ -112,9 +112,8 @@ pub fn files_input(settings_path: Option<&str>, input : Option<Vec<String>> ) ->
         })
         .flatten()
         .collect();
-    (converted_inputs,settings)
+    (converted_inputs, settings)
 }
-
 
 fn load_settings(filepath: &str) -> Result<Settings, SlicerErrors> {
     let settings_data =
