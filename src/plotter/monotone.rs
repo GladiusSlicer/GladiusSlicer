@@ -65,7 +65,7 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
     //Simplify to remove self intersections
     let mut mono_points = std::iter::once(poly.simplifyvw_preserve(&0.0001).exterior())
         .chain(poly.simplifyvw_preserve(&0.0001).interiors().iter())
-        .map(|line_string| {
+        .flat_map(|line_string| {
             line_string
                 .0
                 .iter()
@@ -99,7 +99,6 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                     }
                 })
         })
-        .flatten()
         .collect::<BinaryHeap<MonotonePoint>>();
 
     let mut sweep_line_storage: Vec<MonotoneSection> = vec![];

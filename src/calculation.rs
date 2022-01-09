@@ -5,7 +5,7 @@ pub struct CalculatedValues {
     pub total_time: f64,
 }
 
-pub fn calculate_values(moves: &Vec<Command>, settings: &Settings) -> CalculatedValues {
+pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedValues {
     let mut values = CalculatedValues {
         plastic_used: 0.0,
         total_time: 0.0,

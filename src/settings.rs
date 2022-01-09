@@ -152,7 +152,7 @@ impl Settings {
             .layer_settings
             .iter()
             .filter(|(layer_range, _)| match layer_range {
-                LayerRange::LayerRange { end, start } => *start <= layer && layer <= *end,
+                LayerRange::LayerCountRange { end, start } => *start <= layer && layer <= *end,
                 LayerRange::HeightRange { end, start } => *start <= height && height <= *end,
                 LayerRange::SingleLayer(filter_layer) => *filter_layer == layer,
             })
@@ -355,7 +355,7 @@ impl PartialSettings {
             starting_gcode: self.starting_gcode.ok_or("starting_gcode")?,
             ending_gcode: self.ending_gcode.ok_or("ending_gcode")?,
 
-            layer_settings: self.layer_settings.unwrap_or(vec![]),
+            layer_settings: self.layer_settings.unwrap_or_default(),
         };
 
         Ok(settings)
@@ -446,7 +446,7 @@ impl PartialSettings {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum LayerRange {
     SingleLayer(usize),
-    LayerRange { start: usize, end: usize },
+    LayerCountRange { start: usize, end: usize },
     HeightRange { start: f64, end: f64 },
 }
 

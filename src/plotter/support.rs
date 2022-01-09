@@ -51,22 +51,18 @@ impl Slice {
         }*/
 
         if let Some(tower_polygon) = &self.support_tower {
-            self.fixed_chains.extend(
-                tower_polygon
-                    .iter()
-                    .map(|poly| {
-                        support_linear_fill_polygon(
-                            poly,
-                            layer_settings,
-                            MoveType::Support,
-                            support_settings.support_spacing,
-                            90.0,
-                            0.0,
-                        )
-                        .into_iter()
-                    })
-                    .flatten(),
-            );
+            self.fixed_chains
+                .extend(tower_polygon.iter().flat_map(|poly| {
+                    support_linear_fill_polygon(
+                        poly,
+                        layer_settings,
+                        MoveType::Support,
+                        support_settings.support_spacing,
+                        90.0,
+                        0.0,
+                    )
+                    .into_iter()
+                }));
         }
     }
 }

@@ -576,8 +576,7 @@ impl<'s> TriangleTowerIterator<'s> {
 
             let mut frags: Vec<TowerRing> = vec_frag?
                 .drain(..)
-                .map(|vec_frag| vec_frag.into_iter())
-                .flatten()
+                .flat_map(|vec_frag| vec_frag.into_iter())
                 .collect();
 
             //Add the new fragments
@@ -633,11 +632,11 @@ impl<'s> TriangleTowerIterator<'s> {
     }
 }
 
-pub fn create_towers(models: &Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>) -> Vec<TriangleTower> {
+pub fn create_towers(models: &[(Vec<Vertex>, Vec<IndexedTriangle>)]) -> Vec<TriangleTower> {
     models
-        .into_iter()
+        .iter()
         .map(|(vertices, triangles)| {
-            match TriangleTower::from_triangles_and_vertices(&triangles, vertices.clone()) {
+            match TriangleTower::from_triangles_and_vertices(triangles, vertices.clone()) {
                 Ok(tower) => tower,
                 Err(err) => {
                     err.show_error_message();

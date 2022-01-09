@@ -23,6 +23,7 @@ ordered-float = "2.8.0"
 zip = "0.5.13"
 rayon = "1.5.1"
 
+rand = "0.8.4"
 
 
 nom_stl = "0.2.2"

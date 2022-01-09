@@ -1,4 +1,3 @@
-
 use crate::loader::*;
 use crate::types::*;
 use clap::{load_yaml, App};
@@ -72,34 +71,34 @@ fn main() {
     BrimPass::pass(&mut objects, &settings);
 
     objects.par_iter_mut().for_each(|object| {
-        let mut slices = &mut object.layers;
+        let slices = &mut object.layers;
 
         //Shrink layer
-        ShrinkPass::pass(&mut slices, &settings);
+        ShrinkPass::pass(slices, &settings);
 
         //Handle Perimeters
-        PerimeterPass::pass(&mut slices, &settings);
+        PerimeterPass::pass(slices, &settings);
 
         //Handle Bridging
-        BridgingPass::pass(&mut slices, &settings);
+        BridgingPass::pass(slices, &settings);
 
         //Handle Top Layer
-        TopLayerPass::pass(&mut slices, &settings);
+        TopLayerPass::pass(slices, &settings);
 
         //Handle Top And Bottom Layers
-        TopAndBottomLayersPass::pass(&mut slices, &settings);
+        TopAndBottomLayersPass::pass(slices, &settings);
 
         //Handle Support
-        SupportPass::pass(&mut slices, &settings);
+        SupportPass::pass(slices, &settings);
 
         //Lightning Infill
-        LightningFillPass::pass(&mut slices, &settings);
+        LightningFillPass::pass(slices, &settings);
 
         //Fill Remaining areas
-        FillAreaPass::pass(&mut slices, &settings);
+        FillAreaPass::pass(slices, &settings);
 
         //Order the move chains
-        OrderPass::pass(&mut slices, &settings);
+        OrderPass::pass(slices, &settings);
     });
 
     let mut moves = convert_objects_into_moves(objects, &settings);

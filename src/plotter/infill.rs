@@ -34,8 +34,9 @@ pub fn linear_fill_polygon(
                 + (settings.layer_width / 2.0),
         )
         .iter()
-        .map(|polygon| spaced_fill_polygon(polygon, settings, fill_type, settings.layer_width, 0.0))
-        .flatten()
+        .flat_map(|polygon| {
+            spaced_fill_polygon(polygon, settings, fill_type, settings.layer_width, 0.0)
+        })
         .collect();
 
     for chain in new_moves.iter_mut() {
@@ -61,8 +62,7 @@ pub fn partial_linear_fill_polygon(
                 + (settings.layer_width / 2.0),
         )
         .iter()
-        .map(|polygon| spaced_fill_polygon(polygon, settings, fill_type, spacing, offset))
-        .flatten()
+        .flat_map(|polygon| spaced_fill_polygon(polygon, settings, fill_type, spacing, offset))
         .collect();
 
     for chain in new_moves.iter_mut() {
@@ -85,8 +85,7 @@ pub fn support_linear_fill_polygon(
     let mut new_moves: Vec<MoveChain> = rotate_poly
         .offset_from(-settings.layer_width / 2.0)
         .iter()
-        .map(|polygon| spaced_fill_polygon(&polygon, settings, fill_type, spacing, offset))
-        .flatten()
+        .flat_map(|polygon| spaced_fill_polygon(polygon, settings, fill_type, spacing, offset))
         .collect();
 
     for chain in new_moves.iter_mut() {

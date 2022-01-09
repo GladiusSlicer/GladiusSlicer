@@ -1,8 +1,8 @@
+use crate::plotter::lightning_infill::lightning_infill;
 use crate::{Object, PolygonOperations, Settings, Slice};
 use geo::prelude::*;
 use geo::*;
 use rayon::prelude::*;
-use crate::plotter::lightning_infill::lightning_infill;
 
 pub trait ObjectPass {
     fn pass(objects: &mut Vec<Object>, settings: &Settings);
@@ -19,7 +19,7 @@ impl ObjectPass for BrimPass {
             let first_layer_multipolygon: MultiPolygon<f64> = MultiPolygon(
                 objects
                     .iter()
-                    .map(|poly| {
+                    .flat_map(|poly| {
                         let first_slice = poly.layers.get(0).expect("Object needs a Slice");
 
                         first_slice
@@ -29,7 +29,6 @@ impl ObjectPass for BrimPass {
                             .into_iter()
                             .chain(first_slice.get_support_polygon().into_iter())
                     })
-                    .flatten()
                     .collect(),
             );
 
@@ -56,7 +55,7 @@ impl ObjectPass for SupportTowerPass {
                 (1..obj.layers.len()).into_iter().rev().for_each(|q| {
                     //todo Fix this, it feels hacky
                     if let [ref mut layer, ref mut above, ..] = &mut obj.layers[(q - 1..=q)] {
-                        layer.add_support_polygons(&above, &support);
+                        layer.add_support_polygons(above, support);
                     } else {
                         unreachable!()
                     }
@@ -75,13 +74,12 @@ impl ObjectPass for SkirtPass {
             println!("Generating Moves: Skirt");
             let convex_hull = objects
                 .iter()
-                .map(|object| {
+                .flat_map(|object| {
                     object.layers.iter().take(skirt.layers).map(|m| {
                         m.get_entire_slice_polygon()
                             .union_with(&m.get_support_polygon())
                     })
                 })
-                .flatten()
                 .fold(MultiPolygon(vec![]), |a, b| a.union_with(&b))
                 .convex_hull();
 
@@ -105,7 +103,7 @@ pub trait SlicePass {
 pub struct ShrinkPass {}
 
 impl SlicePass for ShrinkPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
         println!("Generating Moves: Shrink Layers");
         slices.par_iter_mut().for_each(|slice| {
             slice.shrink_layer();
@@ -215,12 +213,12 @@ impl SlicePass for TopAndBottomLayersPass {
         slices
             .par_iter_mut()
             .enumerate()
-            .filter(|(layer_num,_)| *layer_num < settings.bottom_layers || settings.top_layers + *layer_num + 1 > slice_count)
+            .filter(|(layer_num, _)| {
+                *layer_num < settings.bottom_layers
+                    || settings.top_layers + *layer_num + 1 > slice_count
+            })
             .for_each(|(layer_num, slice)| {
-                slice.fill_remaining_area(
-                    true,
-                    layer_num,
-                );
+                slice.fill_remaining_area(true, layer_num);
             });
     }
 }
@@ -231,7 +229,7 @@ impl SlicePass for SupportPass {
     fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
         if let Some(support) = &settings.support {
             for slice in slices.iter_mut() {
-                slice.fill_support_polygons(&support);
+                slice.fill_support_polygons(support);
             }
         }
     }
@@ -240,31 +238,25 @@ impl SlicePass for SupportPass {
 pub struct FillAreaPass {}
 
 impl SlicePass for FillAreaPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
         println!("Generating Moves: Fill Areas");
-
 
         //Fill all remaining areas
         slices
             .par_iter_mut()
             .enumerate()
             .for_each(|(layer_num, slice)| {
-                slice.fill_remaining_area(
-                    false,
-                    layer_num,
-                );
+                slice.fill_remaining_area(false, layer_num);
             });
     }
 }
 pub struct LightningFillPass {}
 
 impl SlicePass for LightningFillPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
         println!("Generating Moves: Lightning Infill");
 
         lightning_infill(slices);
-
-
     }
 }
 

@@ -33,7 +33,7 @@ impl CommandPass for SlowDownLayerPass {
         let mut current_pos = Coordinate { x: 0.0, y: 0.0 };
 
         {
-            let layers: Vec<(HashMap<OrderedFloat<f64>, f64>, f64, usize, usize)> = cmds
+            let reduction: Vec<(f64, usize, usize)> = cmds
                 .iter()
                 .enumerate()
                 .batching(|it| {
@@ -109,9 +109,6 @@ impl CommandPass for SlowDownLayerPass {
                         Some((map, non_move_time, start_index.unwrap(), end_index))
                     }
                 })
-                .collect();
-
-            layers
                 .into_iter()
                 .filter_map(|(map, time, start, end)| {
                     let mut total_time = time
@@ -149,17 +146,19 @@ impl CommandPass for SlowDownLayerPass {
                         None
                     }
                 })
-                .for_each(|(max_speed, start, end)| {
-                    for cmd in &mut cmds[start..end] {
-                        if let Command::SetState { new_state } = cmd {
-                            if let Some(speed) = &mut new_state.movement_speed {
-                                if *speed != settings.speed.travel {
-                                    *speed = speed.min(max_speed).max(settings.fan.min_print_speed);
-                                }
+                .collect();
+
+            reduction.into_iter().for_each(|(max_speed, start, end)| {
+                for cmd in &mut cmds[start..end] {
+                    if let Command::SetState { new_state } = cmd {
+                        if let Some(speed) = &mut new_state.movement_speed {
+                            if *speed != settings.speed.travel {
+                                *speed = speed.min(max_speed).max(settings.fan.min_print_speed);
                             }
                         }
                     }
-                });
+                }
+            });
         }
     }
 }

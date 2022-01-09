@@ -127,7 +127,7 @@ pub fn state_optomizer(cmds: &mut Vec<Command>) {
 
     for cmd_ptr in cmds {
         if let Command::SetState { new_state } = cmd_ptr {
-            *new_state = current_state.state_diff(&new_state);
+            *new_state = current_state.state_diff(new_state);
         }
     }
 }

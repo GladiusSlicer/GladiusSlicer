@@ -1,8 +1,8 @@
 use crate::*;
 
-pub fn slice(towers: &Vec<TriangleTower>, settings: &Settings) -> Vec<Object> {
-    towers.into_iter().map(|tower| {
-        let mut tower_iter = TriangleTowerIterator::new(&tower);
+pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Vec<Object> {
+    towers.iter().map(|tower| {
+        let mut tower_iter = TriangleTowerIterator::new(tower);
 
         let mut layer = 0.0;
 
@@ -43,7 +43,7 @@ pub fn slice(towers: &Vec<TriangleTower>, settings: &Settings) -> Vec<Object> {
                     bot,
                     top,
                     count,
-                    &settings
+                    settings
                 );
                 slice
             })

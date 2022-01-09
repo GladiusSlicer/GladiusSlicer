@@ -1,9 +1,9 @@
 mod infill;
+pub(crate) mod lightning_infill;
 mod monotone;
 mod perimeter;
 pub mod polygon_operations;
 mod support;
-pub(crate) mod lightning_infill;
 
 pub use crate::plotter::infill::*;
 use crate::plotter::perimeter::*;
@@ -71,7 +71,7 @@ impl Slice {
         let mut lines_and_area: Vec<(LineString<f64>, f64)> = lines
             .into_iter()
             .map(|line| {
-                let area : f64 = line
+                let area: f64 = line
                     .clone()
                     .into_points()
                     .iter()
@@ -80,7 +80,7 @@ impl Slice {
                     .sum();
                 (line, area)
             })
-            .filter(|(_,area)| area.abs() > 0.0001)
+            .filter(|(_, area)| area.abs() > 0.0001)
             .collect();
 
         lines_and_area.sort_by(|(_l1, a1), (_l2, a2)| a2.partial_cmp(a1).unwrap());
@@ -180,7 +180,7 @@ impl Slice {
                 }
             } else {
                 let new_moves = partial_infill_polygon(
-                    &poly,
+                    poly,
                     &self.layer_settings,
                     self.layer_settings.infill_percentage,
                     layer_count,
@@ -208,16 +208,10 @@ impl Slice {
         let angle = 45.0 + (120_f64) * layer_count as f64;
 
         let layer_settings = &self.layer_settings;
-        self.chains.extend(
-            &mut solid_area
-                .0
-                .iter()
-                .map(|poly| {
-                    linear_fill_polygon(&poly, layer_settings, MoveType::SolidInfill, angle)
-                        .into_iter()
-                })
-                .flatten(),
-        );
+        self.chains
+            .extend(&mut solid_area.0.iter().flat_map(|poly| {
+                linear_fill_polygon(poly, layer_settings, MoveType::SolidInfill, angle).into_iter()
+            }));
 
         self.remaining_area = self.remaining_area.difference_with(&solid_area)
     }
@@ -232,22 +226,17 @@ impl Slice {
             .intersection_with(&self.remaining_area);
 
         let layer_settings = &self.layer_settings;
-        self.chains.extend(
-            &mut solid_area
-                .0
-                .iter()
-                .map(|poly| {
-                    let unsupported_area: MultiPolygon<f64> = poly.difference_with(layer_below);
-                    let mut angle = get_optimal_bridge_angle(poly, &unsupported_area);
+        self.chains
+            .extend(&mut solid_area.0.iter().flat_map(|poly| {
+                let unsupported_area: MultiPolygon<f64> = poly.difference_with(layer_below);
+                let mut angle = get_optimal_bridge_angle(poly, &unsupported_area);
 
-                    if angle < 0.0 {
-                        angle += 180.0;
-                    }
+                if angle < 0.0 {
+                    angle += 180.0;
+                }
 
-                    linear_fill_polygon(poly, layer_settings, MoveType::Bridging, angle).into_iter()
-                })
-                .flatten(),
-        );
+                linear_fill_polygon(poly, layer_settings, MoveType::Bridging, angle).into_iter()
+            }));
 
         self.remaining_area = self.remaining_area.difference_with(&solid_area)
     }
@@ -310,7 +299,7 @@ impl Slice {
                     (i as f64 * layer_settings.layer_width) + (layer_settings.layer_width / 2.0)
                 })
                 .map(|distance| entire_first_layer.offset_from(distance))
-                .map(|multi| {
+                .flat_map(|multi| {
                     multi.into_iter().map(|poly| {
                         let moves = poly
                             .exterior()
@@ -329,8 +318,7 @@ impl Slice {
                             moves,
                         }
                     })
-                })
-                .flatten(),
+                }),
         );
     }
 
@@ -395,15 +383,13 @@ impl Slice {
 fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPolygon<f64>) -> f64 {
     let unsuported_lines: Vec<_> = unsupported_area
         .iter()
-        .map(|poly| std::iter::once(poly.exterior()).chain(poly.interiors().iter()))
-        .flatten()
-        .map(|line_string| {
+        .flat_map(|poly| std::iter::once(poly.exterior()).chain(poly.interiors().iter()))
+        .flat_map(|line_string| {
             line_string
                 .0
                 .iter()
                 .circular_tuple_windows::<(&Coordinate<f64>, &Coordinate<f64>)>()
         })
-        .flatten()
         .filter(|(&s, &f)| {
             //test the midpoint if it supported
             let mid_point = (s + f) / 2.0;
@@ -490,8 +476,7 @@ pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> 
                 })
                 .collect::<Vec<(f64, Vec<Command>)>>()
         })
-        .map(|a| a.into_iter())
-        .flatten()
+        .flat_map(|a| a.into_iter())
         .collect();
 
     layer_moves
@@ -499,7 +484,6 @@ pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> 
 
     layer_moves
         .into_iter()
-        .map(|(_, layer_moves)| layer_moves)
-        .flatten()
+        .flat_map(|(_, layer_moves)| layer_moves)
         .collect()
 }

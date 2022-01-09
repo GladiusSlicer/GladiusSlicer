@@ -37,7 +37,7 @@ pub fn files_input(
             });
             obj
         })
-        .map(|object| {
+        .flat_map(|object| {
             let model_path = Path::new(object.get_model_path());
 
             // Calling .unwrap() is safe here because "INPUT" is required (if "INPUT" wasn't
@@ -72,7 +72,7 @@ pub fn files_input(
                 InputObject::Raw(_, transform) => transform,
                 InputObject::Auto(_) | InputObject::AutoTranslate(_, _, _) => {
                     let (min_x, max_x, min_y, max_y, min_z) =
-                        models.iter().map(|(v, _t)| v.iter()).flatten().fold(
+                        models.iter().flat_map(|(v, _t)| v.iter()).fold(
                             (
                                 f64::INFINITY,
                                 f64::NEG_INFINITY,
@@ -110,7 +110,6 @@ pub fn files_input(
                 (v, t)
             })
         })
-        .flatten()
         .collect();
     (converted_inputs, settings)
 }
