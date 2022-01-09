@@ -2,6 +2,7 @@ use crate::{Object, PolygonOperations, Settings, Slice};
 use geo::prelude::*;
 use geo::*;
 use rayon::prelude::*;
+use crate::plotter::lightning_infill::lightning_infill;
 
 pub trait ObjectPass {
     fn pass(objects: &mut Vec<Object>, settings: &Settings);
@@ -208,6 +209,19 @@ impl SlicePass for TopAndBottomLayersPass {
                     }
                 });
         }
+
+        let slice_count = slices.len();
+
+        slices
+            .par_iter_mut()
+            .enumerate()
+            .filter(|(layer_num,_)| *layer_num < settings.bottom_layers || settings.top_layers + *layer_num + 1 > slice_count)
+            .for_each(|(layer_num, slice)| {
+                slice.fill_remaining_area(
+                    true,
+                    layer_num,
+                );
+            });
     }
 }
 
@@ -229,7 +243,6 @@ impl SlicePass for FillAreaPass {
     fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
         println!("Generating Moves: Fill Areas");
 
-        let slice_count = slices.len();
 
         //Fill all remaining areas
         slices
@@ -237,11 +250,21 @@ impl SlicePass for FillAreaPass {
             .enumerate()
             .for_each(|(layer_num, slice)| {
                 slice.fill_remaining_area(
-                    layer_num < settings.bottom_layers
-                        || settings.top_layers + layer_num + 1 > slice_count,
+                    false,
                     layer_num,
                 );
             });
+    }
+}
+pub struct LightningFillPass {}
+
+impl SlicePass for LightningFillPass {
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
+        println!("Generating Moves: Lightning Infill");
+
+        lightning_infill(slices);
+
+
     }
 }
 

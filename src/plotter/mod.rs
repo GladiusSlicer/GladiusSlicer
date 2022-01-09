@@ -3,6 +3,7 @@ mod monotone;
 mod perimeter;
 pub mod polygon_operations;
 mod support;
+pub(crate) mod lightning_infill;
 
 pub use crate::plotter::infill::*;
 use crate::plotter::perimeter::*;
@@ -191,6 +192,8 @@ impl Slice {
                 }
             }
         }
+
+        self.remaining_area = MultiPolygon(vec![])
     }
 
     pub fn fill_solid_subtracted_area(&mut self, other: &MultiPolygon<f64>, layer_count: usize) {

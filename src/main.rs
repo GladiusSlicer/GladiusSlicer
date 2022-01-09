@@ -1,3 +1,4 @@
+
 use crate::loader::*;
 use crate::types::*;
 use clap::{load_yaml, App};
@@ -90,6 +91,9 @@ fn main() {
 
         //Handle Support
         SupportPass::pass(&mut slices, &settings);
+
+        //Lightning Infill
+        LightningFillPass::pass(&mut slices, &settings);
 
         //Fill Remaining areas
         FillAreaPass::pass(&mut slices, &settings);
