@@ -100,6 +100,8 @@ pub fn lightning_layer(slice: &mut Slice, slice_above: Option<&mut Slice> , ligh
         }
     }
 
+    lightning_forest.shorten_and_straighten(&slice.layer_settings);
+
     let width = slice.layer_settings.layer_width;
     slice.chains.extend(lightning_forest.trees.iter()
         .map(|tree|{
@@ -108,6 +110,14 @@ pub fn lightning_layer(slice: &mut Slice, slice_above: Option<&mut Slice> , ligh
         .flatten()
     )
 }
+
+
+pub enum StraightenResponse{
+    Remove { remaining_len: f64},
+    Replace(LightningNode),
+    DoNothing
+}
+
 
 pub struct LightningNode{
     children: Vec<LightningNode>,
@@ -130,6 +140,92 @@ impl LightningNode{
         }
 
         self.children.push(node);
+    }
+
+    fn shorten_and_straighten(&mut self, parent_location: Coordinate<f64>,settings:&LayerSettings) -> StraightenResponse{
+        let l = self.location;
+        let max_move = settings.layer_width / 2.0;
+        let mut shorten_amount = max_move;
+
+
+        //reverse to make removals safe
+        for index in (0..self.children.len()).rev(){
+            let reponse = self.children.get_mut(index).unwrap().shorten_and_straighten(l,settings);
+            match reponse{
+                StraightenResponse::Remove{remaining_len} => {
+                    //handle the case where we need to remove more
+                    shorten_amount = remaining_len;
+                    self.children.remove(index);
+                }
+                StraightenResponse::Replace(new_node) => {
+                    std::mem::replace(self.children.get_mut(index).unwrap(), new_node);
+                }
+                StraightenResponse::DoNothing => {}
+            }
+
+        }
+
+        if self.children.is_empty(){
+            //No children so shorten directly
+            let line_len =  self.location.euclidean_distance(&parent_location);
+
+            if line_len > shorten_amount{
+                let dx = self.location.x - parent_location.x;
+                let dy = self.location.y - parent_location.y;
+
+                let newdx = dx * ((line_len -shorten_amount)/line_len);
+                let newdy = dy * ((line_len -shorten_amount)/line_len);
+
+                let newx = parent_location.x + newdx;
+                let newy = parent_location.y + newdy;
+
+
+                self.location = Coordinate{x: newx,y:newy};
+
+                StraightenResponse::DoNothing
+            }
+            else{
+
+                StraightenResponse::Remove {remaining_len: shorten_amount - line_len}
+            }
+        }
+        else {
+            if self.children.len() ==1{
+
+                let child_location = self.children[0].location;
+                if l == parent_location{
+                    //dont straighten the starts of trees
+                    StraightenResponse::DoNothing
+                }
+                else {
+                    let midpoint = (child_location + parent_location) / 2.0;
+
+                    let line_len = child_location.euclidean_distance(&midpoint);
+                    if line_len > max_move/4.0 {
+                        let dx = midpoint.x - child_location.x;
+                        let dy = midpoint.y - child_location.y;
+
+                        let newdx = dx * ((line_len - max_move/4.0) / line_len);
+                        let newdy = dy * ((line_len - max_move/4.0) / line_len);
+
+                        let newx = child_location.x + newdx;
+                        let newy = child_location.y + newdy;
+
+                        self.location = Coordinate { x: newx, y: newy };
+
+                        StraightenResponse::DoNothing
+                    } else {
+                        let child = self.children.remove(0);
+                        StraightenResponse::Replace(child)
+                    }
+                }
+            }
+            else {
+                StraightenResponse::DoNothing
+            }
+        }
+
+
     }
 
 
@@ -289,6 +385,24 @@ impl LightningForest {
         fragments
     }
 
+    fn shorten_and_straighten(&mut self, settings:&LayerSettings) {
+        for index in (0..self.trees.len()).rev(){
+            let tree_l = self.trees.get(index).unwrap().location;
+
+            let reponse = self.trees.get_mut(index).unwrap().shorten_and_straighten(tree_l,settings);
+            match reponse{
+                StraightenResponse::Remove{..} => {
+                    self.trees.remove(index);
+                }
+                StraightenResponse::Replace(new_node) => {
+                    unreachable!()
+                }
+                StraightenResponse::DoNothing => {}
+            }
+
+        }
+
+    }
 
 }
 
