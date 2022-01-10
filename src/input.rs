@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+use std::str::FromStr;
 use crate::*;
 
 pub fn files_input(
@@ -32,6 +34,7 @@ pub fn files_input(
         .iter()
         .map(|value| {
             let obj: InputObject = deser_hjson::from_str(value).unwrap_or_else(|_| {
+                println!("{}", value);
                 SlicerErrors::InputMisformat.show_error_message();
                 std::process::exit(-1);
             });
@@ -123,10 +126,19 @@ fn load_settings(filepath: &str) -> Result<Settings, SlicerErrors> {
         deser_hjson::from_str(&settings_data).map_err(|_| SlicerErrors::SettingsFileMisformat {
             filepath: filepath.to_string(),
         })?;
-    let settings = partial_settings.get_settings().map_err(|err| {
-        SlicerErrors::SettingsFileMissingSettings {
-            missing_setting: err,
-        }
+    let current_path = std::env::current_dir().unwrap();
+    let mut path = PathBuf::from_str(filepath).map_err(|_| SlicerErrors::SettingsFileNotFound {
+        filepath: filepath.to_string(),
     })?;
+
+    path.pop();
+
+    std::env::set_current_dir(&path);
+
+    let settings = partial_settings.get_settings()?;
+
+    //reset path
+    std::env::set_current_dir(current_path);
+
     Ok(settings)
 }

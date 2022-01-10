@@ -1,6 +1,10 @@
 # Changelog
 
+## [Unreleased]
+### New Features
 
+### Fixes
+- Other files for settings are now relative to the main settings file
 
 ## [0.2.0]
 ### New Features

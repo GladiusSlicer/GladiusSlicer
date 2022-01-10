@@ -1,5 +1,6 @@
 use crate::plotter::PartialInfillTypes;
 use serde::{Deserialize, Serialize};
+use crate::SlicerErrors;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
@@ -317,66 +318,41 @@ pub struct PartialSettings {
 }
 
 impl PartialSettings {
-    pub fn get_settings(mut self) -> Result<Settings, String> {
-        self.combine_with_other_files();
+    pub fn get_settings(mut self) -> Result<Settings, SlicerErrors> {
+        self.combine_with_other_files()?;
 
-        let settings = Settings {
-            layer_height: self.layer_height.ok_or("layer_height")?,
-            layer_width: self.layer_width.ok_or("layer_width")?,
-            filament: self.filament.ok_or("filament")?,
-            fan: self.fan.ok_or("fan")?,
-            skirt: self.skirt,
-            support: self.support,
-            nozzle_diameter: self.nozzle_diameter.ok_or("nozzle_diameter")?,
-            retract_length: self.retract_length.ok_or("retract_length")?,
-            retract_lift_z: self.retract_lift_z.ok_or("retract_lift_z")?,
-            retract_speed: self.retract_speed.ok_or("retract_speed")?,
-            speed: self.speed.ok_or("speed")?,
-            acceleration: self.acceleration.ok_or("acceleration")?,
-            infill_percentage: self.infill_percentage.ok_or("infill_percentage")?,
-            inner_permimeters_first: self
-                .inner_permimeters_first
-                .ok_or("inner_permimeters_first")?,
-            number_of_perimeters: self.number_of_perimeters.ok_or("number_of_perimeters")?,
-            top_layers: self.top_layers.ok_or("top_layers")?,
-            bottom_layers: self.bottom_layers.ok_or("bottom_layers")?,
-            print_x: self.print_x.ok_or("print_x")?,
-            print_y: self.print_y.ok_or("print_y")?,
-            print_z: self.print_z.ok_or("print_z")?,
-            brim_width: self.brim_width,
-            layer_shrink_amount: self.layer_shrink_amount,
-            minimum_retract_distance: self
-                .minimum_retract_distance
-                .ok_or("minimum_retract_distance")?,
-            infill_perimeter_overlap_percentage: self
-                .infill_perimeter_overlap_percentage
-                .ok_or("infill_perimeter_overlap_percentage")?,
-            infill_type: self.infill_type.ok_or("infill_type")?,
-            starting_gcode: self.starting_gcode.ok_or("starting_gcode")?,
-            ending_gcode: self.ending_gcode.ok_or("ending_gcode")?,
-
-            layer_settings: self.layer_settings.unwrap_or_default(),
-        };
-
-        Ok(settings)
+        try_convert_partial_to_settings(self).map_err(|err| {
+            SlicerErrors::SettingsFileMissingSettings {
+                missing_setting: err,
+            }
+        })
     }
 
-    fn combine_with_other_files(&mut self) {
+    fn combine_with_other_files(&mut self) -> Result<(), SlicerErrors> {
         let files: Vec<String> = self
             .other_files
             .as_mut()
             .map(|of| of.drain(..).collect())
             .unwrap_or_default();
 
-        for file in files {
-            println!("file {}", file);
+        for file in &files {
+            println!("Loading Settings File {}", file);
             let mut ps: PartialSettings =
-                deser_hjson::from_str(&std::fs::read_to_string(file).unwrap()).unwrap();
+                deser_hjson::from_str(
+                    &std::fs::read_to_string(file).map_err(|_| SlicerErrors::SettingsRecursiveLoadError {
+                        filepath: file.to_string(),
+                    })?
 
-            ps.combine_with_other_files();
+                ).map_err(|_| SlicerErrors::SettingsFileMisformat {
+                    filepath: file.to_string(),
+                })?;
+
+            ps.combine_with_other_files()?;
 
             *self = self.combine(ps);
         }
+
+        Ok(())
     }
 
     fn combine(&self, other: PartialSettings) -> PartialSettings {
@@ -494,4 +470,44 @@ impl PartialLayerSettings {
             layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
         }
     }
+}
+
+fn try_convert_partial_to_settings(part : PartialSettings) -> Result<Settings,String> {
+    Ok(Settings {
+        layer_height: part.layer_height.ok_or("layer_height")?,
+        layer_width: part.layer_width.ok_or("layer_width")?,
+        filament: part.filament.ok_or("filament")?,
+        fan: part.fan.ok_or("fan")?,
+        skirt: part.skirt,
+        support: part.support,
+        nozzle_diameter: part.nozzle_diameter.ok_or("nozzle_diameter")?,
+        retract_length: part.retract_length.ok_or("retract_length")?,
+        retract_lift_z: part.retract_lift_z.ok_or("retract_lift_z")?,
+        retract_speed: part.retract_speed.ok_or("retract_speed")?,
+        speed: part.speed.ok_or("speed")?,
+        acceleration: part.acceleration.ok_or("acceleration")?,
+        infill_percentage: part.infill_percentage.ok_or("infill_percentage")?,
+        inner_permimeters_first: part
+            .inner_permimeters_first
+            .ok_or("inner_permimeters_first")?,
+        number_of_perimeters: part.number_of_perimeters.ok_or("number_of_perimeters")?,
+        top_layers: part.top_layers.ok_or("top_layers")?,
+        bottom_layers: part.bottom_layers.ok_or("bottom_layers")?,
+        print_x: part.print_x.ok_or("print_x")?,
+        print_y: part.print_y.ok_or("print_y")?,
+        print_z: part.print_z.ok_or("print_z")?,
+        brim_width: part.brim_width,
+        layer_shrink_amount: part.layer_shrink_amount,
+        minimum_retract_distance: part
+            .minimum_retract_distance
+            .ok_or("minimum_retract_distance")?,
+        infill_perimeter_overlap_percentage: part
+            .infill_perimeter_overlap_percentage
+            .ok_or("infill_perimeter_overlap_percentage")?,
+        infill_type: part.infill_type.ok_or("infill_type")?,
+        starting_gcode: part.starting_gcode.ok_or("starting_gcode")?,
+        ending_gcode: part.ending_gcode.ok_or("ending_gcode")?,
+
+        layer_settings: part.layer_settings.unwrap_or_default(),
+    })
 }

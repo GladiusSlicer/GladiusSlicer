@@ -10,6 +10,7 @@ pub enum SlicerErrors {
     TowerGeneration,
     NoInputProvided,
     InputMisformat,
+    SettingsRecursiveLoadError { filepath: String },
     UnspecifiedError(String),
 }
 
@@ -56,6 +57,9 @@ impl SlicerErrors {
             }
             SlicerErrors::InputMisformat  => {
                 (0x1009,"Input Incorrectly Formatted".to_string())
+            }
+            SlicerErrors::SettingsRecursiveLoadError { filepath } => {
+                (0x100A,format!("Failed to load addional settings file {}",filepath))
             }
             SlicerErrors::UnspecifiedError(err_string) => {
                 (0xFFFFFFFF,format!("Third Party Error. {}",err_string))
