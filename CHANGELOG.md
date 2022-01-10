@@ -2,7 +2,7 @@
 
 
 
-## [Unreleased]
+## [0.2.0]
 ### New Features
 - Updated 3MF support to include multiple object and multi model loading
 - Added brim support ( optional setting brim_width)

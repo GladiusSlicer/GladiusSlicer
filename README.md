@@ -58,9 +58,9 @@ Settings files are hJSON, a human readable json that supports comments. Examples
 * Combinable/Chainable Settings Files
 * STL File format
 * Layer slow down for small layers
-* Many other feature ( see settings file for more information)
 * Change settings based on layer
 * Elephant foot compensation
+* Many other feature ( see settings file for more information)
 
 ### In Progress
 * 3MF file format
@@ -77,6 +77,8 @@ Settings files are hJSON, a human readable json that supports comments. Examples
   * Errors often aren't graceful
 * Support Generation
   * Supports can be generated but they are poor
+* Lightning Infill
+  * Added and is functional but being watched for errors
 
 ### Coming Shortly
 

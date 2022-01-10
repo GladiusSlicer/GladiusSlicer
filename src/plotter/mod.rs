@@ -254,7 +254,7 @@ impl Slice {
             let angle = 45.0 + (120_f64) * layer_count as f64;
 
             let new_moves =
-                linear_fill_polygon(&poly, &self.layer_settings, MoveType::TopSolidInfill, angle);
+                linear_fill_polygon(poly, &self.layer_settings, MoveType::TopSolidInfill, angle);
 
             for chain in new_moves {
                 self.chains.push(chain);

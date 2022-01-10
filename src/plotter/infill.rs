@@ -113,7 +113,7 @@ pub enum PartialInfillTypes {
     Rectilinear,
     Triangle,
     Cubic,
-    Lightning
+    Lightning,
 }
 
 pub fn partial_infill_polygon(
@@ -208,7 +208,7 @@ pub fn partial_infill_polygon(
             ));
             fill
         }
-        PartialInfillTypes::Lightning =>{
+        PartialInfillTypes::Lightning => {
             unreachable!()
         }
     }

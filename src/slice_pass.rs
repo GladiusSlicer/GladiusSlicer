@@ -1,9 +1,9 @@
 use crate::plotter::lightning_infill::lightning_infill;
+use crate::plotter::PartialInfillTypes;
 use crate::{Object, PolygonOperations, Settings, Slice};
 use geo::prelude::*;
 use geo::*;
 use rayon::prelude::*;
-use crate::plotter::PartialInfillTypes;
 
 pub trait ObjectPass {
     fn pass(objects: &mut Vec<Object>, settings: &Settings);
