@@ -113,6 +113,7 @@ pub enum PartialInfillTypes {
     Rectilinear,
     Triangle,
     Cubic,
+    Lightning
 }
 
 pub fn partial_infill_polygon(
@@ -206,6 +207,9 @@ pub fn partial_infill_polygon(
                 layer_height / std::f64::consts::SQRT_2,
             ));
             fill
+        }
+        PartialInfillTypes::Lightning =>{
+            unreachable!()
         }
     }
 }

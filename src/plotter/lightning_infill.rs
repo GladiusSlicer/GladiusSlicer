@@ -32,11 +32,18 @@ pub fn lightning_layer(
     slice_above: Option<&mut Slice>,
     lightning_forest: &mut LightningForest,
 ) {
+    let spacing = slice.layer_settings.layer_width / slice.layer_settings.infill_percentage;
+    let overlap = ((-slice.layer_settings.layer_width / 2.0) * (1.0 - slice.layer_settings.infill_perimeter_overlap_percentage)) + (slice.layer_settings.layer_width / 2.0);
+    let inset_amount = slice.layer_settings.layer_height +overlap;
+
     let unsupported_area = if let Some(area_above) = slice_above.map(|sa| &sa.remaining_area) {
-        slice.remaining_area.difference_with(area_above)
+        slice.remaining_area.difference_with(area_above).offset_from(-(inset_amount))
     } else {
-        slice.remaining_area.clone()
+        slice.remaining_area.offset_from(-(inset_amount))
     };
+
+    let infill_area = slice.remaining_area.clone().offset_from(-overlap);
+
     let (min_x, max_x, min_y, max_y) = unsupported_area
         .iter()
         .flat_map(|poly| poly.exterior().0.iter())
@@ -50,10 +57,10 @@ pub fn lightning_layer(
             |a, b| (a.0.min(b.x), a.1.max(b.x), a.2.min(b.y), a.3.max(b.y)),
         );
 
-    let h_spacing = slice.layer_settings.layer_width / slice.layer_settings.infill_percentage;
+    let h_spacing = spacing;
     let v_spacing = h_spacing * (3.0_f64).sqrt() / 2.0;
 
-    let fragments = lightning_forest.reconnect_to_polygon_and_trim(&slice.remaining_area);
+    let fragments = lightning_forest.reconnect_to_polygon_and_trim(&infill_area);
 
     let mut points: Vec<_> = ((min_x / h_spacing) as usize..=(max_x / h_spacing) as usize + 1)
         .cartesian_product((min_y / v_spacing) as usize..=(max_y / v_spacing) as usize + 1)
@@ -73,7 +80,7 @@ pub fn lightning_layer(
         .chain(fragments.into_iter())
         .filter_map(|node| {
             if let Closest::SinglePoint(closest_point) =
-                slice.remaining_area.closest_point(&node.location.into())
+                infill_area.closest_point(&node.location.into())
             {
                 let closest_coordinate: Coordinate<f64> = closest_point.into();
                 let distance: f64 = node.location.euclidean_distance(&closest_coordinate);
@@ -91,7 +98,7 @@ pub fn lightning_layer(
         points.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
         for (node, _distance, closet) in points {
-            lightning_forest.add_node_to_tree(node, &closet)
+            lightning_forest.add_node_to_tree(node, &closet,inset_amount)
         }
     }
 
@@ -150,24 +157,24 @@ impl LightningNode {
         let mut shorten_amount = max_move;
 
         //reverse to make removals safe
-        for index in (0..self.children.len()).rev() {
-            let reponse = self
-                .children
-                .get_mut(index)
-                .unwrap()
-                .shorten_and_straighten(l, settings);
-            match reponse {
-                StraightenResponse::Remove { remaining_len } => {
-                    //handle the case where we need to remove more
-                    shorten_amount = remaining_len;
-                    self.children.remove(index);
+        self.children = self.children.drain(..)
+            .filter_map(|mut child|{
+                let reponse = child.shorten_and_straighten(l, settings);
+                match reponse {
+                    StraightenResponse::Remove { remaining_len } => {
+
+                        shorten_amount = remaining_len;
+                        None
+                    }
+                    StraightenResponse::Replace(new_node) => {
+                        Some(new_node)
+                    }
+                    StraightenResponse::DoNothing => {
+                        Some(child)
+                    }
                 }
-                StraightenResponse::Replace(new_node) => {
-                    self.children[index] = new_node;
-                }
-                StraightenResponse::DoNothing => {}
-            }
-        }
+            })
+            .collect();
 
         if self.children.is_empty() {
             //No children so shorten directly
@@ -192,23 +199,27 @@ impl LightningNode {
                 }
             }
         } else if self.children.len() == 1 {
+            let l = self.location;
             let child_location = self.children[0].location;
             if l == parent_location {
                 //dont straighten the starts of trees
                 StraightenResponse::DoNothing
             } else {
-                let midpoint = (child_location + parent_location) / 2.0;
+                let pl_dist = l.euclidean_distance(&parent_location);
+                let lc_dist = l.euclidean_distance(&child_location);
+                let pl_ratio = pl_dist / (pl_dist+lc_dist);
+                let midpoint = (child_location * (1.0-pl_ratio))+ (parent_location*pl_ratio) ;
 
-                let line_len = child_location.euclidean_distance(&midpoint);
-                if line_len > max_move / 4.0 {
-                    let dx = midpoint.x - child_location.x;
-                    let dy = midpoint.y - child_location.y;
+                let line_len = l.euclidean_distance(&midpoint);
+                if line_len > shorten_amount  {
+                    let dx = l.x-midpoint.x ;
+                    let dy = l.y-midpoint.y ;
 
-                    let newdx = dx * ((line_len - max_move / 4.0) / line_len);
-                    let newdy = dy * ((line_len - max_move / 4.0) / line_len);
+                    let newdx = dx * ((line_len - shorten_amount ) / line_len);
+                    let newdy = dy * ((line_len - shorten_amount ) / line_len);
 
-                    let newx = child_location.x + newdx;
-                    let newy = child_location.y + newdy;
+                    let newx = midpoint.x + newdx;
+                    let newy = midpoint.y + newdy;
 
                     self.location = Coordinate { x: newx, y: newy };
 
@@ -224,7 +235,13 @@ impl LightningNode {
     }
 
     fn get_closest_child(&self, point: &Coordinate<f64>) -> f64 {
-        let min_dist = self.location.euclidean_distance(point);
+        let min_dist = self.location.euclidean_distance(point) -
+            if self.children.len() >0 &&self.children.len() <4{
+                (2.0 /* - self.children.len() as f64*/) *0.45 /2.0
+            }
+            else{
+                0.0
+            };
         let min_child = self
             .children
             .iter()
@@ -340,12 +357,23 @@ impl LightningForest {
         &mut self,
         node: LightningNode,
         closest_point_on_polygon: &Coordinate<f64>,
+        min_distance : f64
     ) {
         let poly_dist = node.location.euclidean_distance(closest_point_on_polygon);
 
+        if poly_dist < min_distance{
+            //connect to polygon if below min distance
+            //handle minor wall movements
+            self.trees.push(LightningNode {
+                children: vec![node],
+                location: *closest_point_on_polygon,
+            });
+
+            return;
+        }
         if let Some((index, closest)) = self
             .trees
-            .iter()
+            .par_iter()
             .enumerate()
             .map(|(index, child)| (index, child.get_closest_child(&node.location)))
             .filter(|(_index, dist)| *dist < poly_dist)

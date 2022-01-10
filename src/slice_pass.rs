@@ -3,6 +3,7 @@ use crate::{Object, PolygonOperations, Settings, Slice};
 use geo::prelude::*;
 use geo::*;
 use rayon::prelude::*;
+use crate::plotter::PartialInfillTypes;
 
 pub trait ObjectPass {
     fn pass(objects: &mut Vec<Object>, settings: &Settings);
@@ -253,10 +254,12 @@ impl SlicePass for FillAreaPass {
 pub struct LightningFillPass {}
 
 impl SlicePass for LightningFillPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
-        println!("Generating Moves: Lightning Infill");
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
+        if settings.infill_type == PartialInfillTypes::Lightning {
+            println!("Generating Moves: Lightning Infill");
 
-        lightning_infill(slices);
+            lightning_infill(slices);
+        }
     }
 }
 
