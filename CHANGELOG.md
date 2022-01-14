@@ -5,6 +5,8 @@
 
 ### Fixes
 - Other files for settings are now relative to the main settings file
+- File extensions are case-insensitive now
+- Added fix for winding order issue 
 
 ## [0.2.0]
 ### New Features

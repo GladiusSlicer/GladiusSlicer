@@ -52,9 +52,9 @@ pub fn files_input(
                 .and_then(OsStr::to_str)
                 .expect("File Parse Issue");
 
-            let loader: &dyn Loader = match extension {
+            let loader: &dyn Loader = match extension.to_lowercase().as_str() {
                 "stl" => &STLLoader {},
-                "3MF" | "3mf" => &ThreeMFLoader {},
+                "3mf" => &ThreeMFLoader {},
                 _ => panic!("File Format {} not supported", extension),
             };
 

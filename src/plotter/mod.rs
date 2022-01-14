@@ -106,8 +106,8 @@ impl Slice {
             settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
 
         Slice {
-            main_polygon: multi_polygon.simplifyvw_preserve(&0.01),
-            remaining_area: multi_polygon,
+            main_polygon: multi_polygon.simplifyvw_preserve(&0.0001),
+            remaining_area: multi_polygon.simplifyvw_preserve(&0.0001),
             support_interface: None,
             support_tower: None,
             chains: vec![],
@@ -146,6 +146,7 @@ impl Slice {
 
         self.remaining_area = self
             .remaining_area
+
             .offset_from(-self.layer_settings.layer_width * number_of_perimeters as f64);
     }
 
@@ -159,7 +160,7 @@ impl Slice {
                 .support_interface
                 .as_ref()
                 .map(|interface| interface.offset_from(-shrink_ammount));
-            self.remaining_area = self.remaining_area.offset_from(-shrink_ammount);
+            self.remaining_area = self.remaining_area.offset_from(-shrink_ammount).simplifyvw_preserve(&0.0001);
         }
     }
 
