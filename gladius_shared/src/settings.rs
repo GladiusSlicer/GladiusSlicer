@@ -336,7 +336,6 @@ impl PartialSettings {
             .unwrap_or_default();
 
         for file in &files {
-            println!("Loading Settings File {}", file);
             let mut ps: PartialSettings =
                 deser_hjson::from_str(&std::fs::read_to_string(file).map_err(|_| {
                     SlicerErrors::SettingsRecursiveLoadError {

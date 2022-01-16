@@ -5,6 +5,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
+use crate::utils::show_error_message;
 
 #[inline]
 fn line_z_intersection(z: f64, v_start: Vertex, v_end: Vertex) -> Vertex {
@@ -639,7 +640,7 @@ pub fn create_towers(models: &[(Vec<Vertex>, Vec<IndexedTriangle>)]) -> Vec<Tria
             match TriangleTower::from_triangles_and_vertices(triangles, vertices.clone()) {
                 Ok(tower) => tower,
                 Err(err) => {
-                    err.show_error_message();
+                    show_error_message(err);
                     std::process::exit(-1);
                 }
             }

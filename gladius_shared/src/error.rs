@@ -15,18 +15,7 @@ pub enum SlicerErrors {
 }
 
 impl SlicerErrors {
-    pub fn show_error_message(&self) {
-        let (error_code, message) = self.get_code_and_message();
-        println!("\n");
-        println!("**************************************************");
-        println!("\tGladius Slicer Ran into an error");
-        println!("\tError Code: {:#X}", error_code);
-        println!("\t{}", message);
-        println!("**************************************************");
-        println!("\n\n\n");
-    }
-
-    fn get_code_and_message(&self) -> (u32, String) {
+    pub fn get_code_and_message(&self) -> (u32, String) {
         match self {
             SlicerErrors::ObjectFileNotFound { filepath } => {
                 (0x1000,format!("Could not load object file \"{}\". It was not found in the filesystem. Please check that the file exists and retry.",filepath))

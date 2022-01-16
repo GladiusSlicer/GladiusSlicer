@@ -19,6 +19,7 @@ use gladius_shared::types::{Command, Move, MoveChain, MoveType, Slice};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
+use log::info;
 
 pub trait Plotter {
     fn slice_perimeters_into_chains(&mut self, number_of_perimeters: usize);
@@ -334,7 +335,7 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
 }
 
 pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> Vec<Command> {
-    println!("Convert into Commnds");
+    info!("Convert into Commnds");
     let mut layer_moves: Vec<(f64, Vec<Command>)> = objects
         .into_iter()
         .enumerate()

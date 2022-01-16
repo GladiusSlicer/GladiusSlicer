@@ -4,6 +4,7 @@ use crate::plotter::Plotter;
 use crate::{Object, PolygonOperations, Settings, Slice};
 use geo::prelude::*;
 use geo::*;
+use log::info;
 use gladius_shared::types::PartialInfillTypes;
 use rayon::prelude::*;
 
@@ -16,7 +17,7 @@ pub struct BrimPass {}
 impl ObjectPass for BrimPass {
     fn pass(objects: &mut Vec<Object>, settings: &Settings) {
         if let Some(width) = &settings.brim_width {
-            println!("Generating Moves: Brim");
+            info!("Generating Moves: Brim");
             //Add to first object
 
             let first_layer_multipolygon: MultiPolygon<f64> = MultiPolygon(
@@ -51,7 +52,7 @@ pub struct SupportTowerPass {}
 impl ObjectPass for SupportTowerPass {
     fn pass(objects: &mut Vec<Object>, settings: &Settings) {
         if let Some(support) = &settings.support {
-            println!("Generating Support Towers");
+            info!("Generating Support Towers");
             //Add to first object
 
             objects.par_iter_mut().for_each(|obj| {
@@ -74,7 +75,7 @@ impl ObjectPass for SkirtPass {
     fn pass(objects: &mut Vec<Object>, settings: &Settings) {
         //Handle Perimeters
         if let Some(skirt) = &settings.skirt {
-            println!("Generating Moves: Skirt");
+            info!("Generating Moves: Skirt");
             let convex_hull = objects
                 .iter()
                 .flat_map(|object| {
@@ -108,7 +109,7 @@ pub struct ShrinkPass {}
 
 impl SlicePass for ShrinkPass {
     fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
-        println!("Generating Moves: Shrink Layers");
+        info!("Generating Moves: Shrink Layers");
         slices.par_iter_mut().for_each(|slice| {
             slice.shrink_layer();
         });
@@ -119,7 +120,7 @@ pub struct PerimeterPass {}
 
 impl SlicePass for PerimeterPass {
     fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
-        println!("Generating Moves: Perimeters");
+        info!("Generating Moves: Perimeters");
         slices.par_iter_mut().for_each(|slice| {
             slice.slice_perimeters_into_chains(settings.number_of_perimeters);
         });
@@ -130,7 +131,7 @@ pub struct BridgingPass {}
 
 impl SlicePass for BridgingPass {
     fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
-        println!("Generating Moves: Bridging");
+        info!("Generating Moves: Bridging");
         (1..slices.len()).into_iter().for_each(|q| {
             let below = slices[q - 1].main_polygon.clone();
 
@@ -142,7 +143,7 @@ pub struct TopLayerPass {}
 
 impl SlicePass for TopLayerPass {
     fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
-        println!("Generating Moves: Top Layer");
+        info!("Generating Moves: Top Layer");
         (0..slices.len() - 1).into_iter().for_each(|q| {
             let above = slices[q + 1].main_polygon.clone();
 
@@ -160,7 +161,7 @@ impl SlicePass for TopAndBottomLayersPass {
 
         //Make sure at least 1 layer will not be solid
         if slices.len() > bottom_layers + top_layers {
-            println!("Generating Moves: Above and below support");
+            info!("Generating Moves: Above and below support");
 
             (bottom_layers..slices.len() - top_layers)
                 .into_iter()
@@ -243,7 +244,7 @@ pub struct FillAreaPass {}
 
 impl SlicePass for FillAreaPass {
     fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
-        println!("Generating Moves: Fill Areas");
+        info!("Generating Moves: Fill Areas");
 
         //Fill all remaining areas
         slices
@@ -259,7 +260,7 @@ pub struct LightningFillPass {}
 impl SlicePass for LightningFillPass {
     fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
         if settings.infill_type == PartialInfillTypes::Lightning {
-            println!("Generating Moves: Lightning Infill");
+            info!("Generating Moves: Lightning Infill");
 
             lightning_infill(slices);
         }
@@ -270,7 +271,7 @@ pub struct OrderPass {}
 
 impl SlicePass for OrderPass {
     fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
-        println!("Generating Moves: Order Chains");
+        info!("Generating Moves: Order Chains");
 
         //Fill all remaining areas
         slices.par_iter_mut().for_each(|slice| {

@@ -1,6 +1,8 @@
 use crate::*;
 use std::path::PathBuf;
 use std::str::FromStr;
+use log::error;
+use crate::utils::show_error_message;
 
 pub fn files_input(
     settings_path: Option<&str>,
@@ -18,24 +20,24 @@ pub fn files_input(
         match settings_res {
             Ok(settings) => settings,
             Err(err) => {
-                err.show_error_message();
+                show_error_message(err);
                 std::process::exit(-1);
             }
         }
     };
 
-    println!("Loading Input");
+    info!("Loading Input");
 
     let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>)> = input
         .unwrap_or_else(|| {
-            SlicerErrors::NoInputProvided.show_error_message();
+            show_error_message(SlicerErrors::NoInputProvided);
             std::process::exit(-1);
         })
         .iter()
         .map(|value| {
             let obj: InputObject = deser_hjson::from_str(value).unwrap_or_else(|_| {
-                println!("{}", value);
-                SlicerErrors::InputMisformat.show_error_message();
+                error!("While Handling {}", value);
+                show_error_message(SlicerErrors::InputMisformat);
                 std::process::exit(-1);
             });
             obj
@@ -45,7 +47,7 @@ pub fn files_input(
 
             // Calling .unwrap() is safe here because "INPUT" is required (if "INPUT" wasn't
             // required we could have used an 'if let' to conditionally get the value)
-            println!("Using input file: {:?}", model_path);
+            debug!("Using input file: {:?}", model_path);
 
             let extension = model_path
                 .extension()
@@ -61,7 +63,7 @@ pub fn files_input(
             let models = match loader.load(model_path.to_str().unwrap()) {
                 Ok(v) => v,
                 Err(err) => {
-                    err.show_error_message();
+                    show_error_message(err);
                     std::process::exit(-1);
                 }
             };
@@ -103,7 +105,7 @@ pub fn files_input(
 
             let trans_str = serde_json::to_string(&transform).unwrap();
 
-            println!("Using Transform {}", trans_str);
+            debug!("Using Transform {}", trans_str);
 
             models.into_iter().map(move |(mut v, t)| {
                 for vert in v.iter_mut() {

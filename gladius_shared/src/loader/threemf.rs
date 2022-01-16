@@ -106,7 +106,6 @@ impl Loader for ThreeMFLoader {
         let rel: Relationships = serde_xml_rs::de::from_reader(rel_file).unwrap();
 
         let model_path = rel.relationship[0].target.clone();
-        println!("Model Path: {}", model_path);
 
         let model_file = match archive.by_name(&model_path[1..]) {
             Ok(file) => file,

@@ -13,7 +13,7 @@ args:
         required: false
         short: o
         takes_value: true
-    - verbose:
+    - VERBOSE:
         short: v
         multiple: true
         help: Sets the level of verbosity
@@ -22,3 +22,15 @@ args:
         required: false
         takes_value: true
         short: s
+    - MESSAGES:
+        help: Use the Message System ( useful for interprocess communication)
+        required: false
+        short: m
+
+groups:
+    # the name of the ArgGoup is specified here
+    - transforms:
+          # All args and groups that are a part of this group are set here
+          args:
+              - MESSAGES
+              - VERBOSE
