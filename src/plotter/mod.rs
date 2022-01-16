@@ -3,138 +3,38 @@ pub(crate) mod lightning_infill;
 mod monotone;
 mod perimeter;
 pub mod polygon_operations;
-mod support;
+pub(crate) mod support;
 
 pub use crate::plotter::infill::*;
 use crate::plotter::perimeter::*;
 use crate::plotter::polygon_operations::PolygonOperations;
-use crate::settings::{LayerSettings, SkirtSettings};
-use crate::types::{Command, Move, MoveChain, MoveType};
 use crate::{Object, Settings, StateChange};
 use geo::coordinate_position::CoordPos;
 use geo::coordinate_position::CoordinatePosition;
 use geo::prelude::*;
 use geo::simplifyvw::SimplifyVWPreserve;
 use geo::*;
+use gladius_shared::settings::{LayerSettings, SkirtSettings};
+use gladius_shared::types::{Command, Move, MoveChain, MoveType, Slice};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
 
-pub struct Slice {
-    main_polygon: MultiPolygon<f64>,
-    remaining_area: MultiPolygon<f64>,
-    support_interface: Option<MultiPolygon<f64>>,
-    support_tower: Option<MultiPolygon<f64>>,
-    fixed_chains: Vec<MoveChain>,
-    chains: Vec<MoveChain>,
-    pub bottom_height: f64,
-    pub top_height: f64,
-    layer_settings: LayerSettings,
+pub trait Plotter {
+    fn slice_perimeters_into_chains(&mut self, number_of_perimeters: usize);
+    fn shrink_layer(&mut self);
+    fn fill_remaining_area(&mut self, solid: bool, layer_count: usize);
+    fn fill_solid_subtracted_area(&mut self, other: &MultiPolygon<f64>, layer_count: usize);
+    fn fill_solid_bridge_area(&mut self, layer_below: &MultiPolygon<f64>);
+    fn fill_solid_top_layer(&mut self, layer_above: &MultiPolygon<f64>, layer_count: usize);
+    fn generate_skirt(&mut self, convex_polygon: &Polygon<f64>, skirt_settings: &SkirtSettings);
+    fn generate_brim(&mut self, entire_first_layer: MultiPolygon<f64>, brim_width: f64);
+    fn order_chains(&mut self);
+    fn slice_into_commands(&mut self, commands: &mut Vec<Command>, layer_thickness: f64);
 }
 
-impl Slice {
-    pub fn from_single_point_loop<I>(
-        line: I,
-        bottom_height: f64,
-        top_height: f64,
-        layer_count: usize,
-        settings: &Settings,
-    ) -> Self
-    where
-        I: Iterator<Item = (f64, f64)>,
-    {
-        let polygon = Polygon::new(LineString::from_iter(line), vec![]);
-
-        let layer_settings =
-            settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
-
-        Slice {
-            main_polygon: MultiPolygon(vec![polygon.simplifyvw_preserve(&0.01)]),
-            remaining_area: MultiPolygon(vec![polygon]),
-            support_interface: None,
-            support_tower: None,
-            fixed_chains: vec![],
-            chains: vec![],
-            bottom_height,
-            top_height,
-            layer_settings,
-        }
-    }
-
-    pub fn from_multiple_point_loop(
-        lines: MultiLineString<f64>,
-        bottom_height: f64,
-        top_height: f64,
-        layer_count: usize,
-        settings: &Settings,
-    ) -> Self {
-        let mut lines_and_area: Vec<(LineString<f64>, f64)> = lines
-            .into_iter()
-            .map(|line| {
-                let area: f64 = line
-                    .clone()
-                    .into_points()
-                    .iter()
-                    .circular_tuple_windows::<(_, _)>()
-                    .map(|(p1, p2)| (p1.x() + p2.x()) * (p2.y() - p1.y()))
-                    .sum();
-                (line, area)
-            })
-            .filter(|(_, area)| area.abs() > 0.0001)
-            .collect();
-
-        lines_and_area.sort_by(|(_l1, a1), (_l2, a2)| a2.partial_cmp(a1).unwrap());
-        let mut polygons = vec![];
-
-        for (line, area) in lines_and_area {
-            if area > 0.0 {
-                polygons.push(Polygon::new(line.clone(), vec![]));
-            } else {
-                //counter clockwise interior polygon
-                let smallest_polygon = polygons
-                    .iter_mut()
-                    .rev()
-                    .find(|poly| poly.contains(&line.0[0]))
-                    .expect("Polygon order failure");
-                smallest_polygon.interiors_push(line);
-            }
-        }
-
-        let multi_polygon: MultiPolygon<f64> = MultiPolygon(polygons);
-
-        let layer_settings =
-            settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
-
-        Slice {
-            main_polygon: multi_polygon.simplifyvw_preserve(&0.0001),
-            remaining_area: multi_polygon.simplifyvw_preserve(&0.0001),
-            support_interface: None,
-            support_tower: None,
-            chains: vec![],
-            fixed_chains: vec![],
-            bottom_height,
-            top_height,
-            layer_settings,
-        }
-    }
-
-    pub fn get_height(&self) -> f64 {
-        (self.bottom_height + self.top_height) / 2.0
-    }
-
-    pub fn get_entire_slice_polygon(&self) -> &MultiPolygon<f64> {
-        &self.main_polygon
-    }
-    pub fn get_support_polygon(&self) -> MultiPolygon<f64> {
-        match (self.support_tower.clone(), self.support_interface.clone()) {
-            (None, None) => MultiPolygon(vec![]),
-            (Some(tower), None) => tower,
-            (None, Some(interface)) => interface,
-            (Some(tower), Some(interface)) => tower.union_with(&interface),
-        }
-    }
-
-    pub fn slice_perimeters_into_chains(&mut self, number_of_perimeters: usize) {
+impl Plotter for Slice {
+    fn slice_perimeters_into_chains(&mut self, number_of_perimeters: usize) {
         if let Some(mc) = inset_polygon_recursive(
             &self.remaining_area,
             &self.layer_settings,
@@ -146,11 +46,10 @@ impl Slice {
 
         self.remaining_area = self
             .remaining_area
-
             .offset_from(-self.layer_settings.layer_width * number_of_perimeters as f64);
     }
 
-    pub fn shrink_layer(&mut self) {
+    fn shrink_layer(&mut self) {
         if let Some(shrink_ammount) = self.layer_settings.layer_shrink_amount {
             self.support_tower = self
                 .support_tower
@@ -160,11 +59,11 @@ impl Slice {
                 .support_interface
                 .as_ref()
                 .map(|interface| interface.offset_from(-shrink_ammount));
-            self.remaining_area = self.remaining_area.offset_from(-shrink_ammount).simplifyvw_preserve(&0.0001);
+            self.remaining_area = self.remaining_area.offset_from(-shrink_ammount);
         }
     }
 
-    pub fn fill_remaining_area(&mut self, solid: bool, layer_count: usize) {
+    fn fill_remaining_area(&mut self, solid: bool, layer_count: usize) {
         //For each region still available fill wih infill
         for poly in &self.remaining_area {
             if solid {
@@ -197,7 +96,7 @@ impl Slice {
         self.remaining_area = MultiPolygon(vec![])
     }
 
-    pub fn fill_solid_subtracted_area(&mut self, other: &MultiPolygon<f64>, layer_count: usize) {
+    fn fill_solid_subtracted_area(&mut self, other: &MultiPolygon<f64>, layer_count: usize) {
         //For each area not in this slice that is in the other polygon, fill solid
 
         let solid_area = self
@@ -217,7 +116,7 @@ impl Slice {
         self.remaining_area = self.remaining_area.difference_with(&solid_area)
     }
 
-    pub fn fill_solid_bridge_area(&mut self, layer_below: &MultiPolygon<f64>) {
+    fn fill_solid_bridge_area(&mut self, layer_below: &MultiPolygon<f64>) {
         //For each area not in this slice that is in the other polygon, fill solid
 
         let solid_area = self
@@ -242,7 +141,7 @@ impl Slice {
         self.remaining_area = self.remaining_area.difference_with(&solid_area)
     }
 
-    pub fn fill_solid_top_layer(&mut self, layer_above: &MultiPolygon<f64>, layer_count: usize) {
+    fn fill_solid_top_layer(&mut self, layer_above: &MultiPolygon<f64>, layer_count: usize) {
         //For each area not in this slice that is in the other polygon, fill solid
 
         let solid_area = self
@@ -265,11 +164,7 @@ impl Slice {
         self.remaining_area = self.remaining_area.difference_with(&solid_area)
     }
 
-    pub fn generate_skirt(
-        &mut self,
-        convex_polygon: &Polygon<f64>,
-        skirt_settings: &SkirtSettings,
-    ) {
+    fn generate_skirt(&mut self, convex_polygon: &Polygon<f64>, skirt_settings: &SkirtSettings) {
         let offset_hull_multi = convex_polygon.offset_from(skirt_settings.distance);
 
         assert_eq!(offset_hull_multi.0.len(), 1);
@@ -291,7 +186,8 @@ impl Slice {
             moves,
         });
     }
-    pub fn generate_brim(&mut self, entire_first_layer: MultiPolygon<f64>, brim_width: f64) {
+
+    fn generate_brim(&mut self, entire_first_layer: MultiPolygon<f64>, brim_width: f64) {
         let layer_settings = &self.layer_settings;
         self.fixed_chains.extend(
             (0..((brim_width / self.layer_settings.layer_width).floor() as usize))
@@ -323,7 +219,7 @@ impl Slice {
         );
     }
 
-    pub fn order_chains(&mut self) {
+    fn order_chains(&mut self) {
         //Order Chains for fastest print
         let ordered_chains = if !self.chains.is_empty() {
             let mut ordered_chains = vec![self.chains.swap_remove(0)];
@@ -357,7 +253,7 @@ impl Slice {
         self.chains = ordered_chains;
     }
 
-    pub fn slice_into_commands(&mut self, commands: &mut Vec<Command>, layer_thickness: f64) {
+    fn slice_into_commands(&mut self, commands: &mut Vec<Command>, layer_thickness: f64) {
         if !self.fixed_chains.is_empty() {
             let mut full_moves = vec![];
             let starting_point = self.fixed_chains[0].start_point;

@@ -1,6 +1,6 @@
-use crate::plotter::PartialInfillTypes;
+use crate::error::SlicerErrors;
+use crate::types::PartialInfillTypes;
 use serde::{Deserialize, Serialize};
-use crate::SlicerErrors;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
@@ -338,12 +338,12 @@ impl PartialSettings {
         for file in &files {
             println!("Loading Settings File {}", file);
             let mut ps: PartialSettings =
-                deser_hjson::from_str(
-                    &std::fs::read_to_string(file).map_err(|_| SlicerErrors::SettingsRecursiveLoadError {
+                deser_hjson::from_str(&std::fs::read_to_string(file).map_err(|_| {
+                    SlicerErrors::SettingsRecursiveLoadError {
                         filepath: file.to_string(),
-                    })?
-
-                ).map_err(|_| SlicerErrors::SettingsFileMisformat {
+                    }
+                })?)
+                .map_err(|_| SlicerErrors::SettingsFileMisformat {
                     filepath: file.to_string(),
                 })?;
 
@@ -472,7 +472,7 @@ impl PartialLayerSettings {
     }
 }
 
-fn try_convert_partial_to_settings(part : PartialSettings) -> Result<Settings,String> {
+fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, String> {
     Ok(Settings {
         layer_height: part.layer_height.ok_or("layer_height")?,
         layer_width: part.layer_width.ok_or("layer_width")?,

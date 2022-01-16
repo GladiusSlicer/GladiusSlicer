@@ -1,11 +1,11 @@
-use crate::loader::*;
-use crate::types::*;
 use clap::{load_yaml, App};
+use gladius_shared::loader::*;
+use gladius_shared::types::*;
 
-use crate::plotter::{convert_objects_into_moves, Slice};
-use crate::settings::{PartialSettings, Settings};
+use crate::plotter::convert_objects_into_moves;
 use crate::tower::*;
 use geo::*;
+use gladius_shared::settings::{PartialSettings, Settings};
 use std::fs::File;
 
 use std::ffi::OsStr;
@@ -14,11 +14,11 @@ use std::path::Path;
 use crate::calculation::calculate_values;
 use crate::command_pass::{CommandPass, OptimizePass, SlowDownLayerPass};
 use crate::coverter::*;
-use crate::error::SlicerErrors;
 use crate::input::files_input;
 use crate::plotter::polygon_operations::PolygonOperations;
 use crate::slice_pass::*;
 use crate::slicing::*;
+use gladius_shared::error::SlicerErrors;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use rayon::prelude::*;
@@ -27,16 +27,12 @@ use std::collections::HashMap;
 mod calculation;
 mod command_pass;
 mod coverter;
-mod error;
 mod input;
-mod loader;
 mod optimizer;
 mod plotter;
-mod settings;
 mod slice_pass;
 mod slicing;
 mod tower;
-mod types;
 
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found

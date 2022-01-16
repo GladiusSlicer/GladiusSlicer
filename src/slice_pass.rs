@@ -1,8 +1,10 @@
 use crate::plotter::lightning_infill::lightning_infill;
-use crate::plotter::PartialInfillTypes;
+use crate::plotter::support::Supporter;
+use crate::plotter::Plotter;
 use crate::{Object, PolygonOperations, Settings, Slice};
 use geo::prelude::*;
 use geo::*;
+use gladius_shared::types::PartialInfillTypes;
 use rayon::prelude::*;
 
 pub trait ObjectPass {
@@ -24,11 +26,11 @@ impl ObjectPass for BrimPass {
                         let first_slice = poly.layers.get(0).expect("Object needs a Slice");
 
                         first_slice
-                            .get_entire_slice_polygon()
+                            .main_polygon
                             .0
                             .clone()
                             .into_iter()
-                            .chain(first_slice.get_support_polygon().into_iter())
+                            .chain(first_slice.main_polygon.clone().into_iter())
                     })
                     .collect(),
             );
@@ -76,10 +78,11 @@ impl ObjectPass for SkirtPass {
             let convex_hull = objects
                 .iter()
                 .flat_map(|object| {
-                    object.layers.iter().take(skirt.layers).map(|m| {
-                        m.get_entire_slice_polygon()
-                            .union_with(&m.get_support_polygon())
-                    })
+                    object
+                        .layers
+                        .iter()
+                        .take(skirt.layers)
+                        .map(|m| m.main_polygon.union_with(&m.get_support_polygon()))
                 })
                 .fold(MultiPolygon(vec![]), |a, b| a.union_with(&b))
                 .convex_hull();
@@ -129,7 +132,7 @@ impl SlicePass for BridgingPass {
     fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
         println!("Generating Moves: Bridging");
         (1..slices.len()).into_iter().for_each(|q| {
-            let below = slices[q - 1].get_entire_slice_polygon().clone();
+            let below = slices[q - 1].main_polygon.clone();
 
             slices[q].fill_solid_bridge_area(&below);
         });
@@ -141,7 +144,7 @@ impl SlicePass for TopLayerPass {
     fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
         println!("Generating Moves: Top Layer");
         (0..slices.len() - 1).into_iter().for_each(|q| {
-            let above = slices[q + 1].get_entire_slice_polygon().clone();
+            let above = slices[q + 1].main_polygon.clone();
 
             slices[q].fill_solid_top_layer(&above, q);
         });
@@ -166,14 +169,14 @@ impl SlicePass for TopAndBottomLayersPass {
                         Some(
                             slices[(q - bottom_layers + 1)..q]
                                 .iter()
-                                .map(|m| m.get_entire_slice_polygon())
+                                .map(|m| m.main_polygon.clone())
                                 .fold(
                                     slices
                                         .get(q - bottom_layers)
                                         .expect("Bounds Checked above")
-                                        .get_entire_slice_polygon()
+                                        .main_polygon
                                         .clone(),
-                                    |a, b| a.intersection_with(b),
+                                    |a, b| a.intersection_with(&b),
                                 ),
                         )
                     } else {
@@ -183,14 +186,14 @@ impl SlicePass for TopAndBottomLayersPass {
                         Some(
                             slices[q + 1..q + top_layers + 1]
                                 .iter()
-                                .map(|m| m.get_entire_slice_polygon())
+                                .map(|m| m.main_polygon.clone())
                                 .fold(
                                     slices
                                         .get(q + 1)
                                         .expect("Bounds Checked above")
-                                        .get_entire_slice_polygon()
+                                        .main_polygon
                                         .clone(),
-                                    |a, b| a.intersection_with(b),
+                                    |a, b| a.intersection_with(&b),
                                 ),
                         )
                     } else {

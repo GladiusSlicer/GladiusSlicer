@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/gladius_shared/gladius_shared.iml" filepath="$PROJECT_DIR$/gladius_shared/gladius_shared.iml" />
       <module fileurl="file://$PROJECT_DIR$/gladius_slicer.iml" filepath="$PROJECT_DIR$/gladius_slicer.iml" />
     </modules>
   </component>

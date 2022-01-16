@@ -1,5 +1,5 @@
-use crate::types::*;
 use crate::SlicerErrors;
+use gladius_shared::types::*;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};

@@ -1,9 +1,9 @@
-use crate::settings::*;
 use crate::*;
 use geo::coordinate_position::{CoordPos, CoordinatePosition};
 use geo::euclidean_distance::EuclideanDistance;
 use geo::line_intersection::{line_intersection, LineIntersection};
 use geo::prelude::*;
+use gladius_shared::settings::*;
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;

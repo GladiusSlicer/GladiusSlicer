@@ -1,6 +1,6 @@
 use crate::plotter::monotone::get_monotone_sections;
-use crate::settings::LayerSettings;
-use crate::types::{Move, MoveChain, MoveType};
+use gladius_shared::settings::LayerSettings;
+use gladius_shared::types::{Move, MoveChain, MoveType, PartialInfillTypes};
 
 use serde::{Deserialize, Serialize};
 
@@ -14,10 +14,6 @@ pub trait SolidInfillFill {
 
 pub trait PartialInfillFill {
     fn fill(&self, filepath: &str) -> Vec<MoveChain>;
-}
-
-pub enum SolidInfillsTypes {
-    Rectilinear,
 }
 
 pub fn linear_fill_polygon(
@@ -105,15 +101,6 @@ pub fn solid_infill_polygon(
     let angle = 45.0 + (120_f64) * layer_count as f64;
 
     linear_fill_polygon(poly, settings, fill_type, angle)
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub enum PartialInfillTypes {
-    Linear,
-    Rectilinear,
-    Triangle,
-    Cubic,
-    Lightning,
 }
 
 pub fn partial_infill_polygon(

@@ -1,6 +1,6 @@
+use crate::*;
 use std::path::PathBuf;
 use std::str::FromStr;
-use crate::*;
 
 pub fn files_input(
     settings_path: Option<&str>,

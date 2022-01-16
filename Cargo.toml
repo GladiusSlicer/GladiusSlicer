@@ -5,6 +5,12 @@ authors = ["mrhatman <lucasince@gmail.com>"]
 edition = "2018"
 
 
+
+[workspace]
+members = [
+    "gladius_shared"
+]
+
 [dependencies]
 clap = { version = "2.33.3", features = ["yaml"] }
 simple_logger = "1.11.0"
@@ -18,12 +24,9 @@ geo-svg = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
 deser-hjson = "1.0.2"
 serde_json = "1.0.74"
-serde-xml-rs = "0.5.1"
 ordered-float = "2.8.0"
-zip = "0.5.13"
 rayon = "1.5.1"
 
 rand = "0.8.4"
 
-
-nom_stl = "0.2.2"
+gladius_shared = { path = "gladius_shared", version = "0.1.0" }

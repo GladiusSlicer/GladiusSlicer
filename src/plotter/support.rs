@@ -1,13 +1,16 @@
 use crate::plotter::support_linear_fill_polygon;
-use crate::settings::SupportSettings;
 use crate::{MoveType, PolygonOperations, Slice};
+use geo::MultiPolygon;
+use gladius_shared::settings::SupportSettings;
 
-impl Slice {
-    pub fn add_support_polygons(
-        &mut self,
-        slice_above: &Slice,
-        support_settings: &SupportSettings,
-    ) {
+pub trait Supporter {
+    fn add_support_polygons(&mut self, slice_above: &Slice, support_settings: &SupportSettings);
+    fn fill_support_polygons(&mut self, support_settings: &SupportSettings);
+    fn get_support_polygon(&self) -> MultiPolygon<f64>;
+}
+
+impl Supporter for Slice {
+    fn add_support_polygons(&mut self, slice_above: &Slice, support_settings: &SupportSettings) {
         let distance_between_layers = slice_above.get_height() - self.get_height();
         let max_overhang_distance =
             distance_between_layers * support_settings.max_overhang_angle.to_radians().tan();
@@ -36,7 +39,7 @@ impl Slice {
         }
     }
 
-    pub fn fill_support_polygons(&mut self, support_settings: &SupportSettings) {
+    fn fill_support_polygons(&mut self, support_settings: &SupportSettings) {
         let layer_settings = &self.layer_settings;
         /* if let Some(tower_polygon) = &self.support_interface{
 
@@ -63,6 +66,15 @@ impl Slice {
                     )
                     .into_iter()
                 }));
+        }
+    }
+
+    fn get_support_polygon(&self) -> MultiPolygon<f64> {
+        match (self.support_tower.clone(), self.support_interface.clone()) {
+            (None, None) => MultiPolygon(vec![]),
+            (Some(tower), None) => tower,
+            (None, Some(interface)) => interface,
+            (Some(tower), Some(interface)) => tower.union_with(&interface),
         }
     }
 }

@@ -1,5 +1,5 @@
+use crate::error::SlicerErrors;
 use crate::loader::*;
-use crate::SlicerErrors;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]

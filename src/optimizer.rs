@@ -1,8 +1,8 @@
-use crate::settings::Settings;
-use crate::types::{Command, StateChange};
 use geo::algorithm::euclidean_length::EuclideanLength;
 use geo::euclidean_distance::EuclideanDistance;
 use geo::{Coordinate, Line};
+use gladius_shared::settings::Settings;
+use gladius_shared::types::{Command, StateChange};
 use itertools::Itertools;
 
 pub fn unary_optimizer(cmds: &mut Vec<Command>) {

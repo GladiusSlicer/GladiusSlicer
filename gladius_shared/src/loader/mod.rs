@@ -1,9 +1,9 @@
+use crate::error::*;
 use crate::types::*;
 
 mod stl;
 mod threemf;
 
-use crate::SlicerErrors;
 pub use stl::STLLoader;
 pub use threemf::ThreeMFLoader;
 

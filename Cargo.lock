@@ -404,6 +404,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "gladius_shared"
+version = "0.1.0"
+dependencies = [
+ "deser-hjson",
+ "geo",
+ "itertools",
+ "nalgebra",
+ "nom_stl",
+ "serde",
+ "serde-xml-rs",
+ "serde_json",
+ "zip",
+]
+
+[[package]]
 name = "gladius_slicer"
 version = "0.1.0"
 dependencies = [
@@ -412,18 +427,16 @@ dependencies = [
  "geo",
  "geo-clipper",
  "geo-svg",
+ "gladius_shared",
  "itertools",
  "log",
  "nalgebra",
- "nom_stl",
  "ordered-float",
  "rand",
  "rayon",
  "serde",
- "serde-xml-rs",
  "serde_json",
  "simple_logger",
- "zip",
 ]
 
 [[package]]

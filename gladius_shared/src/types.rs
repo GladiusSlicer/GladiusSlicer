@@ -1,9 +1,128 @@
-use crate::plotter::Slice;
-use crate::settings::*;
-use geo::Coordinate;
+use crate::settings::{LayerSettings, Settings};
+use geo::contains::Contains;
+use geo::prelude::SimplifyVW;
+use geo::simplifyvw::SimplifyVWPreserve;
+use geo::*;
+use itertools::Itertools;
 use nalgebra::Point3;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+
+pub struct Slice {
+    pub main_polygon: MultiPolygon<f64>,
+    pub remaining_area: MultiPolygon<f64>,
+    pub support_interface: Option<MultiPolygon<f64>>,
+    pub support_tower: Option<MultiPolygon<f64>>,
+    pub fixed_chains: Vec<MoveChain>,
+    pub chains: Vec<MoveChain>,
+    pub bottom_height: f64,
+    pub top_height: f64,
+    pub layer_settings: LayerSettings,
+}
+impl Slice {
+    pub fn from_single_point_loop<I>(
+        line: I,
+        bottom_height: f64,
+        top_height: f64,
+        layer_count: usize,
+        settings: &Settings,
+    ) -> Self
+    where
+        I: Iterator<Item = (f64, f64)>,
+    {
+        let polygon = Polygon::new(LineString::from_iter(line), vec![]);
+
+        let layer_settings =
+            settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
+
+        Slice {
+            main_polygon: MultiPolygon(vec![polygon.simplifyvw_preserve(&0.01)]),
+            remaining_area: MultiPolygon(vec![polygon]),
+            support_interface: None,
+            support_tower: None,
+            fixed_chains: vec![],
+            chains: vec![],
+            bottom_height,
+            top_height,
+            layer_settings,
+        }
+    }
+
+    pub fn from_multiple_point_loop(
+        lines: MultiLineString<f64>,
+        bottom_height: f64,
+        top_height: f64,
+        layer_count: usize,
+        settings: &Settings,
+    ) -> Self {
+        let mut lines_and_area: Vec<(LineString<f64>, f64)> = lines
+            .into_iter()
+            .map(|line| {
+                let area: f64 = line
+                    .clone()
+                    .into_points()
+                    .iter()
+                    .circular_tuple_windows::<(_, _)>()
+                    .map(|(p1, p2)| (p1.x() + p2.x()) * (p2.y() - p1.y()))
+                    .sum();
+                (line, area)
+            })
+            .filter(|(_, area)| area.abs() > 0.0001)
+            .collect();
+
+        lines_and_area.sort_by(|(_l1, a1), (_l2, a2)| a2.partial_cmp(a1).unwrap());
+        let mut polygons = vec![];
+
+        for (line, area) in lines_and_area {
+            if area > 0.0 {
+                polygons.push(Polygon::new(line.clone(), vec![]));
+            } else {
+                //counter clockwise interior polygon
+                let smallest_polygon = polygons
+                    .iter_mut()
+                    .rev()
+                    .find(|poly| poly.contains(&line.0[0]))
+                    .expect("Polygon order failure");
+                smallest_polygon.interiors_push(line);
+            }
+        }
+
+        let multi_polygon: MultiPolygon<f64> = MultiPolygon(polygons);
+
+        let layer_settings =
+            settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
+
+        Slice {
+            main_polygon: multi_polygon.clone(),
+            remaining_area: multi_polygon.simplifyvw(&0.0001),
+            support_interface: None,
+            support_tower: None,
+            chains: vec![],
+            fixed_chains: vec![],
+            bottom_height,
+            top_height,
+            layer_settings,
+        }
+    }
+
+    pub fn get_height(&self) -> f64 {
+        (self.bottom_height + self.top_height) / 2.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum SolidInfillsTypes {
+    Rectilinear,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum PartialInfillTypes {
+    Linear,
+    Rectilinear,
+    Triangle,
+    Cubic,
+    Lightning,
+}
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename = "vertex")]
@@ -126,6 +245,117 @@ pub enum MoveType {
     Bridging,
     Support,
     Travel,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Command {
+    MoveTo {
+        end: Coordinate<f64>,
+    },
+    MoveAndExtrude {
+        start: Coordinate<f64>,
+        end: Coordinate<f64>,
+        thickness: f64,
+        width: f64,
+    },
+    LayerChange {
+        z: f64,
+    },
+    SetState {
+        new_state: StateChange,
+    },
+    Delay {
+        msec: u64,
+    },
+    Arc {
+        start: Coordinate<f64>,
+        end: Coordinate<f64>,
+        center: Coordinate<f64>,
+        clockwise: bool,
+        thickness: f64,
+        width: f64,
+    },
+    ChangeObject {
+        object: usize,
+    },
+    //Used in optimization , should be optimized out
+    NoAction,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct StateChange {
+    pub extruder_temp: Option<f64>,
+    pub bed_temp: Option<f64>,
+    pub fan_speed: Option<f64>,
+    pub movement_speed: Option<f64>,
+    pub acceleration: Option<f64>,
+    pub retract: Option<bool>,
+}
+
+impl StateChange {
+    pub fn state_diff(&mut self, other: &StateChange) -> StateChange {
+        StateChange {
+            extruder_temp: {
+                if self.extruder_temp == other.extruder_temp {
+                    None
+                } else {
+                    self.extruder_temp = other.extruder_temp.or(self.extruder_temp);
+                    other.extruder_temp
+                }
+            },
+            bed_temp: {
+                if self.bed_temp == other.bed_temp {
+                    None
+                } else {
+                    self.bed_temp = other.bed_temp.or(self.bed_temp);
+                    other.bed_temp
+                }
+            },
+            fan_speed: {
+                if self.fan_speed == other.fan_speed {
+                    None
+                } else {
+                    self.fan_speed = other.fan_speed.or(self.fan_speed);
+                    other.fan_speed
+                }
+            },
+            movement_speed: {
+                if self.movement_speed == other.movement_speed {
+                    None
+                } else {
+                    self.movement_speed = other.movement_speed.or(self.movement_speed);
+                    other.movement_speed
+                }
+            },
+            acceleration: {
+                if self.acceleration == other.acceleration {
+                    None
+                } else {
+                    self.acceleration = other.acceleration.or(self.acceleration);
+                    other.acceleration
+                }
+            },
+            retract: {
+                if self.retract == other.retract {
+                    None
+                } else {
+                    self.retract = other.retract.or(self.retract);
+                    other.retract
+                }
+            },
+        }
+    }
+
+    pub fn combine(&self, other: &StateChange) -> StateChange {
+        StateChange {
+            extruder_temp: { other.extruder_temp.or(self.extruder_temp) },
+            bed_temp: { other.bed_temp.or(self.bed_temp) },
+            fan_speed: { other.fan_speed.or(self.fan_speed) },
+            movement_speed: { other.movement_speed.or(self.movement_speed) },
+            acceleration: { other.acceleration.or(self.acceleration) },
+            retract: { other.retract.or(self.retract) },
+        }
+    }
 }
 
 impl MoveChain {
@@ -254,7 +484,7 @@ impl MoveChain {
         cmds
     }
 
-    pub(crate) fn rotate(&mut self, angle: f64) {
+    pub fn rotate(&mut self, angle: f64) {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
 
@@ -269,116 +499,5 @@ impl MoveChain {
 
         self.start_point.x = nx;
         self.start_point.y = ny;
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Command {
-    MoveTo {
-        end: Coordinate<f64>,
-    },
-    MoveAndExtrude {
-        start: Coordinate<f64>,
-        end: Coordinate<f64>,
-        thickness: f64,
-        width: f64,
-    },
-    LayerChange {
-        z: f64,
-    },
-    SetState {
-        new_state: StateChange,
-    },
-    Delay {
-        msec: u64,
-    },
-    Arc {
-        start: Coordinate<f64>,
-        end: Coordinate<f64>,
-        center: Coordinate<f64>,
-        clockwise: bool,
-        thickness: f64,
-        width: f64,
-    },
-    ChangeObject {
-        object: usize,
-    },
-    //Used in optimization , should be optimized out
-    NoAction,
-}
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct StateChange {
-    pub extruder_temp: Option<f64>,
-    pub bed_temp: Option<f64>,
-    pub fan_speed: Option<f64>,
-    pub movement_speed: Option<f64>,
-    pub acceleration: Option<f64>,
-    pub retract: Option<bool>,
-}
-
-impl StateChange {
-    pub fn state_diff(&mut self, other: &StateChange) -> StateChange {
-        StateChange {
-            extruder_temp: {
-                if self.extruder_temp == other.extruder_temp {
-                    None
-                } else {
-                    self.extruder_temp = other.extruder_temp.or(self.extruder_temp);
-                    other.extruder_temp
-                }
-            },
-            bed_temp: {
-                if self.bed_temp == other.bed_temp {
-                    None
-                } else {
-                    self.bed_temp = other.bed_temp.or(self.bed_temp);
-                    other.bed_temp
-                }
-            },
-            fan_speed: {
-                if self.fan_speed == other.fan_speed {
-                    None
-                } else {
-                    self.fan_speed = other.fan_speed.or(self.fan_speed);
-                    other.fan_speed
-                }
-            },
-            movement_speed: {
-                if self.movement_speed == other.movement_speed {
-                    None
-                } else {
-                    self.movement_speed = other.movement_speed.or(self.movement_speed);
-                    other.movement_speed
-                }
-            },
-            acceleration: {
-                if self.acceleration == other.acceleration {
-                    None
-                } else {
-                    self.acceleration = other.acceleration.or(self.acceleration);
-                    other.acceleration
-                }
-            },
-            retract: {
-                if self.retract == other.retract {
-                    None
-                } else {
-                    self.retract = other.retract.or(self.retract);
-                    other.retract
-                }
-            },
-        }
-    }
-
-    pub fn combine(&self, other: &StateChange) -> StateChange {
-        StateChange {
-            extruder_temp: { other.extruder_temp.or(self.extruder_temp) },
-            bed_temp: { other.bed_temp.or(self.bed_temp) },
-            fan_speed: { other.fan_speed.or(self.fan_speed) },
-            movement_speed: { other.movement_speed.or(self.movement_speed) },
-            acceleration: { other.acceleration.or(self.acceleration) },
-            retract: { other.retract.or(self.retract) },
-        }
     }
 }
