@@ -501,3 +501,9 @@ impl MoveChain {
         self.start_point.y = ny;
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CalculatedValues {
+    pub plastic_used: f64,
+    pub total_time: f64,
+}

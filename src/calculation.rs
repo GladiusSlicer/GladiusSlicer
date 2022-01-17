@@ -1,9 +1,5 @@
 use crate::*;
 
-pub struct CalculatedValues {
-    pub plastic_used: f64,
-    pub total_time: f64,
-}
 
 pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedValues {
     let mut values = CalculatedValues {
