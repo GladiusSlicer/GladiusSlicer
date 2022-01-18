@@ -1,4 +1,7 @@
-#[derive(Clone, Debug, PartialEq)]
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize,Clone, Debug, PartialEq)]
 pub enum SlicerErrors {
     ObjectFileNotFound { filepath: String },
     SettingsFileNotFound { filepath: String },

@@ -27,6 +27,8 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use log::{debug, info, LevelFilter};
 use simple_logger::SimpleLogger;
+use gladius_shared::messages::Message;
+use crate::utils::{send_error_message, show_error_message};
 
 mod calculation;
 mod command_pass;
@@ -48,27 +50,33 @@ fn main() {
     if let Some(number_of_threads) = matches.value_of("THREAD_COUNT").map(|str| str.parse::<usize>().ok()).flatten(){
         rayon::ThreadPoolBuilder::new().num_threads(number_of_threads).build_global().unwrap();
     }
+
+    let send_messages = matches.is_present("MESSAGES");
+
+    if !send_messages{
+
         // Vary the output based on how many times the user used the "verbose" flag
-    // (i.e. 'myprog -v -v -v' or 'myprog -vvv' vs 'myprog -v'
-    match matches.occurrences_of("VERBOSE") {
-        0 => SimpleLogger::new().with_level(LevelFilter::Error ).init().unwrap(),
-        1 => SimpleLogger::new().with_level(LevelFilter::Warn ).init().unwrap(),
-        2 => SimpleLogger::new().with_level(LevelFilter::Info ).init().unwrap(),
-        3 => SimpleLogger::new().with_level(LevelFilter::Debug ).init().unwrap(),
-        4 | _ => SimpleLogger::new().with_level(LevelFilter::Trace ).init().unwrap(),
+        // (i.e. 'myprog -v -v -v' or 'myprog -vvv' vs 'myprog -v'
+        match matches.occurrences_of("VERBOSE") {
+            0 => SimpleLogger::new().with_level(LevelFilter::Error).init().unwrap(),
+            1 => SimpleLogger::new().with_level(LevelFilter::Warn).init().unwrap(),
+            2 => SimpleLogger::new().with_level(LevelFilter::Info).init().unwrap(),
+            3 => SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap(),
+            4 | _ => SimpleLogger::new().with_level(LevelFilter::Trace).init().unwrap(),
+        }
     }
 
     info!("Loading Inputs");
-    let (models, settings) = files_input(
+    let (models, settings) = handle_err_or_return(files_input(
         matches.value_of("SETTINGS"),
         matches
             .values_of("INPUT")
             .map(|values| values.map(|v| v.to_string()).collect()),
-    );
+    ),send_messages);
 
     info!("Creating Towers");
 
-    let towers: Vec<TriangleTower> = create_towers(&models);
+    let towers: Vec<TriangleTower> = handle_err_or_return(create_towers(&models),send_messages);
 
     info!("Slicing");
 
@@ -76,6 +84,64 @@ fn main() {
 
     info!("Generating Moves");
 
+    let mut moves = handle_err_or_return(generate_moves(objects,&settings),send_messages);
+
+    debug!("Optimizing {} Moves", moves.len());
+    OptimizePass::pass(&mut moves, &settings);
+
+    SlowDownLayerPass::pass(&mut moves, &settings);
+
+    let cv = calculate_values(&moves, &settings);
+
+
+    if send_messages{
+        let cv_message = Message::CalculatedValues(cv);
+        println!("{}",serde_json::to_string(&cv_message).unwrap());
+    }
+    else {
+        let total_time = cv.total_time.floor() as u32;
+
+        info!(
+            "Total Time: {} hours {} minutes {:.3} seconds",
+            total_time / 3600,
+            (total_time % 3600) / 60,
+            total_time % 60
+        );
+        info!(
+            "Total Filament Volume: {:.3} cm^3",
+            cv.plastic_used / 1000.0
+        );
+        info!(
+            "Total Filament Mass: {:.3} grams",
+            (cv.plastic_used / 1000.0) * settings.filament.density
+        );
+        info!(
+            "Total Filament Cost: {:.2} $",
+            (((cv.plastic_used / 1000.0) * settings.filament.density) / 1000.0)
+                * settings.filament.cost
+        );
+    }
+
+    //Output the GCode
+    if let Some(file_path) = matches.value_of("OUTPUT") {
+        //Output to file
+        debug!("Converting {} Moves", moves.len());
+        convert(
+            &moves,
+            settings,
+            &mut File::create(file_path).expect("File not Found"),
+        )
+        .unwrap();
+    } else {
+        //Output to stdout
+        let stdout = std::io::stdout();
+        debug!("Converting {} Moves", moves.len());
+        convert(&moves, settings, &mut stdout.lock()).unwrap();
+    };
+}
+
+
+fn generate_moves(mut objects: Vec<Object>, settings: &Settings) -> Result<Vec<Command>,SlicerErrors>{
     //Creates Support Towers
     SupportTowerPass::pass(&mut objects, &settings);
 
@@ -116,51 +182,22 @@ fn main() {
         OrderPass::pass(slices, &settings);
     });
 
-    let mut moves = convert_objects_into_moves(objects, &settings);
+    Ok(convert_objects_into_moves(objects, &settings))
+}
 
-    debug!("Optimizing {} Moves", moves.len());
-    OptimizePass::pass(&mut moves, &settings);
-
-    SlowDownLayerPass::pass(&mut moves, &settings);
-
-    let cv = calculate_values(&moves, &settings);
-
-    let total_time = cv.total_time.floor() as u32;
-
-    info!(
-        "Total Time: {} hours {} minutes {:.3} seconds",
-        total_time / 3600,
-        (total_time % 3600) / 60,
-        total_time % 60
-    );
-    info!(
-        "Total Filament Volume: {:.3} cm^3",
-        cv.plastic_used / 1000.0
-    );
-    info!(
-        "Total Filament Mass: {:.3} grams",
-        (cv.plastic_used / 1000.0) * settings.filament.density
-    );
-    info!(
-        "Total Filament Cost: {:.2} $",
-        (((cv.plastic_used / 1000.0) * settings.filament.density) / 1000.0)
-            * settings.filament.cost
-    );
-
-    //Output the GCode
-    if let Some(file_path) = matches.value_of("OUTPUT") {
-        //Output to file
-        debug!("Converting {} Moves", moves.len());
-        convert(
-            &moves,
-            settings,
-            &mut File::create(file_path).expect("File not Found"),
-        )
-        .unwrap();
-    } else {
-        //Output to stdout
-        let stdout = std::io::stdout();
-        debug!("Converting {} Moves", moves.len());
-        convert(&moves, settings, &mut stdout.lock()).unwrap();
-    };
+fn handle_err_or_return<T>(res: Result<T,SlicerErrors>, send_message: bool) -> T{
+    match res {
+        Ok(data) => {
+            data
+        }
+        Err(slicer_error) => {
+            if send_message{
+                send_error_message(slicer_error)
+            }
+            else{
+                show_error_message(slicer_error)
+            }
+            std::process::exit(-1);
+        }
+    }
 }

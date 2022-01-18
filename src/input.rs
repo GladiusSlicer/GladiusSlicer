@@ -7,42 +7,21 @@ use crate::utils::show_error_message;
 pub fn files_input(
     settings_path: Option<&str>,
     input: Option<Vec<String>>,
-) -> (Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, Settings) {
-    let settings_res: Result<Settings, SlicerErrors> = {
+) -> Result<(Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, Settings),SlicerErrors> {
+    let settings: Settings = {
         if let Some(str) = settings_path {
             load_settings(str)
         } else {
             Ok(Settings::default())
         }
-    };
-
-    let settings = {
-        match settings_res {
-            Ok(settings) => settings,
-            Err(err) => {
-                show_error_message(err);
-                std::process::exit(-1);
-            }
-        }
-    };
+    }?;
 
     info!("Loading Input");
 
-    let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>)> = input
-        .unwrap_or_else(|| {
-            show_error_message(SlicerErrors::NoInputProvided);
-            std::process::exit(-1);
-        })
+    let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>)> = input.ok_or(SlicerErrors::NoInputProvided)?
         .iter()
-        .map(|value| {
-            let obj: InputObject = deser_hjson::from_str(value).unwrap_or_else(|_| {
-                error!("While Handling {}", value);
-                show_error_message(SlicerErrors::InputMisformat);
-                std::process::exit(-1);
-            });
-            obj
-        })
-        .flat_map(|object| {
+        .try_fold( vec![], |mut vec,value| {
+            let object: InputObject = deser_hjson::from_str(value).map_err(|_| SlicerErrors::InputMisformat)?;
             let model_path = Path::new(object.get_model_path());
 
             // Calling .unwrap() is safe here because "INPUT" is required (if "INPUT" wasn't
@@ -107,16 +86,18 @@ pub fn files_input(
 
             debug!("Using Transform {}", trans_str);
 
-            models.into_iter().map(move |(mut v, t)| {
+            vec.extend(models.into_iter().map(move |(mut v, t)| {
                 for vert in v.iter_mut() {
                     *vert = &transform * *vert;
                 }
 
                 (v, t)
-            })
-        })
-        .collect();
-    (converted_inputs, settings)
+            }));
+
+            Ok(vec)
+
+        })?;
+    Ok((converted_inputs, settings))
 }
 
 fn load_settings(filepath: &str) -> Result<Settings, SlicerErrors> {

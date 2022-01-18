@@ -7,6 +7,7 @@ use geo::*;
 use log::info;
 use gladius_shared::types::PartialInfillTypes;
 use rayon::prelude::*;
+use gladius_shared::error::SlicerErrors;
 
 pub trait ObjectPass {
     fn pass(objects: &mut Vec<Object>, settings: &Settings);
@@ -102,60 +103,64 @@ impl ObjectPass for SkirtPass {
 }
 
 pub trait SlicePass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings);
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings) -> Result<(),SlicerErrors>;
 }
 
 pub struct ShrinkPass {}
 
 impl SlicePass for ShrinkPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings)  -> Result<(),SlicerErrors>{
         info!("Generating Moves: Shrink Layers");
         slices.par_iter_mut().for_each(|slice| {
             slice.shrink_layer();
         });
+        Ok(())
     }
 }
 
 pub struct PerimeterPass {}
 
 impl SlicePass for PerimeterPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings) -> Result<(),SlicerErrors>{
         info!("Generating Moves: Perimeters");
         slices.par_iter_mut().for_each(|slice| {
             slice.slice_perimeters_into_chains(settings.number_of_perimeters);
         });
+        Ok(())
     }
 }
 
 pub struct BridgingPass {}
 
 impl SlicePass for BridgingPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) -> Result<(),SlicerErrors>{
         info!("Generating Moves: Bridging");
         (1..slices.len()).into_iter().for_each(|q| {
             let below = slices[q - 1].main_polygon.clone();
 
             slices[q].fill_solid_bridge_area(&below);
         });
+        Ok(())
     }
 }
 pub struct TopLayerPass {}
 
 impl SlicePass for TopLayerPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) -> Result<(),SlicerErrors>{
         info!("Generating Moves: Top Layer");
         (0..slices.len() - 1).into_iter().for_each(|q| {
             let above = slices[q + 1].main_polygon.clone();
 
             slices[q].fill_solid_top_layer(&above, q);
         });
+        Ok(())
     }
 }
 
 pub struct TopAndBottomLayersPass {}
 
 impl SlicePass for TopAndBottomLayersPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings) -> Result<(),SlicerErrors>{
         let top_layers = settings.top_layers;
         let bottom_layers = settings.bottom_layers;
 
@@ -225,25 +230,27 @@ impl SlicePass for TopAndBottomLayersPass {
             .for_each(|(layer_num, slice)| {
                 slice.fill_remaining_area(true, layer_num);
             });
+        Ok(())
     }
 }
 
 pub struct SupportPass {}
 
 impl SlicePass for SupportPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings) -> Result<(),SlicerErrors>{
         if let Some(support) = &settings.support {
             for slice in slices.iter_mut() {
                 slice.fill_support_polygons(support);
             }
         }
+        Ok(())
     }
 }
 
 pub struct FillAreaPass {}
 
 impl SlicePass for FillAreaPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) -> Result<(),SlicerErrors> {
         info!("Generating Moves: Fill Areas");
 
         //Fill all remaining areas
@@ -253,29 +260,32 @@ impl SlicePass for FillAreaPass {
             .for_each(|(layer_num, slice)| {
                 slice.fill_remaining_area(false, layer_num);
             });
+        Ok(())
     }
 }
 pub struct LightningFillPass {}
 
-impl SlicePass for LightningFillPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) {
+impl SlicePass for LightningFillPass  {
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings )-> Result<(),SlicerErrors> {
         if settings.infill_type == PartialInfillTypes::Lightning {
             info!("Generating Moves: Lightning Infill");
 
             lightning_infill(slices);
         }
+        Ok(())
     }
 }
 
 pub struct OrderPass {}
 
 impl SlicePass for OrderPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) {
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) -> Result<(),SlicerErrors> {
         info!("Generating Moves: Order Chains");
 
         //Fill all remaining areas
         slices.par_iter_mut().for_each(|slice| {
             slice.order_chains();
         });
+        Ok(())
     }
 }
