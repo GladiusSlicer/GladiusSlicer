@@ -26,6 +26,11 @@ args:
         help: Use the Message System ( useful for interprocess communication)
         required: false
         short: m
+    - THREAD_COUNT:
+        help: Sets the number of threads to use in the thread pool (defaults to number of CPUs)
+        required: false
+        takes_value: true
+        short: j
 
 groups:
     # the name of the ArgGoup is specified here

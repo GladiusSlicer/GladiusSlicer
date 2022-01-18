@@ -44,6 +44,10 @@ fn main() {
     let yaml = load_yaml!("cli.yaml");
     let matches = App::from_yaml(yaml).get_matches();
 
+    //set number of cores for rayon
+    if let Some(number_of_threads) = matches.value_of("THREAD_COUNT").map(|str| str.parse::<usize>().ok()).flatten(){
+        rayon::ThreadPoolBuilder::new().num_threads(number_of_threads).build_global().unwrap();
+    }
         // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'myprog -v -v -v' or 'myprog -vvv' vs 'myprog -v'
     match matches.occurrences_of("VERBOSE") {
