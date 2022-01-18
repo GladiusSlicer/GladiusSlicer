@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+
 use clap::{load_yaml, App};
 use gladius_shared::loader::*;
 use gladius_shared::types::*;
