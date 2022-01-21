@@ -53,6 +53,7 @@ fn main() {
 
     let send_messages = matches.is_present("MESSAGES");
 
+
     if !send_messages{
 
         // Vary the output based on how many times the user used the "verbose" flag
@@ -87,37 +88,47 @@ fn main() {
     let mut moves = handle_err_or_return(generate_moves(objects,&settings),send_messages);
 
     debug!("Optimizing {} Moves", moves.len());
+
     OptimizePass::pass(&mut moves, &settings);
 
     SlowDownLayerPass::pass(&mut moves, &settings);
+
+    if send_messages{
+        let message = Message::Commands(moves.clone());
+        println!("{}",serde_json::to_string(&message).unwrap());
+    }
 
     let cv = calculate_values(&moves, &settings);
 
 
     if send_messages{
-        let cv_message = Message::CalculatedValues(cv);
-        println!("{}",serde_json::to_string(&cv_message).unwrap());
+        let message = Message::CalculatedValues(cv);
+        println!("{}",serde_json::to_string(&message).unwrap());
     }
     else {
-        let total_time = cv.total_time.floor() as u32;
+        let (hour,min,sec,_) = cv.get_hours_minutes_seconds_fract_time();
 
         info!(
             "Total Time: {} hours {} minutes {:.3} seconds",
-            total_time / 3600,
-            (total_time % 3600) / 60,
-            total_time % 60
+            hour,
+            min,
+            sec
         );
         info!(
             "Total Filament Volume: {:.3} cm^3",
-            cv.plastic_used / 1000.0
+            cv.plastic_volume / 1000.0
         );
         info!(
             "Total Filament Mass: {:.3} grams",
-            (cv.plastic_used / 1000.0) * settings.filament.density
+            cv.plastic_weight
+        );
+        info!(
+            "Total Filament Length: {:.3} grams",
+            cv.plastic_length
         );
         info!(
             "Total Filament Cost: {:.2} $",
-            (((cv.plastic_used / 1000.0) * settings.filament.density) / 1000.0)
+            (((cv.plastic_volume / 1000.0) * settings.filament.density) / 1000.0)
                 * settings.filament.cost
         );
     }
@@ -132,7 +143,15 @@ fn main() {
             &mut File::create(file_path).expect("File not Found"),
         )
         .unwrap();
-    } else {
+    }
+    else if send_messages {
+        //Output as message
+        let mut gcode : Vec<u8> = Vec::new();
+        convert(&moves, settings, &mut gcode).unwrap();
+        let message = Message::GCode(String::from_utf8(gcode).unwrap());
+        println!("{}",serde_json::to_string(&message).unwrap());
+    }
+    else {
         //Output to stdout
         let stdout = std::io::stdout();
         debug!("Converting {} Moves", moves.len());

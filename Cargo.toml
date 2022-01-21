@@ -18,7 +18,7 @@ log = "0.4.14"
 
 nalgebra = "0.27.1"
 itertools = "0.10.3"
-geo = "0.18.0"
+geo = { version = "0.18.0", features = ["use-serde"] }
 geo-clipper = "0.6.0"
 geo-svg = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }

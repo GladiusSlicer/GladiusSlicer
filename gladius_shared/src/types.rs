@@ -235,7 +235,7 @@ pub struct MoveChain {
     pub moves: Vec<Move>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Serialize, Deserialize,Clone, Copy, Debug, PartialEq)]
 pub enum MoveType {
     TopSolidInfill,
     SolidInfill,
@@ -247,7 +247,7 @@ pub enum MoveType {
     Travel,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize,Clone, Debug, PartialEq)]
 pub enum Command {
     MoveTo {
         end: Coordinate<f64>,
@@ -282,7 +282,7 @@ pub enum Command {
     NoAction,
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Debug,Clone, Default, PartialEq)]
 pub struct StateChange {
     pub extruder_temp: Option<f64>,
     pub bed_temp: Option<f64>,
@@ -504,6 +504,26 @@ impl MoveChain {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CalculatedValues {
-    pub plastic_used: f64,
+    ///Total plastic used by the print in mm^3
+    pub plastic_volume: f64,
+
+    ///Total plastic used by the print in grams
+    pub plastic_weight: f64,
+
+    ///Total plastic used by the print in mm of filament
+    pub plastic_length: f64,
+
+    ///Total time to print in seconds
     pub total_time: f64,
+}
+
+
+impl CalculatedValues{
+    ///Returns total time converted to hours, minutes, seconds, and remaining fractional seconds
+    pub fn get_hours_minutes_seconds_fract_time(&self) -> (usize,usize,usize,f64){
+        let total_time = self.total_time.floor() as usize;
+
+        let fract = self.total_time - total_time as f64;
+        (total_time / 3600, (total_time % 3600) / 60, total_time % 60,fract)
+    }
 }

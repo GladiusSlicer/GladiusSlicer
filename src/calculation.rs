@@ -3,8 +3,10 @@ use crate::*;
 
 pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedValues {
     let mut values = CalculatedValues {
-        plastic_used: 0.0,
+        plastic_volume: 0.0,
+        plastic_weight: 0.0,
         total_time: 0.0,
+        plastic_length: 0.0
     };
 
     let mut current_speed = 0.0;
@@ -33,7 +35,7 @@ pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedVal
                 current_pos = *end;
                 values.total_time += d / current_speed;
 
-                values.plastic_used += width * thickness * d;
+                values.plastic_volume += width * thickness * d;
             }
             Command::SetState { new_state } => {
                 if let Some(speed) = new_state.movement_speed {
@@ -53,6 +55,9 @@ pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedVal
             Command::NoAction | Command::LayerChange { .. } | Command::ChangeObject { .. } => {}
         }
     }
+
+    values.plastic_weight = (values.plastic_volume/ 1000.0) * settings.filament.density ;
+    values.plastic_length = values.plastic_volume / (std::f64::consts::PI *(settings.nozzle_diameter /2.0)*(settings.nozzle_diameter /2.0) );
 
     values
 }
