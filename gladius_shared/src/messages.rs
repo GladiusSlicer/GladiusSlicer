@@ -1,12 +1,22 @@
+#![deny(missing_docs)]
+
 use crate::types::{CalculatedValues, Command};
 use serde::{Deserialize, Serialize};
 use crate::error::SlicerErrors;
 
-
+///Messages for communicating between the slicer and another process
 #[derive(Serialize, Deserialize, Debug,Clone)]
 pub enum Message{
+
+    ///Message to share CalculatedValues struct
     CalculatedValues(CalculatedValues),
+
+    ///Message to share the list of all commands
     Commands(Vec<Command>),
+
+    ///Message to share final Gcode
     GCode(String),
+
+    ///Message to share any Errors encountered
     Error(SlicerErrors)
 }
