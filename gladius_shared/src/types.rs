@@ -1,3 +1,5 @@
+#![deny(missing_docs)]
+
 use crate::settings::{LayerSettings, Settings};
 use geo::contains::Contains;
 use geo::prelude::SimplifyVW;
@@ -8,18 +10,38 @@ use nalgebra::Point3;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
+///A single slice of an object containing it's current plotting status.
 pub struct Slice {
+    ///The slice's entire polygon. Should not be modified after creation by the slicing process.
     pub main_polygon: MultiPolygon<f64>,
+
+    ///The slice's remaining area that needs to be processes. Passes will slowly subtract from this until finally infill will fill the space.
     pub remaining_area: MultiPolygon<f64>,
+
+    /// The area that will be filled by support interface material.
     pub support_interface: Option<MultiPolygon<f64>>,
+
+    ///The area that will be filled by support towers
     pub support_tower: Option<MultiPolygon<f64>>,
+
+    ///Theses moves ares applied in order and the start of the commands for the slice.
     pub fixed_chains: Vec<MoveChain>,
+
+    ///The move chains generaated by various passses. These chains can be reordered by the optomization process to create faster commands.
     pub chains: Vec<MoveChain>,
+
+    ///The lower height of this slice.
     pub bottom_height: f64,
+
+    ///The upper height of tis slice.
     pub top_height: f64,
+
+    ///A copy of this layers settings
     pub layer_settings: LayerSettings,
 }
 impl Slice {
+
+    ///Creates a slice from a spefic iterator of points
     pub fn from_single_point_loop<I>(
         line: I,
         bottom_height: f64,
@@ -48,6 +70,7 @@ impl Slice {
         }
     }
 
+    ///creates a slice from  a multi line string
     pub fn from_multiple_point_loop(
         lines: MultiLineString<f64>,
         bottom_height: f64,
@@ -105,30 +128,53 @@ impl Slice {
         }
     }
 
+    ///return the reference height of the slice
     pub fn get_height(&self) -> f64 {
         (self.bottom_height + self.top_height) / 2.0
     }
 }
 
+
+///Types of solid infill
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SolidInfillsTypes {
+
+    ///Back and forth lines to fill polygons
     Rectilinear,
 }
 
+///Types of partial infill
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PartialInfillTypes {
+
+    ///Back and forth spaced lines to fill polygons
     Linear,
+
+    ///Back and forth spaced lines to fill polygons and there perpendicular lines
     Rectilinear,
+
+    /// Lines in 3 directions to form tessellating triangle pattern
     Triangle,
+
+    /// Creates a 3d cube structure.
     Cubic,
+
+    ///Creates lightning shaped infill that retracts into the print walls
     Lightning,
 }
 
+///A single 3D vertex
 #[derive(Default, Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename = "vertex")]
 pub struct Vertex {
+
+    ///X Coordinate
     pub x: f64,
+
+    ///Y Coordinate
     pub y: f64,
+
+    ///Z Coordinate
     pub z: f64,
 }
 impl Vertex {
@@ -166,7 +212,11 @@ impl std::ops::Mul<Vertex> for &Transform {
     }
 }
 
+
+
 impl Transform {
+
+    ///create a new transform for translation
     pub fn new_translation_transform(x: f64, y: f64, z: f64) -> Self {
         Transform([
             [1., 0., 0., x],
@@ -190,18 +240,30 @@ impl std::ops::Mul<Transform> for Transform{
 }
 */
 
+///A object is the collection of slices for a particular model.
 pub struct Object {
+
+    /// The slices for this model sorted from lowest to highest.
     pub layers: Vec<Slice>,
 }
 
+
+///The different types of input that the slicer can take.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum InputObject {
+    /// The Raw format that is the file to load and the transform to apply to it.
     Raw(String, Transform),
+
+    ///Automatically Center and raise the model for printing
     Auto(String),
+
+    ///Automatically Center and raise the model for printing but offset it by x and y
     AutoTranslate(String, f64, f64),
 }
 
 impl InputObject {
+
+    /// Helper function to get the model path from the input
     pub fn get_model_path(&self) -> &str {
         match self {
             InputObject::Raw(str, _) => str,
@@ -211,154 +273,248 @@ impl InputObject {
     }
 }
 
+
+///4x4 Matrix used to transform models
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Transform(pub [[f64; 4]; 4]);
 
+
+/// A triangle that contains indices to it's 3 points. Used with a Vector of Vertices.
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct IndexedTriangle {
+
+    ///Array of the 3 Vertices
     pub verts: [usize; 3],
 }
 
+/// A line that contains indices to it's 2 points. Used with a Vector of Vertices.
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct IndexedLine {
+    ///Array of the 2 Vertices
     pub verts: [usize; 2],
 }
 
+///A move of the plotter
 pub struct Move {
+
+    ///The end Coordinate of the Move. The start of the move is the previous moves end point.
     pub end: Coordinate<f64>,
+    ///The width of plastic to extrude for this move
     pub width: f64,
+    ///The type of move
     pub move_type: MoveType,
 }
 
+/// A chain of moves that should happen in order
 pub struct MoveChain {
+    ///start point for the chain of moves. Needed as Moves don't contain there own start point.
     pub start_point: Coordinate<f64>,
+
+    ///List of all moves in order that they must be moved
     pub moves: Vec<Move>,
 }
 
+
+///Types of Moves
 #[derive(Serialize, Deserialize,Clone, Copy, Debug, PartialEq)]
 pub enum MoveType {
+
+    ///The top later of infill
     TopSolidInfill,
+
+    ///Solid Infill
     SolidInfill,
+
+    ///Standard Partial infill
     Infill,
+
+    ///The Outer Layer of infill both exterior and holes
     OuterPerimeter,
+
+    ///Inner layers of perimeter
     InnerPerimeter,
+
+    ///A bridge over open air
     Bridging,
+
+    ///Support towers and interface
     Support,
+
+    ///Standard travel moves without extrusion
     Travel,
 }
 
+///The intermediate representation of the commands to send to the printer. The commands will be optimized organized and converted into the output expected ( for example GCode)
 #[derive(Serialize, Deserialize,Clone, Debug, PartialEq)]
 pub enum Command {
+    ///Move to a specific location without extrusion
     MoveTo {
+
+        ///The end point of the move
         end: Coordinate<f64>,
     },
+    ///Move to a location while extruding plastic
     MoveAndExtrude {
+        ///Start point of the move
         start: Coordinate<f64>,
+
+        ///End point of the move
         end: Coordinate<f64>,
+
+        ///The height thickness of the move
         thickness: f64,
+
+        /// The extrusion width
         width: f64,
     },
+
+    ///Change the layer height
     LayerChange {
+
+        ///The height the print head should move to
         z: f64,
     },
+
+    ///Sets the System state to the new values
     SetState {
+
+        ///The new state to change into
         new_state: StateChange,
     },
+
+    ///A fixed duration delay
     Delay {
+        ///Number of milliseconds to delay
         msec: u64,
     },
+
+    ///An arc move of the extruder
     Arc {
+
+        ///start point of the arc
         start: Coordinate<f64>,
+
+        ///end point of the arc
         end: Coordinate<f64>,
+
+        ///The center point that the arc keeps equidistant from
         center: Coordinate<f64>,
+
+        ///Whether the arc is clockwise or anticlockwise
         clockwise: bool,
+
+        ///Thickness of the arc, the height
         thickness: f64,
+
+        ///The width of the extrusion
         width: f64,
     },
+
+    ///Change the object that is being printed
     ChangeObject {
+
+        ///The index of the new object being changed to
         object: usize,
     },
-    //Used in optimization , should be optimized out
+    ///Used in optimization , should be optimized out
     NoAction,
 }
 
+
+///A change in the state of the printer. all fields are optional and should only be set when the state is changing.
 #[derive(Serialize, Deserialize, Debug,Clone, Default, PartialEq)]
 pub struct StateChange {
+    ///The temperature of the current extruder
     pub extruder_temp: Option<f64>,
+
+    ///The temperature of the printing bed
     pub bed_temp: Option<f64>,
+
+    ///The speed of the fan
     pub fan_speed: Option<f64>,
+
+    ///The spped movement commands are performed at
     pub movement_speed: Option<f64>,
+
+    ///The acceleration that movement commands are performed at
     pub acceleration: Option<f64>,
+
+    ///Whether the filament is retracted
     pub retract: Option<bool>,
 }
 
 impl StateChange {
-    pub fn state_diff(&mut self, other: &StateChange) -> StateChange {
+
+    ///Change the current state to the new state and return the differences between the 2 states
+    pub fn state_diff(&mut self, new_state: &StateChange) -> StateChange {
         StateChange {
             extruder_temp: {
-                if self.extruder_temp == other.extruder_temp {
+                if self.extruder_temp == new_state.extruder_temp {
                     None
                 } else {
-                    self.extruder_temp = other.extruder_temp.or(self.extruder_temp);
-                    other.extruder_temp
+                    self.extruder_temp = new_state.extruder_temp.or(self.extruder_temp);
+                    new_state.extruder_temp
                 }
             },
             bed_temp: {
-                if self.bed_temp == other.bed_temp {
+                if self.bed_temp == new_state.bed_temp {
                     None
                 } else {
-                    self.bed_temp = other.bed_temp.or(self.bed_temp);
-                    other.bed_temp
+                    self.bed_temp = new_state.bed_temp.or(self.bed_temp);
+                    new_state.bed_temp
                 }
             },
             fan_speed: {
-                if self.fan_speed == other.fan_speed {
+                if self.fan_speed == new_state.fan_speed {
                     None
                 } else {
-                    self.fan_speed = other.fan_speed.or(self.fan_speed);
-                    other.fan_speed
+                    self.fan_speed = new_state.fan_speed.or(self.fan_speed);
+                    new_state.fan_speed
                 }
             },
             movement_speed: {
-                if self.movement_speed == other.movement_speed {
+                if self.movement_speed == new_state.movement_speed {
                     None
                 } else {
-                    self.movement_speed = other.movement_speed.or(self.movement_speed);
-                    other.movement_speed
+                    self.movement_speed = new_state.movement_speed.or(self.movement_speed);
+                    new_state.movement_speed
                 }
             },
             acceleration: {
-                if self.acceleration == other.acceleration {
+                if self.acceleration == new_state.acceleration {
                     None
                 } else {
-                    self.acceleration = other.acceleration.or(self.acceleration);
-                    other.acceleration
+                    self.acceleration = new_state.acceleration.or(self.acceleration);
+                    new_state.acceleration
                 }
             },
             retract: {
-                if self.retract == other.retract {
+                if self.retract == new_state.retract {
                     None
                 } else {
-                    self.retract = other.retract.or(self.retract);
-                    other.retract
+                    self.retract = new_state.retract.or(self.retract);
+                    new_state.retract
                 }
             },
         }
     }
 
-    pub fn combine(&self, other: &StateChange) -> StateChange {
+    ///combine the 2 state changes into one, prioritizing the new state if both contain a file
+    pub fn combine(&self, new_state: &StateChange) -> StateChange {
         StateChange {
-            extruder_temp: { other.extruder_temp.or(self.extruder_temp) },
-            bed_temp: { other.bed_temp.or(self.bed_temp) },
-            fan_speed: { other.fan_speed.or(self.fan_speed) },
-            movement_speed: { other.movement_speed.or(self.movement_speed) },
-            acceleration: { other.acceleration.or(self.acceleration) },
-            retract: { other.retract.or(self.retract) },
+            extruder_temp: { new_state.extruder_temp.or(self.extruder_temp) },
+            bed_temp: { new_state.bed_temp.or(self.bed_temp) },
+            fan_speed: { new_state.fan_speed.or(self.fan_speed) },
+            movement_speed: { new_state.movement_speed.or(self.movement_speed) },
+            acceleration: { new_state.acceleration.or(self.acceleration) },
+            retract: { new_state.retract.or(self.retract) },
         }
     }
 }
 
 impl MoveChain {
+
+    ///Convert a move chain into a list of commands
     pub fn create_commands(self, settings: &LayerSettings, thickness: f64) -> Vec<Command> {
         let mut cmds = vec![];
         let mut current_type = None;
@@ -484,6 +640,7 @@ impl MoveChain {
         cmds
     }
 
+    ///Rotate all moves in the movechain by a specific angle in radians.
     pub fn rotate(&mut self, angle: f64) {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
@@ -502,6 +659,8 @@ impl MoveChain {
     }
 }
 
+
+///Calculated values about an entire print
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CalculatedValues {
     ///Total plastic used by the print in mm^3
