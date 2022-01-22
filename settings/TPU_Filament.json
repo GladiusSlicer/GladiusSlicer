@@ -1,0 +1,21 @@
+{
+  "retract_length":0.0,
+  "filament":{
+    "diameter":1.75,
+    "density":1.04,
+    "cost":27.99,
+    "extruder_temp":255.0,
+    "bed_temp":100.0
+  },
+
+    "layer_settings" : [
+    [
+      {"SingleLayer":0},
+      {
+        "extruder_temp":255.0,
+        "bed_temp":110.0
+      }
+    ]
+
+  ]
+}
