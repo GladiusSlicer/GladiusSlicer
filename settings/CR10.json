@@ -21,7 +21,6 @@
   "print_z": 400,
 
   "layer_width":0.45,
-  "first_layer_width":0.4,
 
   "speed" : {
     "outer_perimeter":20.0,
@@ -31,16 +30,8 @@
     "solid_top_infill":30.0,
 
     "travel": 150.0,
-    "bridge": 20.0
-  },
-  "first_layer_speed" : {
-    "outer_perimeter":15.0,
-    "inner_perimeter":15.0,
-    "infill":15.0,
-    "solid_infill":15.0,
-    "solid_top_infill":15.0,
-    "travel": 150.0,
-    "bridge": 15.0
+    "bridge": 20.0,
+    "support": 20.0
   },
   "acceleration" : {
     "outer_perimeter":500.0,
@@ -49,7 +40,8 @@
     "solid_infill":700.0,
     "solid_top_infill":700.0,
     "travel": 700.0,
-    "bridge": 700.0
+    "bridge": 700.0,
+    "support": 700.0
   },
 
   "number_of_perimeters": 2,
@@ -59,6 +51,28 @@
   "inner_permimeters_first" : true,
   "infill_type" : "Cubic",
   "starting_gcode":"M201 X500.00 Y500.00 Z100.00 E5000.00 ;Setup machine max acceleration\nM203 X500.00 Y500.00 Z10.00 E50.00 ;Setup machine max feedrate\nM204 P500.00 R1000.00 T500.00 ;Setup Print/Retract/Travel acceleration\nM205 X8.00 Y8.00 Z0.40 E5.00 ;Setup Jerk\nM104 S[First Layer Extruder Temp] ; set extruder temp\nM140 S[First Layer Bed Temp] ; set bed temp\nM220 S100 ;Reset Feedrate\nM221 S100 ;Reset Flowrate\nG28 ;Home\nG92 E0 ;Reset Extruder\nG1 Z2.0 F3000 ;Move Z Axis u\nG1 X10.1 Y20 Z0.28 F5000.0 ;Move to start position\nG1 X10.1 Y200.0 Z0.28 F1500.0 E15 ;Draw the first line\nG1 X10.4 Y200.0 Z0.28 F5000.0 ;Move to side a little\nG1 X10.4 Y20 Z0.28 F1500.0 E30 ;Draw the second line\nG92 E0 ;Reset Extruder\nG1 Z2.0 F3000 ;Move Z Axis up\nG28 W ; home all without mesh bed level\nG90 ; use absolute coordinates\nM83 ; use relative distances for extrusion\n",
-  "ending_gcode":"G4 ; wait \nM104 S0 ; turn off temperature \nM140 S0 ; turn off heatbed \nG1 X0 F3000 ; home X axis \nM84 ; disable motors\nM107 ; disable fan\n"
+  "ending_gcode":"G4 ; wait \nM104 S0 ; turn off temperature \nM140 S0 ; turn off heatbed \nG1 X0 F3000 ; home X axis \nM84 ; disable motors\nM107 ; disable fan\n",
+
+
+  "layer_settings" : [
+    [
+      {"SingleLayer":0},
+      {
+        "speed" : {
+          "outer_perimeter":15.0,
+          "inner_perimeter":15.0,
+          "infill":15.0,
+          "solid_infill":15.0,
+          "solid_top_infill":15.0,
+          "travel": 150.0,
+          "bridge": 15.0,
+          "support": 15.0,
+        },
+        "width":0.4,
+        "layer_shrink_amount" : 0.2,
+      }
+    ]
+
+  ]
 }
 
