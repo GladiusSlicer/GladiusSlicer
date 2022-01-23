@@ -1,52 +1,97 @@
+#![deny(missing_docs)]
+
 use crate::error::SlicerErrors;
 use crate::types::PartialInfillTypes;
 use serde::{Deserialize, Serialize};
 
+
+///A complete settings file for the entire slicer.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
+    ///The height of the layers
     pub layer_height: f64,
+
+    ///The extrusion width of the layers
     pub layer_width: f64,
 
+    ///The filament Settings
     pub filament: FilamentSettings,
+
+    ///The fan settings
     pub fan: FanSettings,
+
+    ///The skirt settings, if None no skirt will be generated
     pub skirt: Option<SkirtSettings>,
+
+    ///The support settings, if None no support will be generated
     pub support: Option<SupportSettings>,
 
+    ///Diameter of the nozzle in mm
     pub nozzle_diameter: f64,
 
+    ///length to retract in mm
     pub retract_length: f64,
+
+    ///Distance to lift the z axis during a retract
     pub retract_lift_z: f64,
+
+    ///The velocity of retracts
     pub retract_speed: f64,
 
+    ///The speeds used for movement
     pub speed: MovementParameter,
-    //pub first_layer_speed: MovementParameter,
+
+    ///The acceleration for movement
     pub acceleration: MovementParameter,
 
+    ///The percentage of infill to use for partial infill
     pub infill_percentage: f64,
 
-    pub inner_permimeters_first: bool,
+    ///Controls the order of perimeters
+    pub inner_perimeters_first: bool,
 
+    ///Number of perimeters to use if possible
     pub number_of_perimeters: usize,
 
+    ///Number of solid top layers for infill
     pub top_layers: usize,
+
+    ///Number of solid bottom layers before infill
     pub bottom_layers: usize,
 
+    ///Size of the printer in x dimension in mm
     pub print_x: f64,
+
+    ///Size of the printer in y dimension in mm
     pub print_y: f64,
+
+    ///Size of the printer in z dimension in mm
     pub print_z: f64,
 
+    ///Width of the brim, if None no brim will be generated
     pub brim_width: Option<f64>,
 
+    ///Inset the layer by the provided amount, if None on inset will be performed
     pub layer_shrink_amount: Option<f64>,
 
+    ///The minimum travel distance required to perform a retraction
     pub minimum_retract_distance: f64,
 
+    ///Overlap between infill and interior perimeters
     pub infill_perimeter_overlap_percentage: f64,
-    pub infill_type: PartialInfillTypes,
 
-    pub starting_gcode: String,
-    pub ending_gcode: String,
+    ///Partial Infill type
+    pub partial_infill_type: PartialInfillTypes,
 
+
+    ///The instructions to prepend to the exported instructions
+    pub starting_instructions: String,
+
+    ///The instructions to append to the end of the exported instructions
+    pub ending_instructions: String,
+
+
+    ///Settings for specific layers
     pub layer_settings: Vec<(LayerRange, PartialLayerSettings)>,
 }
 
@@ -94,11 +139,11 @@ impl Default for Settings {
             print_x: 210.0,
             print_y: 210.0,
             print_z: 210.0,
-            inner_permimeters_first: true,
+            inner_perimeters_first: true,
             minimum_retract_distance: 1.0,
             infill_perimeter_overlap_percentage: 0.25,
-            infill_type: PartialInfillTypes::Linear,
-            starting_gcode: "G90 ; use absolute coordinates \n\
+            partial_infill_type: PartialInfillTypes::Linear,
+            starting_instructions: "G90 ; use absolute coordinates \n\
                                 M83 ; extruder relative mode\n\
                                 M106 S255 ; FANNNNN\n\
                                 M104 S[First Layer Extruder Temp] ; set extruder temp\n\
@@ -113,7 +158,7 @@ impl Default for Settings {
                                 G1 X100.0 E12.5 F1000.0 ; intro line\n\
                                 G92 E0.0;\n"
                 .to_string(),
-            ending_gcode: "G4 ; wait\n\
+            ending_instructions: "G4 ; wait\n\
                                 M221 S100 \n\
                                 M104 S0 ; turn off temperature \n\
                                 M140 S0 ; turn off heatbed \n\
@@ -148,6 +193,8 @@ impl Default for Settings {
 }
 
 impl Settings {
+
+    ///Get the layer settings for a specific layer index and height
     pub fn get_layer_settings(&self, layer: usize, height: f64) -> LayerSettings {
         let changes = self
             .layer_settings
@@ -168,64 +215,122 @@ impl Settings {
                 .acceleration
                 .unwrap_or_else(|| self.acceleration.clone()),
             layer_width: changes.layer_width.unwrap_or(self.layer_width),
-            infill_type: changes.infill_type.unwrap_or(self.infill_type),
+            partial_infill_type: changes.partial_infill_type.unwrap_or(self.partial_infill_type),
             infill_percentage: changes.infill_percentage.unwrap_or(self.infill_percentage),
             infill_perimeter_overlap_percentage: changes
                 .infill_perimeter_overlap_percentage
                 .unwrap_or(self.infill_perimeter_overlap_percentage),
-            inner_permimeters_first: changes
-                .inner_permimeters_first
-                .unwrap_or(self.inner_permimeters_first),
+            inner_perimeters_first: changes
+                .inner_perimeters_first
+                .unwrap_or(self.inner_perimeters_first),
             bed_temp: changes.bed_temp.unwrap_or(self.filament.bed_temp),
             extruder_temp: changes.extruder_temp.unwrap_or(self.filament.extruder_temp),
         }
     }
 }
 
+
+///Settings specific to a Layer
 pub struct LayerSettings {
+
+    ///The height of the layers
     pub layer_height: f64,
 
+    ///Inset the layer by the provided amount, if None on inset will be performed
     pub layer_shrink_amount: Option<f64>,
 
+    ///The speeds used for movement
     pub speed: MovementParameter,
+
+    ///The acceleration for movement
     pub acceleration: MovementParameter,
 
+    ///The extrusion width of the layers
     pub layer_width: f64,
 
-    pub infill_type: PartialInfillTypes,
+    ///Partial Infill type
+    pub partial_infill_type: PartialInfillTypes,
+
+    ///The percentage of infill to use for partial infill
     pub infill_percentage: f64,
+
+    ///Overlap between infill and interior perimeters
     pub infill_perimeter_overlap_percentage: f64,
-    pub inner_permimeters_first: bool,
+
+    ///Controls the order of perimeters
+    pub inner_perimeters_first: bool,
+
+    ///Temperature of the bed
     pub bed_temp: f64,
+
+    ///Temperature of the extuder
     pub extruder_temp: f64,
 }
 
+
+///A set of values for different movement types
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MovementParameter {
+
+    ///Value fpr interior perimeter moves
     pub inner_perimeter: f64,
+
+    ///Value for outer perimeter move
     pub outer_perimeter: f64,
+
+    ///Value for solid top infill moves
     pub solid_top_infill: f64,
+
+    ///Value for solid infill moves
     pub solid_infill: f64,
+
+    ///Value for pertial infill moves
     pub infill: f64,
+
+    ///Value for travel moves
     pub travel: f64,
+
+    ///Value for bridging
     pub bridge: f64,
+
+    ///Value for support structures
     pub support: f64,
 }
 
+///Settings for a filament
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FilamentSettings {
+
+    ///Diameter of this filament in mm
     pub diameter: f64,
+
+    ///Density of this filament in grams per cm^3
     pub density: f64,
+
+    ///Cost of this filament in $ per kg
     pub cost: f64,
+
+    ///Extruder temp for this filament
     pub extruder_temp: f64,
+
+    ///Bed temp for this filament
     pub bed_temp: f64,
 }
 
+///Settigns for the fans
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FanSettings {
+
+    ///The default fan speed
     pub fan_speed: f64,
+
+    ///Disable the fan for layers below this value
     pub disable_fan_for_layers: usize,
+
+    ///Threshold to start slowing down based on layer print time in seconds
     pub slow_down_threshold: f64,
+
+    ///Minimum speed to slow down to
     pub min_print_speed: f64,
 }
 
@@ -252,72 +357,122 @@ impl Default for FanSettings {
     }
 }
 
+///Support settings
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SupportSettings {
+
+    ///Angle to start production supports in degrees
     pub max_overhang_angle: f64,
+
+    ///Spacing between the ribs of support
     pub support_spacing: f64,
 }
 
+///The Settings for Skirt generation
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SkirtSettings {
+
+    ///the number of layer to generate the skirt
     pub layers: usize,
+
+    ///Distance from the models to place the skirt
     pub distance: f64,
 }
 
+
+///A partial complete settings file
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PartialSettings {
+
+    ///The height of the layers
     pub layer_height: Option<f64>,
+
+    ///The extrusion width of the layers
     pub layer_width: Option<f64>,
 
+    ///Inset the layer by the provided amount, if None on inset will be performed
     pub layer_shrink_amount: Option<f64>,
-
+    ///The filament Settings
     pub filament: Option<FilamentSettings>,
+    ///The fan settings
     pub fan: Option<FanSettings>,
+    ///The skirt settings, if None no skirt will be generated
     pub skirt: Option<SkirtSettings>,
+    ///The support settings, if None no support will be generated
     pub support: Option<SupportSettings>,
-
+    ///Diameter of the nozzle in mm
     pub nozzle_diameter: Option<f64>,
 
+
+
+
+    ///length to retract in mm
     pub retract_length: Option<f64>,
+    ///Distance to lift the z axis during a retract
     pub retract_lift_z: Option<f64>,
+
+    ///The velocity of retracts
     pub retract_speed: Option<f64>,
 
+    ///The speeds used for movement
     pub speed: Option<MovementParameter>,
-    pub first_layer_speed: Option<MovementParameter>,
+
+    ///The acceleration for movement
     pub acceleration: Option<MovementParameter>,
 
+    ///The percentage of infill to use for partial infill
     pub infill_percentage: Option<f64>,
 
-    pub first_layer_height: Option<f64>,
-    pub first_layer_width: Option<f64>,
+    ///Controls the order of perimeters
+    pub inner_perimeters_first: Option<bool>,
 
-    pub inner_permimeters_first: Option<bool>,
-
+    ///Number of perimeters to use if possible
     pub number_of_perimeters: Option<usize>,
 
+    ///Number of solid top layers before infill
     pub top_layers: Option<usize>,
+
+    ///Number of solid bottom layers before infill
     pub bottom_layers: Option<usize>,
 
+    ///Size of the printer in x dimension in mm
     pub print_x: Option<f64>,
+
+    ///Size of the printer in y dimension in mm
     pub print_y: Option<f64>,
+
+    ///Size of the printer in z dimension in mm
     pub print_z: Option<f64>,
 
+    ///Width of the brim, if None no brim will be generated
     pub brim_width: Option<f64>,
 
+    ///The minimum travel distance required to perform a retraction
     pub minimum_retract_distance: Option<f64>,
 
+    ///Overlap between infill and interior perimeters
     pub infill_perimeter_overlap_percentage: Option<f64>,
-    pub infill_type: Option<PartialInfillTypes>,
 
-    pub starting_gcode: Option<String>,
-    pub ending_gcode: Option<String>,
+    ///Partial Infill type
+    pub partial_infill_type: Option<PartialInfillTypes>,
 
+    ///The instructions to prepend to the exported instructions
+    pub starting_instructions: Option<String>,
+
+    ///The instructions to append to the end of the exported instructions
+    pub ending_instructions: Option<String>,
+
+    ///Other files to load
     pub other_files: Option<Vec<String>>,
 
+    ///Settings for specific layers
     pub layer_settings: Option<Vec<(LayerRange, PartialLayerSettings)>>,
 }
 
 impl PartialSettings {
+
+    ///Convert a partial settings file into a complete settings file
+    /// returns an error if a settings is not present in this or any sub file
     pub fn get_settings(mut self) -> Result<Settings, SlicerErrors> {
         self.combine_with_other_files()?;
 
@@ -368,20 +523,14 @@ impl PartialSettings {
             retract_lift_z: self.retract_lift_z.or(other.retract_lift_z),
             retract_speed: self.retract_speed.or(other.retract_speed),
             speed: self.speed.clone().or_else(|| other.speed.clone()),
-            first_layer_speed: self
-                .first_layer_speed
-                .clone()
-                .or_else(|| other.first_layer_speed.clone()),
             acceleration: self
                 .acceleration
                 .clone()
                 .or_else(|| other.acceleration.clone()),
             infill_percentage: self.infill_percentage.or(other.infill_percentage),
-            first_layer_height: self.first_layer_height.or(other.first_layer_height),
-            first_layer_width: self.first_layer_width.or(other.first_layer_width),
-            inner_permimeters_first: self
-                .inner_permimeters_first
-                .or(other.inner_permimeters_first),
+            inner_perimeters_first: self
+                .inner_perimeters_first
+                .or(other.inner_perimeters_first),
             number_of_perimeters: self.number_of_perimeters.or(other.number_of_perimeters),
             top_layers: self.top_layers.or(other.top_layers),
             bottom_layers: self.bottom_layers.or(other.bottom_layers),
@@ -395,12 +544,12 @@ impl PartialSettings {
             infill_perimeter_overlap_percentage: self
                 .infill_perimeter_overlap_percentage
                 .or(other.infill_perimeter_overlap_percentage),
-            infill_type: self.infill_type.or(other.infill_type),
-            starting_gcode: self
-                .starting_gcode
+            partial_infill_type: self.partial_infill_type.or(other.partial_infill_type),
+            starting_instructions: self
+                .starting_instructions
                 .clone()
-                .or_else(|| other.starting_gcode.clone()),
-            ending_gcode: self.ending_gcode.clone().or(other.ending_gcode),
+                .or_else(|| other.starting_instructions.clone()),
+            ending_instructions: self.ending_instructions.clone().or(other.ending_instructions),
             other_files: None,
             layer_settings: {
                 match (self.layer_settings.as_ref(), other.layer_settings.as_ref()) {
@@ -418,29 +567,68 @@ impl PartialSettings {
     }
 }
 
+
+/// The different types of layer ranges supported
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum LayerRange {
+    ///A single single based on the index
     SingleLayer(usize),
-    LayerCountRange { start: usize, end: usize },
-    HeightRange { start: f64, end: f64 },
+
+    ///A range of layers based on index inclusive
+    LayerCountRange {
+        ///The start index
+        start: usize,
+
+        ///The end index
+        end: usize
+    },
+
+    ///A Range of layers based on the height of the bottom on the slice
+    HeightRange {
+        ///The start height
+        start: f64,
+
+        ///The end height
+        end: f64
+    },
 }
 
+
+///A Partial List of all slicer settings
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct PartialLayerSettings {
+
+    ///The height of the layers
     pub layer_height: Option<f64>,
 
+    ///Inset the layer by the provided amount, if None on inset will be performed
     pub layer_shrink_amount: Option<f64>,
 
+    ///The speeds used for movement
     pub speed: Option<MovementParameter>,
+
+    ///The acceleration for movement
     pub acceleration: Option<MovementParameter>,
 
+    ///The extrusion width of the layers
     pub layer_width: Option<f64>,
 
-    pub infill_type: Option<PartialInfillTypes>,
+    ///Partial Infill type
+    pub partial_infill_type: Option<PartialInfillTypes>,
+
+    ///The percentage of infill to use for partial infill
     pub infill_percentage: Option<f64>,
+
+    ///Overlap between infill and interior perimeters
     pub infill_perimeter_overlap_percentage: Option<f64>,
-    pub inner_permimeters_first: Option<bool>,
+
+    ///Controls the order of perimeters
+    pub inner_perimeters_first: Option<bool>,
+
+    ///The Bed Temperature
     pub bed_temp: Option<f64>,
+
+    ///The Extruder Temperature
     pub extruder_temp: Option<f64>,
 }
 
@@ -456,16 +644,16 @@ impl PartialLayerSettings {
                 .or_else(|| other.acceleration.clone()),
             infill_percentage: self.infill_percentage.or(other.infill_percentage),
 
-            inner_permimeters_first: self
-                .inner_permimeters_first
-                .or(other.inner_permimeters_first),
+            inner_perimeters_first: self
+                .inner_perimeters_first
+                .or(other.inner_perimeters_first),
 
             bed_temp: self.bed_temp.or(other.bed_temp),
             extruder_temp: self.extruder_temp.or(other.extruder_temp),
             infill_perimeter_overlap_percentage: self
                 .infill_perimeter_overlap_percentage
                 .or(other.infill_perimeter_overlap_percentage),
-            infill_type: self.infill_type.or(other.infill_type),
+            partial_infill_type: self.partial_infill_type.or(other.partial_infill_type),
             layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
         }
     }
@@ -486,8 +674,8 @@ fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, St
         speed: part.speed.ok_or("speed")?,
         acceleration: part.acceleration.ok_or("acceleration")?,
         infill_percentage: part.infill_percentage.ok_or("infill_percentage")?,
-        inner_permimeters_first: part
-            .inner_permimeters_first
+        inner_perimeters_first: part
+            .inner_perimeters_first
             .ok_or("inner_permimeters_first")?,
         number_of_perimeters: part.number_of_perimeters.ok_or("number_of_perimeters")?,
         top_layers: part.top_layers.ok_or("top_layers")?,
@@ -503,9 +691,9 @@ fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, St
         infill_perimeter_overlap_percentage: part
             .infill_perimeter_overlap_percentage
             .ok_or("infill_perimeter_overlap_percentage")?,
-        infill_type: part.infill_type.ok_or("infill_type")?,
-        starting_gcode: part.starting_gcode.ok_or("starting_gcode")?,
-        ending_gcode: part.ending_gcode.ok_or("ending_gcode")?,
+        partial_infill_type: part.partial_infill_type.ok_or("infill_type")?,
+        starting_instructions: part.starting_instructions.ok_or("starting_gcode")?,
+        ending_instructions: part.ending_instructions.ok_or("ending_gcode")?,
 
         layer_settings: part.layer_settings.unwrap_or_default(),
     })

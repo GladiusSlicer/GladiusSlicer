@@ -267,7 +267,7 @@ pub struct LightningFillPass {}
 
 impl SlicePass for LightningFillPass {
     fn pass(slices: &mut Vec<Slice>, settings: &Settings) -> Result<(), SlicerErrors> {
-        if settings.infill_type == PartialInfillTypes::Lightning {
+        if settings.partial_infill_type == PartialInfillTypes::Lightning {
             info!("Generating Moves: Lightning Infill");
 
             lightning_infill(slices);

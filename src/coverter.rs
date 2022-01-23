@@ -8,7 +8,7 @@ pub fn convert(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut current_z = 0.0;
 
-    let mut start = settings.starting_gcode.clone();
+    let mut start = settings.starting_instructions.clone();
     let mut write_buf = BufWriter::new(write);
     let layer_settings = settings.get_layer_settings(0, 0.0);
 
@@ -159,7 +159,7 @@ pub fn convert(
         }
     }
 
-    let end = settings.ending_gcode;
+    let end = settings.ending_instructions;
 
     writeln!(write_buf, "{}", end)?;
 

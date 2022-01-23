@@ -1,22 +1,65 @@
 use serde::{Deserialize, Serialize};
 
+
+///Errors that can be generated during the slicing process
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SlicerErrors {
-    ObjectFileNotFound { filepath: String },
-    SettingsFileNotFound { filepath: String },
-    SettingsFileMisformat { filepath: String },
-    SettingsFileMissingSettings { missing_setting: String },
+
+    ///Thefile for the object/Model can not be found in the file system
+    ObjectFileNotFound {
+        ///File that was not found
+        filepath: String
+    },
+
+    ///The file for the settings can not be found in the file system
+    SettingsFileNotFound {
+        ///File that was not found
+        filepath: String
+    },
+
+    ///The settings file can't be parsed
+    SettingsFileMisformat {
+        ///File that was misformatted
+        filepath: String
+    },
+
+    ///A setting is missing from the settings file
+    SettingsFileMissingSettings {
+        ///Setting that was missing
+        missing_setting: String
+    },
+
+    ///Error loading the STL
     StlLoadError,
+
+    ///Error Loading the 3MF file
     ThreemfLoadError,
+
+    /// Error loading the 3MF file, usally a compatiblity error
     ThreemfUnsupportedType,
+
+    ///Error during tower generation
     TowerGeneration,
+
+    ///No inout models provided
     NoInputProvided,
+
+    ///Input string is misformated
     InputMisformat,
-    SettingsRecursiveLoadError { filepath: String },
+
+    ///settings file could not be loaded
+    SettingsRecursiveLoadError {
+        ///File that was not found
+        filepath: String
+    },
+
+    ///Another error, here for plugins to use
     UnspecifiedError(String),
 }
 
 impl SlicerErrors {
+
+    ///Return the error code and pretty error message
     pub fn get_code_and_message(&self) -> (u32, String) {
         match self {
             SlicerErrors::ObjectFileNotFound { filepath } => {

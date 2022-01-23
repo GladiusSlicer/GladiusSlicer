@@ -75,7 +75,7 @@ pub fn inset_polygon_recursive(
             }
         }
 
-        if settings.inner_permimeters_first {
+        if settings.inner_perimeters_first {
             move_chains.append(&mut inner_chains);
             move_chains.append(&mut outer_chains);
         } else {

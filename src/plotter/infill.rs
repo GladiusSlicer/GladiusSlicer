@@ -113,7 +113,7 @@ pub fn partial_infill_polygon(
     if fill_ratio < f64::EPSILON {
         return vec![];
     }
-    match settings.infill_type {
+    match settings.partial_infill_type {
         PartialInfillTypes::Linear => partial_linear_fill_polygon(
             poly,
             settings,

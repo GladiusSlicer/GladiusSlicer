@@ -1,6 +1,7 @@
 use crate::loader::*;
 use std::io::BufReader;
 
+///Loader for STL files
 pub struct STLLoader {}
 
 impl Loader for STLLoader {
