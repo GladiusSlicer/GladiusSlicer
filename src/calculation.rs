@@ -1,12 +1,11 @@
 use crate::*;
 
-
 pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedValues {
     let mut values = CalculatedValues {
         plastic_volume: 0.0,
         plastic_weight: 0.0,
         total_time: 0.0,
-        plastic_length: 0.0
+        plastic_length: 0.0,
     };
 
     let mut current_speed = 0.0;
@@ -56,8 +55,11 @@ pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedVal
         }
     }
 
-    values.plastic_weight = (values.plastic_volume/ 1000.0) * settings.filament.density ;
-    values.plastic_length = values.plastic_volume / (std::f64::consts::PI *(settings.nozzle_diameter /2.0)*(settings.nozzle_diameter /2.0) );
+    values.plastic_weight = (values.plastic_volume / 1000.0) * settings.filament.density;
+    values.plastic_length = values.plastic_volume
+        / (std::f64::consts::PI
+            * (settings.nozzle_diameter / 2.0)
+            * (settings.nozzle_diameter / 2.0));
 
     values
 }

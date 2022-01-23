@@ -1,3 +1,4 @@
+use crate::utils::show_error_message;
 use crate::SlicerErrors;
 use gladius_shared::types::*;
 use std::cell::RefCell;
@@ -5,7 +6,6 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
-use crate::utils::show_error_message;
 
 #[inline]
 fn line_z_intersection(z: f64, v_start: Vertex, v_end: Vertex) -> Vertex {
@@ -633,11 +633,16 @@ impl<'s> TriangleTowerIterator<'s> {
     }
 }
 
-pub fn create_towers(models: &[(Vec<Vertex>, Vec<IndexedTriangle>)]) -> Result<Vec<TriangleTower>,SlicerErrors> {
+pub fn create_towers(
+    models: &[(Vec<Vertex>, Vec<IndexedTriangle>)],
+) -> Result<Vec<TriangleTower>, SlicerErrors> {
     models
         .iter()
         .map(|(vertices, triangles)| {
-            Ok(TriangleTower::from_triangles_and_vertices(triangles, vertices.clone())?)
+            Ok(TriangleTower::from_triangles_and_vertices(
+                triangles,
+                vertices.clone(),
+            )?)
         })
         .collect()
 }

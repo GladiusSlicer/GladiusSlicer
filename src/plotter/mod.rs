@@ -17,9 +17,9 @@ use geo::*;
 use gladius_shared::settings::{LayerSettings, SkirtSettings};
 use gladius_shared::types::{Command, Move, MoveChain, MoveType, Slice};
 use itertools::Itertools;
+use log::info;
 use ordered_float::OrderedFloat;
 use std::iter::FromIterator;
-use log::info;
 
 pub trait Plotter {
     fn slice_perimeters_into_chains(&mut self, number_of_perimeters: usize);

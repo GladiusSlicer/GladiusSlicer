@@ -1,13 +1,13 @@
+use crate::utils::show_error_message;
 use crate::*;
+use log::error;
 use std::path::PathBuf;
 use std::str::FromStr;
-use log::error;
-use crate::utils::show_error_message;
 
 pub fn files_input(
     settings_path: Option<&str>,
     input: Option<Vec<String>>,
-) -> Result<(Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, Settings),SlicerErrors> {
+) -> Result<(Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, Settings), SlicerErrors> {
     let settings: Settings = {
         if let Some(str) = settings_path {
             load_settings(str)
@@ -18,10 +18,12 @@ pub fn files_input(
 
     info!("Loading Input");
 
-    let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>)> = input.ok_or(SlicerErrors::NoInputProvided)?
+    let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>)> = input
+        .ok_or(SlicerErrors::NoInputProvided)?
         .iter()
-        .try_fold( vec![], |mut vec,value| {
-            let object: InputObject = deser_hjson::from_str(value).map_err(|_| SlicerErrors::InputMisformat)?;
+        .try_fold(vec![], |mut vec, value| {
+            let object: InputObject =
+                deser_hjson::from_str(value).map_err(|_| SlicerErrors::InputMisformat)?;
             let model_path = Path::new(object.get_model_path());
 
             // Calling .unwrap() is safe here because "INPUT" is required (if "INPUT" wasn't
@@ -95,7 +97,6 @@ pub fn files_input(
             }));
 
             Ok(vec)
-
         })?;
     Ok((converted_inputs, settings))
 }

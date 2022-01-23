@@ -40,7 +40,6 @@ pub struct Slice {
     pub layer_settings: LayerSettings,
 }
 impl Slice {
-
     ///Creates a slice from a spefic iterator of points
     pub fn from_single_point_loop<I>(
         line: I,
@@ -134,11 +133,9 @@ impl Slice {
     }
 }
 
-
 ///Types of solid infill
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SolidInfillsTypes {
-
     ///Back and forth lines to fill polygons
     Rectilinear,
 }
@@ -146,7 +143,6 @@ pub enum SolidInfillsTypes {
 ///Types of partial infill
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PartialInfillTypes {
-
     ///Back and forth spaced lines to fill polygons
     Linear,
 
@@ -167,7 +163,6 @@ pub enum PartialInfillTypes {
 #[derive(Default, Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename = "vertex")]
 pub struct Vertex {
-
     ///X Coordinate
     pub x: f64,
 
@@ -212,10 +207,7 @@ impl std::ops::Mul<Vertex> for &Transform {
     }
 }
 
-
-
 impl Transform {
-
     ///create a new transform for translation
     pub fn new_translation_transform(x: f64, y: f64, z: f64) -> Self {
         Transform([
@@ -242,11 +234,9 @@ impl std::ops::Mul<Transform> for Transform{
 
 ///A object is the collection of slices for a particular model.
 pub struct Object {
-
     /// The slices for this model sorted from lowest to highest.
     pub layers: Vec<Slice>,
 }
-
 
 ///The different types of input that the slicer can take.
 #[derive(Serialize, Deserialize, Debug)]
@@ -262,7 +252,6 @@ pub enum InputObject {
 }
 
 impl InputObject {
-
     /// Helper function to get the model path from the input
     pub fn get_model_path(&self) -> &str {
         match self {
@@ -273,16 +262,13 @@ impl InputObject {
     }
 }
 
-
 ///4x4 Matrix used to transform models
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Transform(pub [[f64; 4]; 4]);
 
-
 /// A triangle that contains indices to it's 3 points. Used with a Vector of Vertices.
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct IndexedTriangle {
-
     ///Array of the 3 Vertices
     pub verts: [usize; 3],
 }
@@ -296,7 +282,6 @@ pub struct IndexedLine {
 
 ///A move of the plotter
 pub struct Move {
-
     ///The end Coordinate of the Move. The start of the move is the previous moves end point.
     pub end: Coordinate<f64>,
     ///The width of plastic to extrude for this move
@@ -314,11 +299,9 @@ pub struct MoveChain {
     pub moves: Vec<Move>,
 }
 
-
 ///Types of Moves
-#[derive(Serialize, Deserialize,Clone, Copy, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum MoveType {
-
     ///The top later of infill
     TopSolidInfill,
 
@@ -345,11 +328,10 @@ pub enum MoveType {
 }
 
 ///The intermediate representation of the commands to send to the printer. The commands will be optimized organized and converted into the output expected ( for example GCode)
-#[derive(Serialize, Deserialize,Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum Command {
     ///Move to a specific location without extrusion
     MoveTo {
-
         ///The end point of the move
         end: Coordinate<f64>,
     },
@@ -370,14 +352,12 @@ pub enum Command {
 
     ///Change the layer height
     LayerChange {
-
         ///The height the print head should move to
         z: f64,
     },
 
     ///Sets the System state to the new values
     SetState {
-
         ///The new state to change into
         new_state: StateChange,
     },
@@ -390,7 +370,6 @@ pub enum Command {
 
     ///An arc move of the extruder
     Arc {
-
         ///start point of the arc
         start: Coordinate<f64>,
 
@@ -412,7 +391,6 @@ pub enum Command {
 
     ///Change the object that is being printed
     ChangeObject {
-
         ///The index of the new object being changed to
         object: usize,
     },
@@ -420,9 +398,8 @@ pub enum Command {
     NoAction,
 }
 
-
 ///A change in the state of the printer. all fields are optional and should only be set when the state is changing.
-#[derive(Serialize, Deserialize, Debug,Clone, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct StateChange {
     ///The temperature of the current extruder
     pub extruder_temp: Option<f64>,
@@ -444,7 +421,6 @@ pub struct StateChange {
 }
 
 impl StateChange {
-
     ///Change the current state to the new state and return the differences between the 2 states
     pub fn state_diff(&mut self, new_state: &StateChange) -> StateChange {
         StateChange {
@@ -513,7 +489,6 @@ impl StateChange {
 }
 
 impl MoveChain {
-
     ///Convert a move chain into a list of commands
     pub fn create_commands(self, settings: &LayerSettings, thickness: f64) -> Vec<Command> {
         let mut cmds = vec![];
@@ -659,7 +634,6 @@ impl MoveChain {
     }
 }
 
-
 ///Calculated values about an entire print
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CalculatedValues {
@@ -676,13 +650,17 @@ pub struct CalculatedValues {
     pub total_time: f64,
 }
 
-
-impl CalculatedValues{
+impl CalculatedValues {
     ///Returns total time converted to hours, minutes, seconds, and remaining fractional seconds
-    pub fn get_hours_minutes_seconds_fract_time(&self) -> (usize,usize,usize,f64){
+    pub fn get_hours_minutes_seconds_fract_time(&self) -> (usize, usize, usize, f64) {
         let total_time = self.total_time.floor() as usize;
 
         let fract = self.total_time - total_time as f64;
-        (total_time / 3600, (total_time % 3600) / 60, total_time % 60,fract)
+        (
+            total_time / 3600,
+            (total_time % 3600) / 60,
+            total_time % 60,
+            fract,
+        )
     }
 }
