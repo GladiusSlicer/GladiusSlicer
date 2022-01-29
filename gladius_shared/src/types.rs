@@ -9,6 +9,7 @@ use itertools::Itertools;
 use nalgebra::Point3;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use crate::error::SlicerErrors;
 
 ///A single slice of an object containing it's current plotting status.
 pub struct Slice {
@@ -76,7 +77,7 @@ impl Slice {
         top_height: f64,
         layer_count: usize,
         settings: &Settings,
-    ) -> Self {
+    ) -> Result<Self,SlicerErrors > {
         let mut lines_and_area: Vec<(LineString<f64>, f64)> = lines
             .into_iter()
             .map(|line| {
@@ -104,7 +105,7 @@ impl Slice {
                     .iter_mut()
                     .rev()
                     .find(|poly| poly.contains(&line.0[0]))
-                    .expect("Polygon order failure");
+                    .ok_or(SlicerErrors::SliceGeneration)?;
                 smallest_polygon.interiors_push(line);
             }
         }
@@ -114,7 +115,7 @@ impl Slice {
         let layer_settings =
             settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
 
-        Slice {
+        Ok(Slice {
             main_polygon: multi_polygon.clone(),
             remaining_area: multi_polygon.simplifyvw(&0.0001),
             support_interface: None,
@@ -124,7 +125,7 @@ impl Slice {
             bottom_height,
             top_height,
             layer_settings,
-        }
+        })
     }
 
     ///return the reference height of the slice

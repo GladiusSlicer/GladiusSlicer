@@ -676,7 +676,7 @@ fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, St
         infill_percentage: part.infill_percentage.ok_or("infill_percentage")?,
         inner_perimeters_first: part
             .inner_perimeters_first
-            .ok_or("inner_permimeters_first")?,
+            .ok_or("inner_perimeters_first")?,
         number_of_perimeters: part.number_of_perimeters.ok_or("number_of_perimeters")?,
         top_layers: part.top_layers.ok_or("top_layers")?,
         bottom_layers: part.bottom_layers.ok_or("bottom_layers")?,
@@ -691,9 +691,9 @@ fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, St
         infill_perimeter_overlap_percentage: part
             .infill_perimeter_overlap_percentage
             .ok_or("infill_perimeter_overlap_percentage")?,
-        partial_infill_type: part.partial_infill_type.ok_or("infill_type")?,
-        starting_instructions: part.starting_instructions.ok_or("starting_gcode")?,
-        ending_instructions: part.ending_instructions.ok_or("ending_gcode")?,
+        partial_infill_type: part.partial_infill_type.ok_or("partial_infill_type")?,
+        starting_instructions: part.starting_instructions.ok_or("starting_instructions")?,
+        ending_instructions: part.ending_instructions.ok_or("ending_instructions")?,
 
         layer_settings: part.layer_settings.unwrap_or_default(),
     })

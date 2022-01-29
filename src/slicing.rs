@@ -36,25 +36,30 @@ pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Result<Vec<Object
             })
             .enumerate()
             .map(|(count, r)| {
-                    r.map(|(bot, top, layer_loops)|{
-                    //Add this slice to the
-                    let slice = Slice::from_multiple_point_loop(
-                        layer_loops
-                            .iter()
-                            .map(|verts| {
-                                verts
-                                    .iter()
-                                    .map(|v| Coordinate { x: v.x, y: v.y })
-                                    .collect::<Vec<Coordinate<f64>>>()
-                            })
-                            .collect(),
-                        bot,
-                        top,
-                        count,
-                        settings
-                    );
-                    slice
-                })
+                match r {
+                    Ok((bot, top, layer_loops)) =>  {
+                        //Add this slice to the
+                        let slice = Slice::from_multiple_point_loop(
+                            layer_loops
+                                .iter()
+                                .map(|verts| {
+                                    verts
+                                        .iter()
+                                        .map(|v| Coordinate { x: v.x, y: v.y })
+                                        .collect::<Vec<Coordinate<f64>>>()
+                                })
+                                .collect(),
+                            bot,
+                            top,
+                            count,
+                            settings
+                        );
+                        slice
+                    }
+                    Err(e) =>{
+                        Err(e)
+                    }
+                }
             })
             .try_collect()?;
 

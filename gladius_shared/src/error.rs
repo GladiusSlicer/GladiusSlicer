@@ -53,6 +53,9 @@ pub enum SlicerErrors {
         filepath: String
     },
 
+    ///Error during tower generation
+    SliceGeneration,
+
     ///Another error, here for plugins to use
     UnspecifiedError(String),
 }
@@ -94,6 +97,9 @@ impl SlicerErrors {
             }
             SlicerErrors::SettingsRecursiveLoadError { filepath } => {
                 (0x100A,format!("Failed to load addional settings file {}",filepath))
+            }
+            SlicerErrors::SliceGeneration => {
+                (0x100B,"There was a issue ordering the polygon for slicing. Try repairing your Model.".to_string())
             }
             SlicerErrors::UnspecifiedError(err_string) => {
                 (0xFFFFFFFF,format!("Third Party Error. {}",err_string))
