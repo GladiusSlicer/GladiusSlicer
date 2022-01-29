@@ -104,7 +104,7 @@ fn main() {
 
     info!("Slicing");
 
-    let mut objects = slice(&towers, &settings);
+    let mut objects = handle_err_or_return(slice(&towers, &settings), send_messages);
 
     info!("Generating Moves");
 
