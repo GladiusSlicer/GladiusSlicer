@@ -16,6 +16,9 @@ pub enum Message {
     ///Message to share final Gcode
     GCode(String),
 
+    ///Message to share the current state of the slicer
+    StateUpdate(String),
+
     ///Message to share any Errors encountered
     Error(SlicerErrors),
 }

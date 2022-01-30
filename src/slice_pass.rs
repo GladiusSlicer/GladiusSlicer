@@ -6,19 +6,19 @@ use geo::prelude::*;
 use geo::*;
 use gladius_shared::error::SlicerErrors;
 use gladius_shared::types::PartialInfillTypes;
-use log::info;
 use rayon::prelude::*;
+use crate::utils::display_state_update;
 
 pub trait ObjectPass {
-    fn pass(objects: &mut Vec<Object>, settings: &Settings);
+    fn pass(objects: &mut Vec<Object>, settings: &Settings,send_messages: bool);
 }
 
 pub struct BrimPass {}
 
 impl ObjectPass for BrimPass {
-    fn pass(objects: &mut Vec<Object>, settings: &Settings) {
+    fn pass(objects: &mut Vec<Object>, settings: &Settings,send_messages: bool) {
         if let Some(width) = &settings.brim_width {
-            info!("Generating Moves: Brim");
+            display_state_update("Generating Moves: Brim",send_messages);
             //Add to first object
 
             let first_layer_multipolygon: MultiPolygon<f64> = MultiPolygon(
@@ -51,9 +51,9 @@ impl ObjectPass for BrimPass {
 pub struct SupportTowerPass {}
 
 impl ObjectPass for SupportTowerPass {
-    fn pass(objects: &mut Vec<Object>, settings: &Settings) {
+    fn pass(objects: &mut Vec<Object>, settings: &Settings,send_messages: bool) {
         if let Some(support) = &settings.support {
-            info!("Generating Support Towers");
+           display_state_update("Generating Support Towers",send_messages);
             //Add to first object
 
             objects.par_iter_mut().for_each(|obj| {
@@ -73,10 +73,10 @@ impl ObjectPass for SupportTowerPass {
 pub struct SkirtPass {}
 
 impl ObjectPass for SkirtPass {
-    fn pass(objects: &mut Vec<Object>, settings: &Settings) {
+    fn pass(objects: &mut Vec<Object>, settings: &Settings,send_messages: bool) {
         //Handle Perimeters
         if let Some(skirt) = &settings.skirt {
-            info!("Generating Moves: Skirt");
+            display_state_update("Generating Moves: Skirt",send_messages);
             let convex_hull = objects
                 .iter()
                 .flat_map(|object| {
@@ -103,14 +103,14 @@ impl ObjectPass for SkirtPass {
 }
 
 pub trait SlicePass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) -> Result<(), SlicerErrors>;
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings,send_message: bool) -> Result<(), SlicerErrors>;
 }
 
 pub struct ShrinkPass {}
 
 impl SlicePass for ShrinkPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) -> Result<(), SlicerErrors> {
-        info!("Generating Moves: Shrink Layers");
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings,send_messages: bool) -> Result<(), SlicerErrors> {
+        display_state_update("Generating Moves: Shrink Layers",send_messages);
         slices.par_iter_mut().for_each(|slice| {
             slice.shrink_layer();
         });
@@ -121,8 +121,8 @@ impl SlicePass for ShrinkPass {
 pub struct PerimeterPass {}
 
 impl SlicePass for PerimeterPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) -> Result<(), SlicerErrors> {
-        info!("Generating Moves: Perimeters");
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings,send_messages: bool) -> Result<(), SlicerErrors> {
+        display_state_update("Generating Moves: Perimeters",send_messages);
         slices.par_iter_mut().for_each(|slice| {
             slice.slice_perimeters_into_chains(settings.number_of_perimeters);
         });
@@ -133,8 +133,8 @@ impl SlicePass for PerimeterPass {
 pub struct BridgingPass {}
 
 impl SlicePass for BridgingPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) -> Result<(), SlicerErrors> {
-        info!("Generating Moves: Bridging");
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings,send_messages: bool) -> Result<(), SlicerErrors> {
+        display_state_update("Generating Moves: Bridging",send_messages);
         (1..slices.len()).into_iter().for_each(|q| {
             let below = slices[q - 1].main_polygon.clone();
 
@@ -146,8 +146,8 @@ impl SlicePass for BridgingPass {
 pub struct TopLayerPass {}
 
 impl SlicePass for TopLayerPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) -> Result<(), SlicerErrors> {
-        info!("Generating Moves: Top Layer");
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings,send_messages: bool) -> Result<(), SlicerErrors> {
+        display_state_update("Generating Moves: Top Layer",send_messages);
         (0..slices.len() - 1).into_iter().for_each(|q| {
             let above = slices[q + 1].main_polygon.clone();
 
@@ -160,13 +160,13 @@ impl SlicePass for TopLayerPass {
 pub struct TopAndBottomLayersPass {}
 
 impl SlicePass for TopAndBottomLayersPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) -> Result<(), SlicerErrors> {
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings,send_messages: bool) -> Result<(), SlicerErrors> {
         let top_layers = settings.top_layers;
         let bottom_layers = settings.bottom_layers;
 
         //Make sure at least 1 layer will not be solid
         if slices.len() > bottom_layers + top_layers {
-            info!("Generating Moves: Above and below support");
+            display_state_update("Generating Moves: Above and below support",send_messages);
 
             (bottom_layers..slices.len() - top_layers)
                 .into_iter()
@@ -237,7 +237,7 @@ impl SlicePass for TopAndBottomLayersPass {
 pub struct SupportPass {}
 
 impl SlicePass for SupportPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) -> Result<(), SlicerErrors> {
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings,send_messages: bool) -> Result<(), SlicerErrors> {
         if let Some(support) = &settings.support {
             for slice in slices.iter_mut() {
                 slice.fill_support_polygons(support);
@@ -250,8 +250,8 @@ impl SlicePass for SupportPass {
 pub struct FillAreaPass {}
 
 impl SlicePass for FillAreaPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) -> Result<(), SlicerErrors> {
-        info!("Generating Moves: Fill Areas");
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings,send_messages: bool) -> Result<(), SlicerErrors> {
+        display_state_update("Generating Moves: Fill Areas",send_messages);
 
         //Fill all remaining areas
         slices
@@ -266,9 +266,9 @@ impl SlicePass for FillAreaPass {
 pub struct LightningFillPass {}
 
 impl SlicePass for LightningFillPass {
-    fn pass(slices: &mut Vec<Slice>, settings: &Settings) -> Result<(), SlicerErrors> {
+    fn pass(slices: &mut Vec<Slice>, settings: &Settings,send_messages: bool) -> Result<(), SlicerErrors> {
         if settings.partial_infill_type == PartialInfillTypes::Lightning {
-            info!("Generating Moves: Lightning Infill");
+            display_state_update("Generating Moves: Lightning Infill",send_messages);
 
             lightning_infill(slices);
         }
@@ -279,8 +279,8 @@ impl SlicePass for LightningFillPass {
 pub struct OrderPass {}
 
 impl SlicePass for OrderPass {
-    fn pass(slices: &mut Vec<Slice>, _settings: &Settings) -> Result<(), SlicerErrors> {
-        info!("Generating Moves: Order Chains");
+    fn pass(slices: &mut Vec<Slice>, _settings: &Settings,send_messages: bool) -> Result<(), SlicerErrors> {
+        display_state_update("Generating Moves: Order Chains",send_messages);
 
         //Fill all remaining areas
         slices.par_iter_mut().for_each(|slice| {

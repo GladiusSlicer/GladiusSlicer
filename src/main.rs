@@ -20,7 +20,7 @@ use crate::input::files_input;
 use crate::plotter::polygon_operations::PolygonOperations;
 use crate::slice_pass::*;
 use crate::slicing::*;
-use crate::utils::{send_error_message, show_error_message};
+use crate::utils::{display_state_update, send_error_message, show_error_message};
 use gladius_shared::error::SlicerErrors;
 use gladius_shared::messages::Message;
 use itertools::Itertools;
@@ -87,7 +87,7 @@ fn main() {
         }
     }
 
-    info!("Loading Inputs");
+    display_state_update("Loading Inputs",send_messages);
     let (models, settings) = handle_err_or_return(
         files_input(
             matches.value_of("SETTINGS"),
@@ -98,17 +98,17 @@ fn main() {
         send_messages,
     );
 
-    info!("Creating Towers");
+    display_state_update("Creating Towers",send_messages);
 
     let towers: Vec<TriangleTower> = handle_err_or_return(create_towers(&models), send_messages);
 
-    info!("Slicing");
+    display_state_update("Slicing",send_messages);
 
     let mut objects = handle_err_or_return(slice(&towers, &settings), send_messages);
 
-    info!("Generating Moves");
+    display_state_update("Generating Moves",send_messages);
 
-    let mut moves = handle_err_or_return(generate_moves(objects, &settings), send_messages);
+    let mut moves = handle_err_or_return(generate_moves(objects, &settings,send_messages), send_messages);
 
     debug!("Optimizing {} Moves", moves.len());
 
@@ -173,45 +173,46 @@ fn main() {
 fn generate_moves(
     mut objects: Vec<Object>,
     settings: &Settings,
+    send_messages: bool
 ) -> Result<Vec<Command>, SlicerErrors> {
     //Creates Support Towers
-    SupportTowerPass::pass(&mut objects, &settings);
+    SupportTowerPass::pass(&mut objects, &settings,send_messages);
 
     //Adds a skirt
-    SkirtPass::pass(&mut objects, &settings);
+    SkirtPass::pass(&mut objects, &settings,send_messages);
 
     //Adds a brim
-    BrimPass::pass(&mut objects, &settings);
+    BrimPass::pass(&mut objects, &settings,send_messages);
 
     objects.par_iter_mut().for_each(|object| {
         let slices = &mut object.layers;
 
         //Shrink layer
-        ShrinkPass::pass(slices, &settings);
+        ShrinkPass::pass(slices, &settings,send_messages);
 
         //Handle Perimeters
-        PerimeterPass::pass(slices, &settings);
+        PerimeterPass::pass(slices, &settings,send_messages);
 
         //Handle Bridging
-        BridgingPass::pass(slices, &settings);
+        BridgingPass::pass(slices, &settings,send_messages);
 
         //Handle Top Layer
-        TopLayerPass::pass(slices, &settings);
+        TopLayerPass::pass(slices, &settings,send_messages);
 
         //Handle Top And Bottom Layers
-        TopAndBottomLayersPass::pass(slices, &settings);
+        TopAndBottomLayersPass::pass(slices, &settings,send_messages);
 
         //Handle Support
-        SupportPass::pass(slices, &settings);
+        SupportPass::pass(slices, &settings,send_messages);
 
         //Lightning Infill
-        LightningFillPass::pass(slices, &settings);
+        LightningFillPass::pass(slices, &settings,send_messages);
 
         //Fill Remaining areas
-        FillAreaPass::pass(slices, &settings);
+        FillAreaPass::pass(slices, &settings,send_messages);
 
         //Order the move chains
-        OrderPass::pass(slices, &settings);
+        OrderPass::pass(slices, &settings,send_messages);
     });
 
     Ok(convert_objects_into_moves(objects, &settings))

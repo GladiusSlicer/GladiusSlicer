@@ -1,6 +1,6 @@
 use gladius_shared::error::SlicerErrors;
 use gladius_shared::messages::Message;
-use log::{debug, error};
+use log::{debug, error, info};
 
 pub fn show_error_message(error: SlicerErrors) {
     let (error_code, message) = error.get_code_and_message();
@@ -15,4 +15,14 @@ pub fn show_error_message(error: SlicerErrors) {
 pub fn send_error_message(error: SlicerErrors) {
     let cv_message = Message::Error(error);
     println!("{}", serde_json::to_string(&cv_message).unwrap());
+}
+
+
+pub fn display_state_update(state_message: &str , send_message: bool) {
+    if send_message{
+        let message = Message::StateUpdate(state_message.to_string());
+        println!("{}", serde_json::to_string(&message).unwrap());
+    }else{
+        info!("{}",state_message);
+    }
 }
