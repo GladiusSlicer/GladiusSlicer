@@ -1,3 +1,4 @@
+use std::io::{BufWriter, Write};
 use gladius_shared::error::SlicerErrors;
 use gladius_shared::messages::Message;
 use log::{debug, error, info};
@@ -13,15 +14,17 @@ pub fn show_error_message(error: SlicerErrors) {
     error!("\n\n\n");
 }
 pub fn send_error_message(error: SlicerErrors) {
-    let cv_message = Message::Error(error);
-    println!("{}", serde_json::to_string(&cv_message).unwrap());
+    let message = Message::Error(error);
+    bincode::serialize_into(BufWriter::new(std::io::stdout()),&message).unwrap();
+    std::io::stdout().flush();
 }
 
 
 pub fn display_state_update(state_message: &str , send_message: bool) {
     if send_message{
         let message = Message::StateUpdate(state_message.to_string());
-        println!("{}", serde_json::to_string(&message).unwrap());
+        bincode::serialize_into(std::io::stdout(),&message).unwrap();
+        std::io::stdout().flush();
     }else{
         info!("{}",state_message);
     }

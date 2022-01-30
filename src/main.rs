@@ -29,6 +29,7 @@ use ordered_float::OrderedFloat;
 use rayon::prelude::*;
 use simple_logger::SimpleLogger;
 use std::collections::HashMap;
+use std::io::BufWriter;
 
 mod calculation;
 mod command_pass;
@@ -110,22 +111,27 @@ fn main() {
 
     let mut moves = handle_err_or_return(generate_moves(objects, &settings,send_messages), send_messages);
 
+     display_state_update("Optimizing",send_messages);
     debug!("Optimizing {} Moves", moves.len());
 
     OptimizePass::pass(&mut moves, &settings);
+     display_state_update("Slowing Layer Down",send_messages);
 
     SlowDownLayerPass::pass(&mut moves, &settings);
 
     if send_messages {
         let message = Message::Commands(moves.clone());
-        println!("{}", serde_json::to_string(&message).unwrap());
+        bincode::serialize_into(BufWriter::new(std::io::stdout()),&message).unwrap();
     }
+     display_state_update("Calculate Values",send_messages);
 
     let cv = calculate_values(&moves, &settings);
 
+
+
     if send_messages {
         let message = Message::CalculatedValues(cv);
-        println!("{}", serde_json::to_string(&message).unwrap());
+        bincode::serialize_into(BufWriter::new(std::io::stdout()),&message).unwrap();
     } else {
         let (hour, min, sec, _) = cv.get_hours_minutes_seconds_fract_time();
 
@@ -146,6 +152,7 @@ fn main() {
         );
     }
 
+    display_state_update("Outputting G-code",send_messages);
     //Output the GCode
     if let Some(file_path) = matches.value_of("OUTPUT") {
         //Output to file
@@ -161,7 +168,7 @@ fn main() {
         let mut gcode: Vec<u8> = Vec::new();
         convert(&moves, settings, &mut gcode).unwrap();
         let message = Message::GCode(String::from_utf8(gcode).unwrap());
-        println!("{}", serde_json::to_string(&message).unwrap());
+        bincode::serialize_into(BufWriter::new(std::io::stdout()),&message).unwrap();
     } else {
         //Output to stdout
         let stdout = std::io::stdout();
