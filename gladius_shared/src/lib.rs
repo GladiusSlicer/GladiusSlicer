@@ -1,7 +1,6 @@
 #![deny(missing_docs)]
 //!Crate for shared types between slicer and external applications like GUI and Mods
 
-
 ///Error types
 pub mod error;
 

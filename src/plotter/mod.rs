@@ -12,14 +12,12 @@ use crate::{Object, Settings, StateChange};
 use geo::coordinate_position::CoordPos;
 use geo::coordinate_position::CoordinatePosition;
 use geo::prelude::*;
-use geo::simplifyvw::SimplifyVWPreserve;
 use geo::*;
-use gladius_shared::settings::{LayerSettings, SkirtSettings};
+use gladius_shared::settings::SkirtSettings;
 use gladius_shared::types::{Command, Move, MoveChain, MoveType, Slice};
 use itertools::Itertools;
 use log::info;
 use ordered_float::OrderedFloat;
-use std::iter::FromIterator;
 
 pub trait Plotter {
     fn slice_perimeters_into_chains(&mut self, number_of_perimeters: usize);

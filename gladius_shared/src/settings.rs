@@ -4,7 +4,6 @@ use crate::error::SlicerErrors;
 use crate::types::PartialInfillTypes;
 use serde::{Deserialize, Serialize};
 
-
 ///A complete settings file for the entire slicer.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
@@ -83,13 +82,11 @@ pub struct Settings {
     ///Partial Infill type
     pub partial_infill_type: PartialInfillTypes,
 
-
     ///The instructions to prepend to the exported instructions
     pub starting_instructions: String,
 
     ///The instructions to append to the end of the exported instructions
     pub ending_instructions: String,
-
 
     ///Settings for specific layers
     pub layer_settings: Vec<(LayerRange, PartialLayerSettings)>,
@@ -193,7 +190,6 @@ impl Default for Settings {
 }
 
 impl Settings {
-
     ///Get the layer settings for a specific layer index and height
     pub fn get_layer_settings(&self, layer: usize, height: f64) -> LayerSettings {
         let changes = self
@@ -215,7 +211,9 @@ impl Settings {
                 .acceleration
                 .unwrap_or_else(|| self.acceleration.clone()),
             layer_width: changes.layer_width.unwrap_or(self.layer_width),
-            partial_infill_type: changes.partial_infill_type.unwrap_or(self.partial_infill_type),
+            partial_infill_type: changes
+                .partial_infill_type
+                .unwrap_or(self.partial_infill_type),
             infill_percentage: changes.infill_percentage.unwrap_or(self.infill_percentage),
             infill_perimeter_overlap_percentage: changes
                 .infill_perimeter_overlap_percentage
@@ -229,10 +227,8 @@ impl Settings {
     }
 }
 
-
 ///Settings specific to a Layer
 pub struct LayerSettings {
-
     ///The height of the layers
     pub layer_height: f64,
 
@@ -267,11 +263,9 @@ pub struct LayerSettings {
     pub extruder_temp: f64,
 }
 
-
 ///A set of values for different movement types
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MovementParameter {
-
     ///Value fpr interior perimeter moves
     pub inner_perimeter: f64,
 
@@ -300,7 +294,6 @@ pub struct MovementParameter {
 ///Settings for a filament
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FilamentSettings {
-
     ///Diameter of this filament in mm
     pub diameter: f64,
 
@@ -320,7 +313,6 @@ pub struct FilamentSettings {
 ///Settigns for the fans
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FanSettings {
-
     ///The default fan speed
     pub fan_speed: f64,
 
@@ -360,7 +352,6 @@ impl Default for FanSettings {
 ///Support settings
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SupportSettings {
-
     ///Angle to start production supports in degrees
     pub max_overhang_angle: f64,
 
@@ -371,7 +362,6 @@ pub struct SupportSettings {
 ///The Settings for Skirt generation
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SkirtSettings {
-
     ///the number of layer to generate the skirt
     pub layers: usize,
 
@@ -379,11 +369,9 @@ pub struct SkirtSettings {
     pub distance: f64,
 }
 
-
 ///A partial complete settings file
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PartialSettings {
-
     ///The height of the layers
     pub layer_height: Option<f64>,
 
@@ -402,9 +390,6 @@ pub struct PartialSettings {
     pub support: Option<SupportSettings>,
     ///Diameter of the nozzle in mm
     pub nozzle_diameter: Option<f64>,
-
-
-
 
     ///length to retract in mm
     pub retract_length: Option<f64>,
@@ -470,7 +455,6 @@ pub struct PartialSettings {
 }
 
 impl PartialSettings {
-
     ///Convert a partial settings file into a complete settings file
     /// returns an error if a settings is not present in this or any sub file
     pub fn get_settings(mut self) -> Result<Settings, SlicerErrors> {
@@ -528,9 +512,7 @@ impl PartialSettings {
                 .clone()
                 .or_else(|| other.acceleration.clone()),
             infill_percentage: self.infill_percentage.or(other.infill_percentage),
-            inner_perimeters_first: self
-                .inner_perimeters_first
-                .or(other.inner_perimeters_first),
+            inner_perimeters_first: self.inner_perimeters_first.or(other.inner_perimeters_first),
             number_of_perimeters: self.number_of_perimeters.or(other.number_of_perimeters),
             top_layers: self.top_layers.or(other.top_layers),
             bottom_layers: self.bottom_layers.or(other.bottom_layers),
@@ -549,7 +531,10 @@ impl PartialSettings {
                 .starting_instructions
                 .clone()
                 .or_else(|| other.starting_instructions.clone()),
-            ending_instructions: self.ending_instructions.clone().or(other.ending_instructions),
+            ending_instructions: self
+                .ending_instructions
+                .clone()
+                .or(other.ending_instructions),
             other_files: None,
             layer_settings: {
                 match (self.layer_settings.as_ref(), other.layer_settings.as_ref()) {
@@ -567,7 +552,6 @@ impl PartialSettings {
     }
 }
 
-
 /// The different types of layer ranges supported
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum LayerRange {
@@ -580,7 +564,7 @@ pub enum LayerRange {
         start: usize,
 
         ///The end index
-        end: usize
+        end: usize,
     },
 
     ///A Range of layers based on the height of the bottom on the slice
@@ -589,15 +573,13 @@ pub enum LayerRange {
         start: f64,
 
         ///The end height
-        end: f64
+        end: f64,
     },
 }
-
 
 ///A Partial List of all slicer settings
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct PartialLayerSettings {
-
     ///The height of the layers
     pub layer_height: Option<f64>,
 
@@ -644,9 +626,7 @@ impl PartialLayerSettings {
                 .or_else(|| other.acceleration.clone()),
             infill_percentage: self.infill_percentage.or(other.infill_percentage),
 
-            inner_perimeters_first: self
-                .inner_perimeters_first
-                .or(other.inner_perimeters_first),
+            inner_perimeters_first: self.inner_perimeters_first.or(other.inner_perimeters_first),
 
             bed_temp: self.bed_temp.or(other.bed_temp),
             extruder_temp: self.extruder_temp.or(other.extruder_temp),

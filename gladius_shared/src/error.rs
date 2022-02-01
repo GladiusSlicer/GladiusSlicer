@@ -1,32 +1,30 @@
 use serde::{Deserialize, Serialize};
 
-
 ///Errors that can be generated during the slicing process
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SlicerErrors {
-
     ///Thefile for the object/Model can not be found in the file system
     ObjectFileNotFound {
         ///File that was not found
-        filepath: String
+        filepath: String,
     },
 
     ///The file for the settings can not be found in the file system
     SettingsFileNotFound {
         ///File that was not found
-        filepath: String
+        filepath: String,
     },
 
     ///The settings file can't be parsed
     SettingsFileMisformat {
         ///File that was misformatted
-        filepath: String
+        filepath: String,
     },
 
     ///A setting is missing from the settings file
     SettingsFileMissingSettings {
         ///Setting that was missing
-        missing_setting: String
+        missing_setting: String,
     },
 
     ///Error loading the STL
@@ -50,7 +48,7 @@ pub enum SlicerErrors {
     ///settings file could not be loaded
     SettingsRecursiveLoadError {
         ///File that was not found
-        filepath: String
+        filepath: String,
     },
 
     ///Error during tower generation
@@ -61,7 +59,6 @@ pub enum SlicerErrors {
 }
 
 impl SlicerErrors {
-
     ///Return the error code and pretty error message
     pub fn get_code_and_message(&self) -> (u32, String) {
         match self {

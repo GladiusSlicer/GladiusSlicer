@@ -1,4 +1,3 @@
-use crate::utils::show_error_message;
 use crate::SlicerErrors;
 use gladius_shared::types::*;
 use std::cell::RefCell;
@@ -639,10 +638,7 @@ pub fn create_towers(
     models
         .iter()
         .map(|(vertices, triangles)| {
-            Ok(TriangleTower::from_triangles_and_vertices(
-                triangles,
-                vertices.clone(),
-            )?)
+            TriangleTower::from_triangles_and_vertices(triangles, vertices.clone())
         })
         .collect()
 }

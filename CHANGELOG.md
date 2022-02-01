@@ -2,11 +2,21 @@
 
 ## [Unreleased]
 ### New Features
-
+- Support feature for the GUI
+  - A sub-crate was created to handle shared types for the GUI
+  - Added Messages mode that outputs messages in Bincode for IPC
+  - Console hidden
+  - Shared Library is documented
+  - All Common errors should now return slicer error rather than panicing
+- Added ABS and TPU settings files
+- 
 ### Fixes
 - Other files for settings are now relative to the main settings file
 - File extensions are case-insensitive now
 - Added fix for winding order issue 
+- Verbose command line parameter now works
+- Setting work on Linux where files are case sensitive
+- Fixed spelling errors in settings files
 
 ## [0.2.0]
 ### New Features

@@ -1,5 +1,6 @@
 #![deny(missing_docs)]
 
+use crate::error::SlicerErrors;
 use crate::settings::{LayerSettings, Settings};
 use geo::contains::Contains;
 use geo::prelude::SimplifyVW;
@@ -9,7 +10,6 @@ use itertools::Itertools;
 use nalgebra::Point3;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use crate::error::SlicerErrors;
 
 ///A single slice of an object containing it's current plotting status.
 pub struct Slice {
@@ -77,7 +77,7 @@ impl Slice {
         top_height: f64,
         layer_count: usize,
         settings: &Settings,
-    ) -> Result<Self,SlicerErrors > {
+    ) -> Result<Self, SlicerErrors> {
         let mut lines_and_area: Vec<(LineString<f64>, f64)> = lines
             .into_iter()
             .map(|line| {
@@ -423,6 +423,7 @@ pub struct StateChange {
 
 impl StateChange {
     ///Change the current state to the new state and return the differences between the 2 states
+    #[must_use]
     pub fn state_diff(&mut self, new_state: &StateChange) -> StateChange {
         StateChange {
             extruder_temp: {
@@ -477,6 +478,7 @@ impl StateChange {
     }
 
     ///combine the 2 state changes into one, prioritizing the new state if both contain a file
+    #[must_use]
     pub fn combine(&self, new_state: &StateChange) -> StateChange {
         StateChange {
             extruder_temp: { new_state.extruder_temp.or(self.extruder_temp) },

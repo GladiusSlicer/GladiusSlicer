@@ -1,6 +1,5 @@
 use crate::utils::show_error_message;
 use crate::*;
-use log::error;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -117,12 +116,12 @@ fn load_settings(filepath: &str) -> Result<Settings, SlicerErrors> {
 
     path.pop();
 
-    std::env::set_current_dir(&path);
+    std::env::set_current_dir(&path).expect("Path checked before");
 
     let settings = partial_settings.get_settings()?;
 
     //reset path
-    std::env::set_current_dir(current_path);
+    std::env::set_current_dir(current_path).expect("Path checked before");
 
     Ok(settings)
 }

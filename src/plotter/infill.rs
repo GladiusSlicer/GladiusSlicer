@@ -2,8 +2,6 @@ use crate::plotter::monotone::get_monotone_sections;
 use gladius_shared::settings::LayerSettings;
 use gladius_shared::types::{Move, MoveChain, MoveType, PartialInfillTypes};
 
-use serde::{Deserialize, Serialize};
-
 use crate::PolygonOperations;
 use geo::prelude::*;
 use geo::*;

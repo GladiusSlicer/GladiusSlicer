@@ -50,8 +50,7 @@ fn main() {
     //set number of cores for rayon
     if let Some(number_of_threads) = matches
         .value_of("THREAD_COUNT")
-        .map(|str| str.parse::<usize>().ok())
-        .flatten()
+        .and_then(|str| str.parse::<usize>().ok())
     {
         rayon::ThreadPoolBuilder::new()
             .num_threads(number_of_threads)
@@ -81,14 +80,14 @@ fn main() {
                 .with_level(LevelFilter::Debug)
                 .init()
                 .unwrap(),
-            4 | _ => SimpleLogger::new()
+            _ => SimpleLogger::new()
                 .with_level(LevelFilter::Trace)
                 .init()
                 .unwrap(),
         }
     }
 
-    display_state_update("Loading Inputs",send_messages);
+    display_state_update("Loading Inputs", send_messages);
     let (models, settings) = handle_err_or_return(
         files_input(
             matches.value_of("SETTINGS"),
@@ -99,39 +98,40 @@ fn main() {
         send_messages,
     );
 
-    display_state_update("Creating Towers",send_messages);
+    display_state_update("Creating Towers", send_messages);
 
     let towers: Vec<TriangleTower> = handle_err_or_return(create_towers(&models), send_messages);
 
-    display_state_update("Slicing",send_messages);
+    display_state_update("Slicing", send_messages);
 
-    let mut objects = handle_err_or_return(slice(&towers, &settings), send_messages);
+    let objects = handle_err_or_return(slice(&towers, &settings), send_messages);
 
-    display_state_update("Generating Moves",send_messages);
+    display_state_update("Generating Moves", send_messages);
 
-    let mut moves = handle_err_or_return(generate_moves(objects, &settings,send_messages), send_messages);
+    let mut moves = handle_err_or_return(
+        generate_moves(objects, &settings, send_messages),
+        send_messages,
+    );
 
-     display_state_update("Optimizing",send_messages);
+    display_state_update("Optimizing", send_messages);
     debug!("Optimizing {} Moves", moves.len());
 
     OptimizePass::pass(&mut moves, &settings);
-     display_state_update("Slowing Layer Down",send_messages);
+    display_state_update("Slowing Layer Down", send_messages);
 
     SlowDownLayerPass::pass(&mut moves, &settings);
 
     if send_messages {
         let message = Message::Commands(moves.clone());
-        bincode::serialize_into(BufWriter::new(std::io::stdout()),&message).unwrap();
+        bincode::serialize_into(BufWriter::new(std::io::stdout()), &message).unwrap();
     }
-     display_state_update("Calculate Values",send_messages);
+    display_state_update("Calculate Values", send_messages);
 
     let cv = calculate_values(&moves, &settings);
 
-
-
     if send_messages {
         let message = Message::CalculatedValues(cv);
-        bincode::serialize_into(BufWriter::new(std::io::stdout()),&message).unwrap();
+        bincode::serialize_into(BufWriter::new(std::io::stdout()), &message).unwrap();
     } else {
         let (hour, min, sec, _) = cv.get_hours_minutes_seconds_fract_time();
 
@@ -152,7 +152,7 @@ fn main() {
         );
     }
 
-    display_state_update("Outputting G-code",send_messages);
+    display_state_update("Outputting G-code", send_messages);
     //Output the GCode
     if let Some(file_path) = matches.value_of("OUTPUT") {
         //Output to file
@@ -168,7 +168,7 @@ fn main() {
         let mut gcode: Vec<u8> = Vec::new();
         convert(&moves, settings, &mut gcode).unwrap();
         let message = Message::GCode(String::from_utf8(gcode).unwrap());
-        bincode::serialize_into(BufWriter::new(std::io::stdout()),&message).unwrap();
+        bincode::serialize_into(BufWriter::new(std::io::stdout()), &message).unwrap();
     } else {
         //Output to stdout
         let stdout = std::io::stdout();
@@ -180,49 +180,54 @@ fn main() {
 fn generate_moves(
     mut objects: Vec<Object>,
     settings: &Settings,
-    send_messages: bool
+    send_messages: bool,
 ) -> Result<Vec<Command>, SlicerErrors> {
     //Creates Support Towers
-    SupportTowerPass::pass(&mut objects, &settings,send_messages);
+    SupportTowerPass::pass(&mut objects, settings, send_messages);
 
     //Adds a skirt
-    SkirtPass::pass(&mut objects, &settings,send_messages);
+    SkirtPass::pass(&mut objects, settings, send_messages);
 
     //Adds a brim
-    BrimPass::pass(&mut objects, &settings,send_messages);
+    BrimPass::pass(&mut objects, settings, send_messages);
 
-    objects.par_iter_mut().for_each(|object| {
-        let slices = &mut object.layers;
+    let v: Result<Vec<()>, SlicerErrors> = objects
+        .par_iter_mut()
+        .map(|object| {
+            let slices = &mut object.layers;
 
-        //Shrink layer
-        ShrinkPass::pass(slices, &settings,send_messages);
+            //Shrink layer
+            ShrinkPass::pass(slices, settings, send_messages)?;
 
-        //Handle Perimeters
-        PerimeterPass::pass(slices, &settings,send_messages);
+            //Handle Perimeters
+            PerimeterPass::pass(slices, settings, send_messages)?;
 
-        //Handle Bridging
-        BridgingPass::pass(slices, &settings,send_messages);
+            //Handle Bridging
+            BridgingPass::pass(slices, settings, send_messages)?;
 
-        //Handle Top Layer
-        TopLayerPass::pass(slices, &settings,send_messages);
+            //Handle Top Layer
+            TopLayerPass::pass(slices, settings, send_messages)?;
 
-        //Handle Top And Bottom Layers
-        TopAndBottomLayersPass::pass(slices, &settings,send_messages);
+            //Handle Top And Bottom Layers
+            TopAndBottomLayersPass::pass(slices, settings, send_messages)?;
 
-        //Handle Support
-        SupportPass::pass(slices, &settings,send_messages);
+            //Handle Support
+            SupportPass::pass(slices, settings, send_messages)?;
 
-        //Lightning Infill
-        LightningFillPass::pass(slices, &settings,send_messages);
+            //Lightning Infill
+            LightningFillPass::pass(slices, settings, send_messages)?;
 
-        //Fill Remaining areas
-        FillAreaPass::pass(slices, &settings,send_messages);
+            //Fill Remaining areas
+            FillAreaPass::pass(slices, settings, send_messages)?;
 
-        //Order the move chains
-        OrderPass::pass(slices, &settings,send_messages);
-    });
+            //Order the move chains
+            OrderPass::pass(slices, settings, send_messages)
+        })
+        .collect();
 
-    Ok(convert_objects_into_moves(objects, &settings))
+    v?;
+
+    Ok(convert_objects_into_moves(objects, settings))
 }
 
 fn handle_err_or_return<T>(res: Result<T, SlicerErrors>, send_message: bool) -> T {
