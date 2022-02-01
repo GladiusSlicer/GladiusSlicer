@@ -1,6 +1,6 @@
 # Gladius Slicer
 
-**In-Progress** Slicer for FDM 3D printing written in Rust with a focus on customization and modularity.
+**In-Progress** Slicer for FDM 3D printing written in Rust with a focus on customization and modularity. This is the core application for the GUI see [here](https://github.com/GladiusSlicer/GladiusGUI).
 
 Rust, LGPL. Copyright 2021 Lucas Ince/mrhatman
 
@@ -8,29 +8,29 @@ Rust, LGPL. Copyright 2021 Lucas Ince/mrhatman
 
 **Want to contribute?** Open a PR. See contributing document for more information.
 
-Gladius Slicer is currently in a alpha state and very little is stable so assume any new release will cause breaking bugs. If you need something stable, please open an issue or discussion, so we can plan out the interface. 
+Gladius Slicer is currently in an alpha state and very little is stable so assume any new release will cause breaking bugs. If you need something stable, please open an issue or discussion, so we can plan out the interface. 
 
 # Usage
 
-This project is a command line application. A GUI is planned but not my expertise. A seperate project will be created when a GUI is started.
+This project is a command line application. That GUI project can be found [here](https://github.com/GladiusSlicer/GladiusGUI).
 
 ```
 USAGE:
     gladius_slicer.exe [FLAGS] [OPTIONS] <INPUT>...
 
 FLAGS:
+    -m               Use the Message System ( useful for interprocess communication)
+    -v               Sets the level of verbosity
     -h, --help       Prints help information
     -V, --version    Prints version information
-    -v               Sets the level of verbosity
 
 OPTIONS:
-    -o <OUTPUT>          Sets the output file to use
-    -s <SETTINGS>        Sets the settings file to use
+    -o <OUTPUT>              Sets the output file to use
+    -s <SETTINGS>            Sets the settings file to use
+    -j <THREAD_COUNT>        Sets the number of threads to use in the thread pool (defaults to number of CPUs)
 
 ARGS:
     <INPUT>...    Sets the input file to use
-
-
 ```
 
 ### Input file examples:
@@ -73,24 +73,21 @@ Settings files are hJSON, a human readable json that supports comments. Examples
   * Started but buggy and not active
 * Code Documentation
   * Some code is documented
-* Useful Error Messages
-  * Errors often aren't graceful
 * Support Generation
   * Supports can be generated but they are poor
 * Lightning Infill
   * Added and is functional but being watched for errors
-
+* GUI
+  * see [here](https://github.com/GladiusSlicer/GladiusGUI)
 ### Coming Shortly
 
 * Perimeter start options
 * Percentage Complete Gcode
 * Octoprint integration
 * Retraction Wipe
-* GUI
 
 ### Eventually
 * Multiple Extruder Support
-
 
 ### Supported Printers
 * I only own a Prusa Mk3
