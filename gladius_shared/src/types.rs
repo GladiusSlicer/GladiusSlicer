@@ -355,6 +355,9 @@ pub enum Command {
     LayerChange {
         ///The height the print head should move to
         z: f64,
+
+        ///The layer index of this move
+        index: usize,
     },
 
     ///Sets the System state to the new values

@@ -350,6 +350,7 @@ pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> 
                     moves.push(Command::ChangeObject { object: object_num });
                     moves.push(Command::LayerChange {
                         z: slice.top_height,
+                        index: layer_num,
                     });
                     moves.push(Command::SetState {
                         new_state: StateChange {

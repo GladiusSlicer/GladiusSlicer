@@ -15,7 +15,7 @@ use std::path::Path;
 
 use crate::calculation::calculate_values;
 use crate::command_pass::{CommandPass, OptimizePass, SlowDownLayerPass};
-use crate::coverter::*;
+use crate::converter::*;
 use crate::input::files_input;
 use crate::plotter::polygon_operations::PolygonOperations;
 use crate::slice_pass::*;
@@ -33,7 +33,7 @@ use std::io::BufWriter;
 
 mod calculation;
 mod command_pass;
-mod coverter;
+mod converter;
 mod input;
 mod optimizer;
 mod plotter;
@@ -159,21 +159,21 @@ fn main() {
         debug!("Converting {} Moves", moves.len());
         convert(
             &moves,
-            settings,
+            &settings,
             &mut File::create(file_path).expect("File not Found"),
         )
         .unwrap();
     } else if send_messages {
         //Output as message
         let mut gcode: Vec<u8> = Vec::new();
-        convert(&moves, settings, &mut gcode).unwrap();
+        convert(&moves, &settings, &mut gcode).unwrap();
         let message = Message::GCode(String::from_utf8(gcode).unwrap());
         bincode::serialize_into(BufWriter::new(std::io::stdout()), &message).unwrap();
     } else {
         //Output to stdout
         let stdout = std::io::stdout();
         debug!("Converting {} Moves", moves.len());
-        convert(&moves, settings, &mut stdout.lock()).unwrap();
+        convert(&moves, &settings, &mut stdout.lock()).unwrap();
     };
 }
 

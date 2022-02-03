@@ -3,24 +3,22 @@ use std::io::{BufWriter, Write};
 
 pub fn convert(
     cmds: &[Command],
-    settings: Settings,
+    settings: &Settings,
     write: &mut impl Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut current_z = 0.0;
-
-    let mut start = settings.starting_instructions.clone();
+    let mut layer_count = 0;
+    let mut current_object = None;
     let mut write_buf = BufWriter::new(write);
-    let layer_settings = settings.get_layer_settings(0, 0.0);
 
-    start = start.replace(
-        "[First Layer Extruder Temp]",
-        &format!("{:.1}", layer_settings.extruder_temp),
+    let start = convert_instructions(
+        settings.starting_instructions.clone(),
+        current_z,
+        layer_count,
+        None,
+        current_object,
+        settings,
     );
-    start = start.replace(
-        "[First Layer Bed Temp]",
-        &format!("{:.1}", layer_settings.bed_temp),
-    );
-
     writeln!(write_buf, "{}", start)?;
 
     for cmd in cmds {
@@ -102,10 +100,35 @@ pub fn convert(
                     )?;
                 }
             }
-            Command::LayerChange { z } => {
+            Command::LayerChange { z, index } => {
+                writeln!(
+                    write_buf,
+                    "{}",
+                    convert_instructions(
+                        settings.before_layer_change_instructions.clone(),
+                        current_z,
+                        layer_count,
+                        None,
+                        current_object,
+                        settings
+                    )
+                )?;
                 current_z = *z;
+                layer_count = *index;
                 writeln!(write_buf, "G1 Z{:.5}", z)?;
-                writeln!(write_buf, "G92 E0.0")?;
+
+                writeln!(
+                    write_buf,
+                    "{}",
+                    convert_instructions(
+                        settings.after_layer_change_instructions.clone(),
+                        current_z,
+                        layer_count,
+                        None,
+                        current_object,
+                        settings
+                    )
+                )?;
             }
             Command::Delay { msec } => {
                 writeln!(write_buf, "G4 P{:.5}", msec)?;
@@ -151,7 +174,19 @@ pub fn convert(
                 )?;
             }
             Command::ChangeObject { object } => {
-                writeln!(write_buf, "; Change Object to {}", object)?;
+                let previous_object = std::mem::replace(&mut current_object, Some(*object));
+                writeln!(
+                    write_buf,
+                    "{}",
+                    convert_instructions(
+                        settings.object_change_instructions.clone(),
+                        current_z,
+                        layer_count,
+                        previous_object,
+                        current_object,
+                        settings
+                    )
+                )?;
             }
             Command::NoAction => {
                 panic!("Converter reached a No Action Command, Optimization Failure")
@@ -159,7 +194,14 @@ pub fn convert(
         }
     }
 
-    let end = settings.ending_instructions;
+    let end = convert_instructions(
+        settings.ending_instructions.clone(),
+        current_z,
+        layer_count,
+        None,
+        current_object,
+        settings,
+    );
 
     writeln!(write_buf, "{}", end)?;
 
@@ -168,4 +210,45 @@ pub fn convert(
         .expect("File Closed Before CLosed. Gcode invalid.");
 
     Ok(())
+}
+
+fn convert_instructions(
+    mut instructions: String,
+    current_z_height: f64,
+    layer_count: usize,
+    previous_object: Option<usize>,
+    current_object: Option<usize>,
+    settings: &Settings,
+) -> String {
+    let layer_settings = settings.get_layer_settings(layer_count, current_z_height);
+
+    instructions = instructions.replace(
+        "[Extruder Temperature]",
+        &format!("{:.1}", layer_settings.extruder_temp),
+    );
+
+    instructions = instructions.replace(
+        "[Bed Temperature]",
+        &format!("{:.1}", layer_settings.bed_temp),
+    );
+
+    instructions = instructions.replace("[Z Position]", &format!("{:.5}", current_z_height));
+
+    instructions = instructions.replace("[Layer Count]", &format!("{:.1}", layer_count));
+
+    instructions = instructions.replace(
+        "[Previous Object]",
+        &previous_object
+            .map(|obj| obj.to_string())
+            .unwrap_or_default(),
+    );
+
+    instructions = instructions.replace(
+        "[Current Object]",
+        &current_object
+            .map(|obj| obj.to_string())
+            .unwrap_or_default(),
+    );
+
+    instructions
 }

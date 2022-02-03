@@ -88,6 +88,15 @@ pub struct Settings {
     ///The instructions to append to the end of the exported instructions
     pub ending_instructions: String,
 
+    /// The instructions to append before layer changes
+    pub before_layer_change_instructions: String,
+
+    /// The instructions to append after layer changes
+    pub after_layer_change_instructions: String,
+
+    /// The instructions to append between object changes
+    pub object_change_instructions: String,
+
     ///Settings for specific layers
     pub layer_settings: Vec<(LayerRange, PartialLayerSettings)>,
 }
@@ -163,6 +172,9 @@ impl Default for Settings {
                                 M84 ; disable motors\n\
                                 M107 ; disable fan\n"
                 .to_string(),
+            before_layer_change_instructions: "".to_string(),
+            after_layer_change_instructions: "".to_string(),
+            object_change_instructions: "".to_string(),
             brim_width: None,
             layer_settings: vec![(
                 LayerRange::SingleLayer(0),
@@ -447,6 +459,15 @@ pub struct PartialSettings {
     ///The instructions to append to the end of the exported instructions
     pub ending_instructions: Option<String>,
 
+    /// The instructions to append before layer changes
+    pub before_layer_change_instructions: Option<String>,
+
+    /// The instructions to append after layer changes
+    pub after_layer_change_instructions: Option<String>,
+
+    /// The instructions to append between object changes
+    pub object_change_instructions: Option<String>,
+
     ///Other files to load
     pub other_files: Option<Vec<String>>,
 
@@ -535,6 +556,18 @@ impl PartialSettings {
                 .ending_instructions
                 .clone()
                 .or(other.ending_instructions),
+            before_layer_change_instructions: self
+                .before_layer_change_instructions
+                .clone()
+                .or(other.before_layer_change_instructions),
+            after_layer_change_instructions: self
+                .after_layer_change_instructions
+                .clone()
+                .or(other.after_layer_change_instructions),
+            object_change_instructions: self
+                .object_change_instructions
+                .clone()
+                .or(other.object_change_instructions),
             other_files: None,
             layer_settings: {
                 match (self.layer_settings.as_ref(), other.layer_settings.as_ref()) {
@@ -674,6 +707,15 @@ fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, St
         partial_infill_type: part.partial_infill_type.ok_or("partial_infill_type")?,
         starting_instructions: part.starting_instructions.ok_or("starting_instructions")?,
         ending_instructions: part.ending_instructions.ok_or("ending_instructions")?,
+        before_layer_change_instructions: part
+            .before_layer_change_instructions
+            .ok_or("before_layer_change_instructions")?,
+        after_layer_change_instructions: part
+            .after_layer_change_instructions
+            .ok_or("after_layer_change_instructions")?,
+        object_change_instructions: part
+            .object_change_instructions
+            .ok_or("object_change_instructions")?,
 
         layer_settings: part.layer_settings.unwrap_or_default(),
     })

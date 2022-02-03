@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 ### New Features
+- Added more instruction sets (before/after layer change and object change)
+- Formalized instruction set replacements
 ### Fixes
 
 

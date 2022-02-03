@@ -89,7 +89,7 @@ impl CommandPass for SlowDownLayerPass {
                                 Command::Arc { .. } => {
                                     unimplemented!()
                                 }
-                                Command::LayerChange { z } => {
+                                Command::LayerChange { z, .. } => {
                                     layer_height = *z;
                                 }
                                 Command::NoAction | Command::ChangeObject { .. } => {}
