@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 ### New Features
+### Fixes
+
+
+## [0.3.0]
+### New Features
 - Support feature for the GUI
   - A sub-crate was created to handle shared types for the GUI
   - Added Messages mode that outputs messages in Bincode for IPC
@@ -9,7 +14,7 @@
   - Shared Library is documented
   - All Common errors should now return slicer error rather than panicing
 - Added ABS and TPU settings files
-- 
+
 ### Fixes
 - Other files for settings are now relative to the main settings file
 - File extensions are case-insensitive now
