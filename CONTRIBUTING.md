@@ -14,7 +14,7 @@ If there is a feature you think would be great to add, please let us know by sub
 
 So, you want to write some code? Great!
 
-To begin hacking, fork the repository to your account and `git clone` the forked
+To begin helping out, fork the repository to your account and `git clone` the forked
 copy to your local machine. On clone you will be on the *master* branch. This
 is the branch that contains all new work that has not been released yet. If you
 are adding a new feature then you want to base your work off of this branch.
