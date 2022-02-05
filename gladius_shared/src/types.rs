@@ -312,11 +312,17 @@ pub enum MoveType {
     ///Standard Partial infill
     Infill,
 
-    ///The Outer Layer of infill both exterior and holes
-    OuterPerimeter,
+    ///The exterior surface Layer of perimeters
+    ExteriorSurfacePerimeter,
 
-    ///Inner layers of perimeter
-    InnerPerimeter,
+    ///The interior surface Layer of perimeters
+    InteriorSurfacePerimeter,
+
+    ///The exterior inner Layer of perimeters
+    ExteriorInnerPerimeter,
+
+    ///The interior inner Layer of perimeters
+    InteriorInnerPerimeter,
 
     ///A bridge over open air
     Bridging,
@@ -552,26 +558,50 @@ impl MoveChain {
                             },
                         });
                     }
-                    MoveType::OuterPerimeter => {
+                    MoveType::ExteriorSurfacePerimeter => {
                         cmds.push(Command::SetState {
                             new_state: StateChange {
                                 bed_temp: None,
                                 extruder_temp: None,
                                 fan_speed: None,
-                                movement_speed: Some(settings.speed.outer_perimeter),
-                                acceleration: Some(settings.acceleration.outer_perimeter),
+                                movement_speed: Some(settings.speed.exterior_surface_perimeter),
+                                acceleration: Some(settings.acceleration.exterior_surface_perimeter),
                                 retract: Some(false),
                             },
                         });
                     }
-                    MoveType::InnerPerimeter => {
+                    MoveType::ExteriorInnerPerimeter => {
                         cmds.push(Command::SetState {
                             new_state: StateChange {
                                 bed_temp: None,
                                 extruder_temp: None,
                                 fan_speed: None,
-                                movement_speed: Some(settings.speed.inner_perimeter),
-                                acceleration: Some(settings.acceleration.inner_perimeter),
+                                movement_speed: Some(settings.speed.exterior_inner_perimeter),
+                                acceleration: Some(settings.acceleration.exterior_inner_perimeter),
+                                retract: Some(false),
+                            },
+                        });
+                    }
+                    MoveType::InteriorSurfacePerimeter => {
+                        cmds.push(Command::SetState {
+                            new_state: StateChange {
+                                bed_temp: None,
+                                extruder_temp: None,
+                                fan_speed: None,
+                                movement_speed: Some(settings.speed.interior_surface_perimeter),
+                                acceleration: Some(settings.acceleration.interior_surface_perimeter),
+                                retract: Some(false),
+                            },
+                        });
+                    }
+                    MoveType::InteriorInnerPerimeter => {
+                        cmds.push(Command::SetState {
+                            new_state: StateChange {
+                                bed_temp: None,
+                                extruder_temp: None,
+                                fan_speed: None,
+                                movement_speed: Some(settings.speed.interior_inner_perimeter),
+                                acceleration: Some(settings.acceleration.interior_inner_perimeter),
                                 retract: Some(false),
                             },
                         });

@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 
 use crate::error::SlicerErrors;
-use crate::types::PartialInfillTypes;
+use crate::types::{MoveType, PartialInfillTypes};
 use serde::{Deserialize, Serialize};
 
 ///A complete settings file for the entire slicer.
@@ -11,7 +11,7 @@ pub struct Settings {
     pub layer_height: f64,
 
     ///The extrusion width of the layers
-    pub layer_width: f64,
+    pub extrusion_width: MovementParameter,
 
     ///The filament Settings
     pub filament: FilamentSettings,
@@ -108,7 +108,18 @@ impl Default for Settings {
             number_of_perimeters: 3,
             top_layers: 3,
             bottom_layers: 3,
-            layer_width: 0.6,
+            extrusion_width: MovementParameter {
+                interior_inner_perimeter: 0.4,
+                interior_surface_perimeter: 0.4,
+                exterior_inner_perimeter: 0.4,
+                solid_top_infill: 0.4,
+                solid_infill: 0.4,
+                infill: 0.4,
+                travel: 0.4,
+                bridge: 0.4,
+                support: 0.4,
+                exterior_surface_perimeter: 0.4
+            },
             filament: FilamentSettings::default(),
             fan: FanSettings::default(),
             skirt: None,
@@ -120,24 +131,28 @@ impl Default for Settings {
             support: None,
 
             speed: MovementParameter {
-                inner_perimeter: 5.0,
-                outer_perimeter: 5.0,
+                interior_inner_perimeter: 40.0,
+                interior_surface_perimeter: 40.0,
+                exterior_inner_perimeter: 40.0,
                 solid_top_infill: 200.0,
                 solid_infill: 200.0,
                 infill: 200.0,
                 travel: 180.0,
                 bridge: 30.0,
                 support: 50.0,
+                exterior_surface_perimeter: 40.0
             },
             acceleration: MovementParameter {
-                inner_perimeter: 800.0,
-                outer_perimeter: 800.0,
+                interior_inner_perimeter: 900.0,
+                interior_surface_perimeter: 900.0,
+                exterior_inner_perimeter: 800.0,
                 solid_top_infill: 1000.0,
                 solid_infill: 1000.0,
                 infill: 1000.0,
                 travel: 1000.0,
                 bridge: 1000.0,
                 support: 1000.0,
+                exterior_surface_perimeter: 800.0
             },
 
             infill_percentage: 0.2,
@@ -179,16 +194,18 @@ impl Default for Settings {
             layer_settings: vec![(
                 LayerRange::SingleLayer(0),
                 PartialLayerSettings {
-                    layer_width: Some(0.6),
+                    extrusion_width: None,
                     speed: Some(MovementParameter {
-                        inner_perimeter: 5.0,
-                        outer_perimeter: 5.0,
+                        interior_inner_perimeter: 20.0,
+                        interior_surface_perimeter: 20.0,
+                        exterior_inner_perimeter: 20.0,
                         solid_top_infill: 20.0,
                         solid_infill: 20.0,
                         infill: 20.0,
                         travel: 5.0,
                         bridge: 20.0,
                         support: 20.0,
+                        exterior_surface_perimeter: 20.0
                     }),
                     layer_height: Some(0.3),
                     bed_temp: Some(60.0),
@@ -222,7 +239,7 @@ impl Settings {
             acceleration: changes
                 .acceleration
                 .unwrap_or_else(|| self.acceleration.clone()),
-            layer_width: changes.layer_width.unwrap_or(self.layer_width),
+            extrusion_width: changes.extrusion_width.unwrap_or(self.extrusion_width.clone()),
             partial_infill_type: changes
                 .partial_infill_type
                 .unwrap_or(self.partial_infill_type),
@@ -254,7 +271,7 @@ pub struct LayerSettings {
     pub acceleration: MovementParameter,
 
     ///The extrusion width of the layers
-    pub layer_width: f64,
+    pub extrusion_width: MovementParameter,
 
     ///Partial Infill type
     pub partial_infill_type: PartialInfillTypes,
@@ -278,11 +295,17 @@ pub struct LayerSettings {
 ///A set of values for different movement types
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MovementParameter {
-    ///Value fpr interior perimeter moves
-    pub inner_perimeter: f64,
+    ///Value for interior (perimeters that are inside the model
+    pub interior_inner_perimeter: f64,
 
-    ///Value for outer perimeter move
-    pub outer_perimeter: f64,
+    /// Value for interior perimeters surface perimeter
+    pub interior_surface_perimeter: f64,
+
+    ///Value for exterior perimeters that are inside the model
+    pub exterior_inner_perimeter: f64,
+
+    ///Value for exterior surface perimeter
+    pub exterior_surface_perimeter: f64,
 
     ///Value for solid top infill moves
     pub solid_top_infill: f64,
@@ -303,6 +326,24 @@ pub struct MovementParameter {
     pub support: f64,
 }
 
+impl MovementParameter{
+
+    ///Returns the associated value to the move type provided
+    pub fn get_value_for_movement_type(&self, move_type: &MoveType) -> f64{
+        match move_type{
+            MoveType::TopSolidInfill => {self.solid_top_infill}
+            MoveType::SolidInfill => {self.solid_infill}
+            MoveType::Infill => {self.infill}
+            MoveType::ExteriorSurfacePerimeter => {self.exterior_surface_perimeter}
+            MoveType::InteriorSurfacePerimeter => {self.interior_surface_perimeter}
+            MoveType::ExteriorInnerPerimeter => {self.exterior_inner_perimeter}
+            MoveType::InteriorInnerPerimeter => {self.interior_inner_perimeter}
+            MoveType::Bridging => {self.bridge}
+            MoveType::Support => {self.support}
+            MoveType::Travel => {self.travel}
+        }
+    }
+}
 ///Settings for a filament
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FilamentSettings {
@@ -388,7 +429,7 @@ pub struct PartialSettings {
     pub layer_height: Option<f64>,
 
     ///The extrusion width of the layers
-    pub layer_width: Option<f64>,
+    pub extrusion_width: Option<MovementParameter>,
 
     ///Inset the layer by the provided amount, if None on inset will be performed
     pub layer_shrink_amount: Option<f64>,
@@ -517,7 +558,7 @@ impl PartialSettings {
     fn combine(&self, other: PartialSettings) -> PartialSettings {
         PartialSettings {
             layer_height: self.layer_height.or(other.layer_height),
-            layer_width: self.layer_width.or(other.layer_width),
+            extrusion_width: self.extrusion_width.clone().or(other.extrusion_width.clone()),
             layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
             filament: self.filament.clone().or_else(|| other.filament.clone()),
             fan: self.fan.clone().or_else(|| other.fan.clone()),
@@ -625,8 +666,8 @@ pub struct PartialLayerSettings {
     ///The acceleration for movement
     pub acceleration: Option<MovementParameter>,
 
-    ///The extrusion width of the layers
-    pub layer_width: Option<f64>,
+    ///The extrusion widths of the layers
+    pub extrusion_width: Option<MovementParameter>,
 
     ///Partial Infill type
     pub partial_infill_type: Option<PartialInfillTypes>,
@@ -651,7 +692,7 @@ impl PartialLayerSettings {
     fn combine(&self, other: &PartialLayerSettings) -> PartialLayerSettings {
         PartialLayerSettings {
             layer_height: self.layer_height.or(other.layer_height),
-            layer_width: self.layer_width.or(other.layer_width),
+            extrusion_width: self.extrusion_width.clone().or(other.extrusion_width.clone()),
             speed: self.speed.clone().or_else(|| other.speed.clone()),
             acceleration: self
                 .acceleration
@@ -675,7 +716,7 @@ impl PartialLayerSettings {
 fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, String> {
     Ok(Settings {
         layer_height: part.layer_height.ok_or("layer_height")?,
-        layer_width: part.layer_width.ok_or("layer_width")?,
+        extrusion_width: part.extrusion_width.ok_or("extrusion_width")?,
         filament: part.filament.ok_or("filament")?,
         fan: part.fan.ok_or("fan")?,
         skirt: part.skirt,

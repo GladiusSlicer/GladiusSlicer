@@ -24,12 +24,12 @@ pub fn linear_fill_polygon(
 
     let mut new_moves: Vec<MoveChain> = rotate_poly
         .offset_from(
-            ((-settings.layer_width / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage))
-                + (settings.layer_width / 2.0),
+            ((-settings.extrusion_width.interior_inner_perimeter / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage))
+                + (settings.extrusion_width.interior_inner_perimeter / 2.0),
         )
         .iter()
         .flat_map(|polygon| {
-            spaced_fill_polygon(polygon, settings, fill_type, settings.layer_width, 0.0)
+            spaced_fill_polygon(polygon, settings, fill_type, settings.extrusion_width.get_value_for_movement_type(&fill_type), 0.0)
         })
         .collect();
 
@@ -52,8 +52,8 @@ pub fn partial_linear_fill_polygon(
 
     let mut new_moves: Vec<MoveChain> = rotate_poly
         .offset_from(
-            ((-settings.layer_width / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage))
-                + (settings.layer_width / 2.0),
+            ((-settings.extrusion_width.interior_inner_perimeter / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage))
+                + (settings.extrusion_width.interior_inner_perimeter / 2.0),
         )
         .iter()
         .flat_map(|polygon| spaced_fill_polygon(polygon, settings, fill_type, spacing, offset))
@@ -77,7 +77,7 @@ pub fn support_linear_fill_polygon(
     let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
 
     let mut new_moves: Vec<MoveChain> = rotate_poly
-        .offset_from(-settings.layer_width / 2.0)
+        .offset_from(-settings.extrusion_width.interior_surface_perimeter / 2.0)
         .iter()
         .flat_map(|polygon| spaced_fill_polygon(polygon, settings, fill_type, spacing, offset))
         .collect();
@@ -116,7 +116,7 @@ pub fn partial_infill_polygon(
             poly,
             settings,
             MoveType::Infill,
-            settings.layer_width / fill_ratio,
+            settings.extrusion_width.infill / fill_ratio,
             0.0,
             0.0,
         ),
@@ -125,7 +125,7 @@ pub fn partial_infill_polygon(
                 poly,
                 settings,
                 MoveType::Infill,
-                2.0 * settings.layer_width / fill_ratio,
+                2.0 * settings.extrusion_width.infill / fill_ratio,
                 45.0,
                 0.0,
             );
@@ -133,7 +133,7 @@ pub fn partial_infill_polygon(
                 poly,
                 settings,
                 MoveType::Infill,
-                2.0 * settings.layer_width / fill_ratio,
+                2.0 * settings.extrusion_width.infill / fill_ratio,
                 135.0,
                 0.0,
             ));
@@ -144,7 +144,7 @@ pub fn partial_infill_polygon(
                 poly,
                 settings,
                 MoveType::Infill,
-                3.0 * settings.layer_width / fill_ratio,
+                3.0 * settings.extrusion_width.infill / fill_ratio,
                 45.0,
                 0.0,
             );
@@ -152,7 +152,7 @@ pub fn partial_infill_polygon(
                 poly,
                 settings,
                 MoveType::Infill,
-                3.0 * settings.layer_width / fill_ratio,
+                3.0 * settings.extrusion_width.infill / fill_ratio,
                 45.0 + 60.0,
                 0.0,
             ));
@@ -160,7 +160,7 @@ pub fn partial_infill_polygon(
                 poly,
                 settings,
                 MoveType::Infill,
-                3.0 * settings.layer_width / fill_ratio,
+                3.0 * settings.extrusion_width.infill / fill_ratio,
                 45.0 + 120.0,
                 0.0,
             ));
@@ -171,7 +171,7 @@ pub fn partial_infill_polygon(
                 poly,
                 settings,
                 MoveType::Infill,
-                3.0 * settings.layer_width / fill_ratio,
+                3.0 * settings.extrusion_width.infill / fill_ratio,
                 45.0,
                 layer_height / std::f64::consts::SQRT_2,
             );
@@ -179,7 +179,7 @@ pub fn partial_infill_polygon(
                 poly,
                 settings,
                 MoveType::Infill,
-                3.0 * settings.layer_width / fill_ratio,
+                3.0 * settings.extrusion_width.infill / fill_ratio,
                 45.0 + 120.0,
                 layer_height / std::f64::consts::SQRT_2,
             ));
@@ -187,7 +187,7 @@ pub fn partial_infill_polygon(
                 poly,
                 settings,
                 MoveType::Infill,
-                3.0 * settings.layer_width / fill_ratio,
+                3.0 * settings.extrusion_width.infill / fill_ratio,
                 45.0 + 240.0,
                 layer_height / std::f64::consts::SQRT_2,
             ));
@@ -272,7 +272,7 @@ pub fn spaced_fill_polygon(
                             } else {
                                 fill_type
                             },
-                            width: settings.layer_width,
+                            width: settings.extrusion_width.get_value_for_movement_type(&fill_type),
                         });
 
                         y = Some(point.y);
@@ -291,7 +291,7 @@ pub fn spaced_fill_polygon(
                             y: current_y,
                         },
                         move_type: fill_type,
-                        width: settings.layer_width,
+                        width: settings.extrusion_width.get_value_for_movement_type(&fill_type),
                     });
 
                     moves.push(Move {
@@ -300,7 +300,7 @@ pub fn spaced_fill_polygon(
                             y: current_y,
                         },
                         move_type: fill_type,
-                        width: settings.layer_width,
+                        width: settings.extrusion_width.get_value_for_movement_type(&fill_type),
                     });
                 } else {
                     moves.push(Move {
@@ -309,7 +309,7 @@ pub fn spaced_fill_polygon(
                             y: current_y,
                         },
                         move_type: fill_type,
-                        width: settings.layer_width,
+                        width: settings.extrusion_width.get_value_for_movement_type(&fill_type),
                     });
 
                     moves.push(Move {
@@ -318,7 +318,7 @@ pub fn spaced_fill_polygon(
                             y: current_y,
                         },
                         move_type: fill_type,
-                        width: settings.layer_width,
+                        width: settings.extrusion_width.get_value_for_movement_type(&fill_type),
                     });
                 }
 

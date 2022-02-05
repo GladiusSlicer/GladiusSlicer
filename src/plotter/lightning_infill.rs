@@ -32,10 +32,10 @@ pub fn lightning_layer(
     slice_above: Option<&mut Slice>,
     lightning_forest: &mut LightningForest,
 ) {
-    let spacing = slice.layer_settings.layer_width / slice.layer_settings.infill_percentage;
-    let overlap = ((-slice.layer_settings.layer_width / 2.0)
+    let spacing = slice.layer_settings.extrusion_width.infill / slice.layer_settings.infill_percentage;
+    let overlap = ((-slice.layer_settings.extrusion_width.interior_inner_perimeter / 2.0)
         * (1.0 - slice.layer_settings.infill_perimeter_overlap_percentage))
-        + (slice.layer_settings.layer_width / 2.0);
+        + (slice.layer_settings.extrusion_width.interior_inner_perimeter / 2.0);
     let inset_amount = slice.layer_settings.layer_height + overlap;
 
     let unsupported_area = if let Some(area_above) = slice_above.map(|sa| &sa.remaining_area) {
@@ -109,7 +109,7 @@ pub fn lightning_layer(
 
     lightning_forest.shorten_and_straighten(&slice.layer_settings);
 
-    let width = slice.layer_settings.layer_width;
+    let width = slice.layer_settings.extrusion_width.infill;
     slice.chains.extend(
         lightning_forest
             .trees
@@ -158,7 +158,7 @@ impl LightningNode {
         settings: &LayerSettings,
     ) -> StraightenResponse {
         let l = self.location;
-        let max_move = settings.layer_width / 2.0;
+        let max_move = settings.extrusion_width.infill / 2.0;
         let mut shorten_amount = max_move;
 
         //reverse to make removals safe
