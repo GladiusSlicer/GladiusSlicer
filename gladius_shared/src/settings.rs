@@ -118,7 +118,7 @@ impl Default for Settings {
                 travel: 0.4,
                 bridge: 0.4,
                 support: 0.4,
-                exterior_surface_perimeter: 0.4
+                exterior_surface_perimeter: 0.4,
             },
             filament: FilamentSettings::default(),
             fan: FanSettings::default(),
@@ -140,7 +140,7 @@ impl Default for Settings {
                 travel: 180.0,
                 bridge: 30.0,
                 support: 50.0,
-                exterior_surface_perimeter: 40.0
+                exterior_surface_perimeter: 40.0,
             },
             acceleration: MovementParameter {
                 interior_inner_perimeter: 900.0,
@@ -152,7 +152,7 @@ impl Default for Settings {
                 travel: 1000.0,
                 bridge: 1000.0,
                 support: 1000.0,
-                exterior_surface_perimeter: 800.0
+                exterior_surface_perimeter: 800.0,
             },
 
             infill_percentage: 0.2,
@@ -205,7 +205,7 @@ impl Default for Settings {
                         travel: 5.0,
                         bridge: 20.0,
                         support: 20.0,
-                        exterior_surface_perimeter: 20.0
+                        exterior_surface_perimeter: 20.0,
                     }),
                     layer_height: Some(0.3),
                     bed_temp: Some(60.0),
@@ -239,7 +239,9 @@ impl Settings {
             acceleration: changes
                 .acceleration
                 .unwrap_or_else(|| self.acceleration.clone()),
-            extrusion_width: changes.extrusion_width.unwrap_or(self.extrusion_width.clone()),
+            extrusion_width: changes
+                .extrusion_width
+                .unwrap_or_else(|| self.extrusion_width.clone()),
             partial_infill_type: changes
                 .partial_infill_type
                 .unwrap_or(self.partial_infill_type),
@@ -326,21 +328,20 @@ pub struct MovementParameter {
     pub support: f64,
 }
 
-impl MovementParameter{
-
+impl MovementParameter {
     ///Returns the associated value to the move type provided
-    pub fn get_value_for_movement_type(&self, move_type: &MoveType) -> f64{
-        match move_type{
-            MoveType::TopSolidInfill => {self.solid_top_infill}
-            MoveType::SolidInfill => {self.solid_infill}
-            MoveType::Infill => {self.infill}
-            MoveType::ExteriorSurfacePerimeter => {self.exterior_surface_perimeter}
-            MoveType::InteriorSurfacePerimeter => {self.interior_surface_perimeter}
-            MoveType::ExteriorInnerPerimeter => {self.exterior_inner_perimeter}
-            MoveType::InteriorInnerPerimeter => {self.interior_inner_perimeter}
-            MoveType::Bridging => {self.bridge}
-            MoveType::Support => {self.support}
-            MoveType::Travel => {self.travel}
+    pub fn get_value_for_movement_type(&self, move_type: &MoveType) -> f64 {
+        match move_type {
+            MoveType::TopSolidInfill => self.solid_top_infill,
+            MoveType::SolidInfill => self.solid_infill,
+            MoveType::Infill => self.infill,
+            MoveType::ExteriorSurfacePerimeter => self.exterior_surface_perimeter,
+            MoveType::InteriorSurfacePerimeter => self.interior_surface_perimeter,
+            MoveType::ExteriorInnerPerimeter => self.exterior_inner_perimeter,
+            MoveType::InteriorInnerPerimeter => self.interior_inner_perimeter,
+            MoveType::Bridging => self.bridge,
+            MoveType::Support => self.support,
+            MoveType::Travel => self.travel,
         }
     }
 }
@@ -558,7 +559,10 @@ impl PartialSettings {
     fn combine(&self, other: PartialSettings) -> PartialSettings {
         PartialSettings {
             layer_height: self.layer_height.or(other.layer_height),
-            extrusion_width: self.extrusion_width.clone().or(other.extrusion_width.clone()),
+            extrusion_width: self
+                .extrusion_width
+                .clone()
+                .or_else(||other.extrusion_width.clone()),
             layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
             filament: self.filament.clone().or_else(|| other.filament.clone()),
             fan: self.fan.clone().or_else(|| other.fan.clone()),
@@ -692,7 +696,10 @@ impl PartialLayerSettings {
     fn combine(&self, other: &PartialLayerSettings) -> PartialLayerSettings {
         PartialLayerSettings {
             layer_height: self.layer_height.or(other.layer_height),
-            extrusion_width: self.extrusion_width.clone().or(other.extrusion_width.clone()),
+            extrusion_width: self
+                .extrusion_width
+                .clone()
+                .or_else(||other.extrusion_width.clone()),
             speed: self.speed.clone().or_else(|| other.speed.clone()),
             acceleration: self
                 .acceleration

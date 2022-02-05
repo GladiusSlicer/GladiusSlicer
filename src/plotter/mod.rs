@@ -43,9 +43,21 @@ impl Plotter for Slice {
             self.fixed_chains.push(mc);
         }
 
-        self.remaining_area = self
-            .remaining_area
-            .offset_from(-self.layer_settings.layer_width * number_of_perimeters as f64);
+        let perimeter_inset = if number_of_perimeters == 0 {
+            0.0
+        } else if number_of_perimeters == 1 {
+            self.layer_settings
+                .extrusion_width
+                .exterior_surface_perimeter
+        } else {
+            self.layer_settings
+                .extrusion_width
+                .exterior_surface_perimeter
+                + ((number_of_perimeters - 1) as f64
+                    * self.layer_settings.extrusion_width.exterior_inner_perimeter)
+        };
+
+        self.remaining_area = self.remaining_area.offset_from(-perimeter_inset);
     }
 
     fn shrink_layer(&mut self) {
@@ -101,7 +113,7 @@ impl Plotter for Slice {
         let solid_area = self
             .remaining_area
             .difference_with(other)
-            .offset_from(self.layer_settings.layer_width * 4.0)
+            .offset_from(self.layer_settings.extrusion_width.solid_infill * 4.0)
             .intersection_with(&self.remaining_area);
 
         let angle = 45.0 + (120_f64) * layer_count as f64;
@@ -121,7 +133,7 @@ impl Plotter for Slice {
         let solid_area = self
             .remaining_area
             .difference_with(layer_below)
-            .offset_from(self.layer_settings.layer_width * 4.0)
+            .offset_from(self.layer_settings.extrusion_width.bridge * 4.0)
             .intersection_with(&self.remaining_area);
 
         let layer_settings = &self.layer_settings;
@@ -146,7 +158,7 @@ impl Plotter for Slice {
         let solid_area = self
             .remaining_area
             .difference_with(layer_above)
-            .offset_from(self.layer_settings.layer_width * 4.0)
+            .offset_from(self.layer_settings.extrusion_width.solid_top_infill * 4.0)
             .intersection_with(&self.remaining_area);
 
         for poly in &solid_area {
@@ -175,8 +187,11 @@ impl Plotter for Slice {
             .circular_tuple_windows::<(_, _)>()
             .map(|(&_start, &end)| Move {
                 end,
-                move_type: MoveType::OuterPerimeter,
-                width: self.layer_settings.layer_width,
+                move_type: MoveType::ExteriorSurfacePerimeter,
+                width: self
+                    .layer_settings
+                    .extrusion_width
+                    .exterior_surface_perimeter,
             })
             .collect();
 
@@ -189,10 +204,16 @@ impl Plotter for Slice {
     fn generate_brim(&mut self, entire_first_layer: MultiPolygon<f64>, brim_width: f64) {
         let layer_settings = &self.layer_settings;
         self.fixed_chains.extend(
-            (0..((brim_width / self.layer_settings.layer_width).floor() as usize))
+            (0..((brim_width
+                / self
+                    .layer_settings
+                    .extrusion_width
+                    .exterior_surface_perimeter)
+                .floor() as usize))
                 .rev()
                 .map(|i| {
-                    (i as f64 * layer_settings.layer_width) + (layer_settings.layer_width / 2.0)
+                    (i as f64 * layer_settings.extrusion_width.exterior_surface_perimeter)
+                        + (layer_settings.extrusion_width.exterior_surface_perimeter / 2.0)
                 })
                 .map(|distance| entire_first_layer.offset_from(distance))
                 .flat_map(|multi| {
@@ -204,8 +225,8 @@ impl Plotter for Slice {
                             .circular_tuple_windows::<(_, _)>()
                             .map(|(&_start, &end)| Move {
                                 end,
-                                move_type: MoveType::OuterPerimeter,
-                                width: layer_settings.layer_width,
+                                move_type: MoveType::ExteriorSurfacePerimeter,
+                                width: layer_settings.extrusion_width.exterior_surface_perimeter,
                             })
                             .collect();
 

@@ -32,10 +32,19 @@ pub fn lightning_layer(
     slice_above: Option<&mut Slice>,
     lightning_forest: &mut LightningForest,
 ) {
-    let spacing = slice.layer_settings.extrusion_width.infill / slice.layer_settings.infill_percentage;
-    let overlap = ((-slice.layer_settings.extrusion_width.interior_inner_perimeter / 2.0)
+    let spacing =
+        slice.layer_settings.extrusion_width.infill / slice.layer_settings.infill_percentage;
+    let overlap = ((-slice
+        .layer_settings
+        .extrusion_width
+        .interior_inner_perimeter
+        / 2.0)
         * (1.0 - slice.layer_settings.infill_perimeter_overlap_percentage))
-        + (slice.layer_settings.extrusion_width.interior_inner_perimeter / 2.0);
+        + (slice
+            .layer_settings
+            .extrusion_width
+            .interior_inner_perimeter
+            / 2.0);
     let inset_amount = slice.layer_settings.layer_height + overlap;
 
     let unsupported_area = if let Some(area_above) = slice_above.map(|sa| &sa.remaining_area) {

@@ -14,7 +14,13 @@ pub fn inset_polygon_recursive(
     layer_left: usize,
 ) -> Option<MoveChain> {
     let mut move_chains = vec![];
-    let inset_poly = poly.offset_from(if outer_perimeter {settings.extrusion_width.interior_surface_perimeter } else{ settings.extrusion_width.interior_inner_perimeter} / -2.0);
+    let inset_poly = poly.offset_from(
+        if outer_perimeter {
+            settings.extrusion_width.interior_surface_perimeter
+        } else {
+            settings.extrusion_width.interior_inner_perimeter
+        } / -2.0,
+    );
 
     for raw_polygon in inset_poly.0.iter() {
         let polygon = raw_polygon.simplify(&0.01);
@@ -26,17 +32,19 @@ pub fn inset_polygon_recursive(
             .iter()
             .circular_tuple_windows::<(_, _)>()
             .map(|(&_start, &end)| {
-                let move_type=
-                     if outer_perimeter {
-                         MoveType::ExteriorSurfacePerimeter
-                     } else {
-                         MoveType::ExteriorInnerPerimeter
-                     };
+                let move_type = if outer_perimeter {
+                    MoveType::ExteriorSurfacePerimeter
+                } else {
+                    MoveType::ExteriorInnerPerimeter
+                };
                 Move {
-                end,
-                move_type,
-                width: settings.extrusion_width.get_value_for_movement_type(&move_type),
-            }})
+                    end,
+                    move_type,
+                    width: settings
+                        .extrusion_width
+                        .get_value_for_movement_type(&move_type),
+                }
+            })
             .collect();
 
         outer_chains.push(MoveChain {
@@ -47,20 +55,17 @@ pub fn inset_polygon_recursive(
         for interior in polygon.interiors() {
             let mut moves = vec![];
             for (&_start, &end) in interior.0.iter().circular_tuple_windows::<(_, _)>() {
-
-                let move_type= if outer_perimeter {
-                MoveType::InteriorSurfacePerimeter
-            } else {
-                MoveType::InteriorInnerPerimeter
-            };
-                moves.push(
-
-
-
-                    Move {
+                let move_type = if outer_perimeter {
+                    MoveType::InteriorSurfacePerimeter
+                } else {
+                    MoveType::InteriorInnerPerimeter
+                };
+                moves.push(Move {
                     end,
                     move_type,
-                    width: settings.extrusion_width.get_value_for_movement_type(&move_type),
+                    width: settings
+                        .extrusion_width
+                        .get_value_for_movement_type(&move_type),
                 });
             }
             outer_chains.push(MoveChain {
@@ -70,7 +75,13 @@ pub fn inset_polygon_recursive(
         }
 
         if layer_left != 0 {
-            let rec_inset_poly = polygon.offset_from(-settings.layer_width / 2.0);
+            let rec_inset_poly = poly.offset_from(
+                if outer_perimeter {
+                    settings.extrusion_width.interior_surface_perimeter
+                } else {
+                    settings.extrusion_width.interior_inner_perimeter
+                } / -2.0,
+            );
 
             for polygon_rec in rec_inset_poly {
                 if let Some(mc) = inset_polygon_recursive(

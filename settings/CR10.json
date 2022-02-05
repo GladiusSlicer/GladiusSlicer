@@ -23,8 +23,10 @@
   "layer_width":0.45,
 
   "speed" : {
-    "outer_perimeter":20.0,
-    "inner_perimeter":25.0,
+    "interior_inner_perimeter":   25.0,
+    "interior_surface_perimeter": 20.0,
+    "exterior_inner_perimeter":   25.0,
+    "exterior_surface_perimeter": 20.0,
     "infill":50.0,
     "solid_infill":40.0,
     "solid_top_infill":30.0,
@@ -34,8 +36,10 @@
     "support": 20.0
   },
   "acceleration" : {
-    "outer_perimeter":500.0,
-    "inner_perimeter":500.0,
+    "interior_inner_perimeter":500.0,
+    "interior_surface_perimeter":500.0,
+    "exterior_inner_perimeter":500.0,
+    "exterior_surface_perimeter":500.0,
     "infill":700.0,
     "solid_infill":700.0,
     "solid_top_infill":700.0,
@@ -62,8 +66,10 @@
       {"SingleLayer":0},
       {
         "speed" : {
-          "outer_perimeter":15.0,
-          "inner_perimeter":15.0,
+          "interior_inner_perimeter":20.0,
+          "interior_surface_perimeter":20.0,
+          "exterior_inner_perimeter":20.0,
+          "exterior_surface_perimeter":20.0,
           "infill":15.0,
           "solid_infill":15.0,
           "solid_top_infill":15.0,

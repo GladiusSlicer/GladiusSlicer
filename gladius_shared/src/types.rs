@@ -565,7 +565,9 @@ impl MoveChain {
                                 extruder_temp: None,
                                 fan_speed: None,
                                 movement_speed: Some(settings.speed.exterior_surface_perimeter),
-                                acceleration: Some(settings.acceleration.exterior_surface_perimeter),
+                                acceleration: Some(
+                                    settings.acceleration.exterior_surface_perimeter,
+                                ),
                                 retract: Some(false),
                             },
                         });
@@ -589,7 +591,9 @@ impl MoveChain {
                                 extruder_temp: None,
                                 fan_speed: None,
                                 movement_speed: Some(settings.speed.interior_surface_perimeter),
-                                acceleration: Some(settings.acceleration.interior_surface_perimeter),
+                                acceleration: Some(
+                                    settings.acceleration.interior_surface_perimeter,
+                                ),
                                 retract: Some(false),
                             },
                         });

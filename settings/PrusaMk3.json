@@ -20,12 +20,25 @@
   "print_y": 210,
   "print_z": 210,
 
-  "layer_width":0.45,
+  "extrusion_width" : {
+    "interior_inner_perimeter":0.45,
+    "interior_surface_perimeter":0.45,
+    "exterior_inner_perimeter":0.45,
+    "exterior_surface_perimeter":0.45,
+    "infill":0.45,
+    "solid_infill":0.45,
+    "solid_top_infill":0.4,
+    "travel": 0.0,
+    "bridge": 0.45,
+    "support": 0.45
+  },
 
 
   "speed" : {
-    "outer_perimeter":25.0,
-    "inner_perimeter":45.0,
+    "interior_inner_perimeter": 25.0,
+    "interior_surface_perimeter": 45.0,
+    "exterior_inner_perimeter": 25.0,
+    "exterior_surface_perimeter":45.0,
     "infill":80.0,
     "solid_infill":80.0,
     "solid_top_infill":40.0,
@@ -35,8 +48,10 @@
     "support": 50.0
   },
   "acceleration" : {
-    "outer_perimeter":800.0,
-    "inner_perimeter":800.0,
+    "interior_inner_perimeter":800.0,
+    "interior_surface_perimeter":800.0,
+    "exterior_inner_perimeter":800.0,
+    "exterior_surface_perimeter":800.0,
     "infill":1000.0,
     "solid_infill":1000.0,
     "solid_top_infill":1000.0,
@@ -63,8 +78,10 @@
       {"SingleLayer":0},
       {
         "speed" : {
-          "outer_perimeter":20.0,
-          "inner_perimeter":20.0,
+          "interior_inner_perimeter":20.0,
+          "interior_surface_perimeter":20.0,
+          "exterior_inner_perimeter":20.0,
+          "exterior_surface_perimeter":20.0,
           "infill":20.0,
           "solid_infill":20.0,
           "solid_top_infill":20.0,

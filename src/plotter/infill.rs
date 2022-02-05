@@ -24,12 +24,21 @@ pub fn linear_fill_polygon(
 
     let mut new_moves: Vec<MoveChain> = rotate_poly
         .offset_from(
-            ((-settings.extrusion_width.interior_inner_perimeter / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage))
+            ((-settings.extrusion_width.interior_inner_perimeter / 2.0)
+                * (1.0 - settings.infill_perimeter_overlap_percentage))
                 + (settings.extrusion_width.interior_inner_perimeter / 2.0),
         )
         .iter()
         .flat_map(|polygon| {
-            spaced_fill_polygon(polygon, settings, fill_type, settings.extrusion_width.get_value_for_movement_type(&fill_type), 0.0)
+            spaced_fill_polygon(
+                polygon,
+                settings,
+                fill_type,
+                settings
+                    .extrusion_width
+                    .get_value_for_movement_type(&fill_type),
+                0.0,
+            )
         })
         .collect();
 
@@ -52,7 +61,8 @@ pub fn partial_linear_fill_polygon(
 
     let mut new_moves: Vec<MoveChain> = rotate_poly
         .offset_from(
-            ((-settings.extrusion_width.interior_inner_perimeter / 2.0) * (1.0 - settings.infill_perimeter_overlap_percentage))
+            ((-settings.extrusion_width.interior_inner_perimeter / 2.0)
+                * (1.0 - settings.infill_perimeter_overlap_percentage))
                 + (settings.extrusion_width.interior_inner_perimeter / 2.0),
         )
         .iter()
@@ -272,7 +282,9 @@ pub fn spaced_fill_polygon(
                             } else {
                                 fill_type
                             },
-                            width: settings.extrusion_width.get_value_for_movement_type(&fill_type),
+                            width: settings
+                                .extrusion_width
+                                .get_value_for_movement_type(&fill_type),
                         });
 
                         y = Some(point.y);
@@ -291,7 +303,9 @@ pub fn spaced_fill_polygon(
                             y: current_y,
                         },
                         move_type: fill_type,
-                        width: settings.extrusion_width.get_value_for_movement_type(&fill_type),
+                        width: settings
+                            .extrusion_width
+                            .get_value_for_movement_type(&fill_type),
                     });
 
                     moves.push(Move {
@@ -300,7 +314,9 @@ pub fn spaced_fill_polygon(
                             y: current_y,
                         },
                         move_type: fill_type,
-                        width: settings.extrusion_width.get_value_for_movement_type(&fill_type),
+                        width: settings
+                            .extrusion_width
+                            .get_value_for_movement_type(&fill_type),
                     });
                 } else {
                     moves.push(Move {
@@ -309,7 +325,9 @@ pub fn spaced_fill_polygon(
                             y: current_y,
                         },
                         move_type: fill_type,
-                        width: settings.extrusion_width.get_value_for_movement_type(&fill_type),
+                        width: settings
+                            .extrusion_width
+                            .get_value_for_movement_type(&fill_type),
                     });
 
                     moves.push(Move {
@@ -318,7 +336,9 @@ pub fn spaced_fill_polygon(
                             y: current_y,
                         },
                         move_type: fill_type,
-                        width: settings.extrusion_width.get_value_for_movement_type(&fill_type),
+                        width: settings
+                            .extrusion_width
+                            .get_value_for_movement_type(&fill_type),
                     });
                 }
 
