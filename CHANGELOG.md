@@ -4,6 +4,8 @@
 ### New Features
 - Added more instruction sets (before/after layer change and object change)
 - Formalized instruction set replacements
+- Added more move types
+- Added variable extrusion width based on move type
 ### Fixes
 
 

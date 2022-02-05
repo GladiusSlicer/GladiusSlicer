@@ -75,7 +75,7 @@ pub fn inset_polygon_recursive(
         }
 
         if layer_left != 0 {
-            let rec_inset_poly = poly.offset_from(
+            let rec_inset_poly = polygon.offset_from(
                 if outer_perimeter {
                     settings.extrusion_width.interior_surface_perimeter
                 } else {
