@@ -6,6 +6,8 @@
 - Formalized instruction set replacements
 - Added more move types
 - Added variable extrusion width based on move type
+- Added Setting validator that check for common issues with settings
+- Added warnings
 ### Fixes
 
 

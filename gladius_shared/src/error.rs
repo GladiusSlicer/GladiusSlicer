@@ -54,6 +54,24 @@ pub enum SlicerErrors {
     ///Error during tower generation
     SliceGeneration,
 
+    ///Error because settings less than zero
+    SettingLessThanZero {
+        ///The setting name
+        setting: String,
+
+        ///The current value
+        value: f64,
+    },
+
+    ///Error because settings less than or equal to zero
+    SettingLessThanOrEqualToZero {
+        ///The setting name
+        setting: String,
+
+        ///The current value
+        value: f64,
+    },
+
     ///Another error, here for plugins to use
     UnspecifiedError(String),
 }
@@ -98,9 +116,16 @@ impl SlicerErrors {
             SlicerErrors::SliceGeneration => {
                 (0x100B,"There was a issue ordering the polygon for slicing. Try repairing your Model.".to_string())
             }
+            SlicerErrors::SettingLessThanZero { setting, value } => {
+                (0x100C,format!("The setting {} must be greater than or equal to 0. It is currently {}.",setting, value))
+            }
+            SlicerErrors::SettingLessThanOrEqualToZero { setting, value } => {
+                (0x100D,format!("The setting {} must be greater than to 0. It is currently {}.",setting, value))
+            }
             SlicerErrors::UnspecifiedError(err_string) => {
                 (0xFFFFFFFF,format!("Third Party Error. {}",err_string))
             }
+
         }
     }
 }

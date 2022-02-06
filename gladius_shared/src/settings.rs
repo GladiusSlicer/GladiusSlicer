@@ -2,7 +2,30 @@
 
 use crate::error::SlicerErrors;
 use crate::types::{MoveType, PartialInfillTypes};
+use crate::warning::SlicerWarnings;
 use serde::{Deserialize, Serialize};
+
+macro_rules! setting_less_than_or_equal_to_zero {
+    ($settings:ident,$setting:ident) => {{
+        if $settings.$setting as f64 <= 0.0 {
+            return SettingsValidationResult::Error(SlicerErrors::SettingLessThanOrEqualToZero {
+                setting: stringify!($setting).to_string(),
+                value: $settings.$setting as f64,
+            });
+        }
+    }};
+}
+
+macro_rules! setting_less_than_zero {
+    ($settings:ident,$setting:ident) => {{
+        if ($settings.$setting as f64) < 0.0 {
+            return SettingsValidationResult::Error(SlicerErrors::SettingLessThanZero {
+                setting: stringify!($setting).to_string(),
+                value: $settings.$setting as f64,
+            });
+        }
+    }};
+}
 
 ///A complete settings file for the entire slicer.
 #[derive(Serialize, Deserialize, Debug)]
@@ -256,6 +279,86 @@ impl Settings {
             extruder_temp: changes.extruder_temp.unwrap_or(self.filament.extruder_temp),
         }
     }
+
+    ///Validate settings and return any warnings and errors
+    pub fn validate_settings(&self) -> SettingsValidationResult {
+        if self.layer_height < self.nozzle_diameter * 0.2 {
+            return SettingsValidationResult::Warning(SlicerWarnings::LayerSizeTooLow {
+                layer_height: self.layer_height,
+                nozzle_diameter: self.nozzle_diameter,
+            });
+        } else if self.layer_height > self.nozzle_diameter * 0.8 {
+            return SettingsValidationResult::Warning(SlicerWarnings::LayerSizeTooHigh {
+                layer_height: self.layer_height,
+                nozzle_diameter: self.nozzle_diameter,
+            });
+        }
+
+        let r = check_extrusions(&self.extrusion_width, self.nozzle_diameter);
+        match r {
+            SettingsValidationResult::NoIssue => {}
+            _ => return r,
+        }
+
+        let r = check_accelerations(
+            &self.acceleration,
+            &self.speed,
+            self.print_x.min(self.print_y),
+        );
+        match r {
+            SettingsValidationResult::NoIssue => {}
+            _ => return r,
+        }
+
+        if let Some(skirt) = self.skirt.as_ref() {
+            if let Some(brim) = self.brim_width.as_ref() {
+                if skirt.distance <= *brim {
+                    return SettingsValidationResult::Warning(
+                        SlicerWarnings::SkirtAndBrimOverlap {
+                            skirt_distance: skirt.distance,
+                            brim_width: *brim,
+                        },
+                    );
+                }
+            }
+        }
+
+        if self.filament.extruder_temp < 140.0 {
+            return SettingsValidationResult::Warning(SlicerWarnings::NozzleTemperatureTooLow {
+                temp: self.filament.extruder_temp,
+            });
+        } else if self.filament.extruder_temp > 260.0 {
+            return SettingsValidationResult::Warning(SlicerWarnings::NozzleTemperatureTooHigh {
+                temp: self.filament.extruder_temp,
+            });
+        }
+
+        setting_less_than_or_equal_to_zero!(self, print_x);
+        setting_less_than_or_equal_to_zero!(self, print_y);
+        setting_less_than_or_equal_to_zero!(self, print_z);
+        setting_less_than_or_equal_to_zero!(self, nozzle_diameter);
+        setting_less_than_or_equal_to_zero!(self, layer_height);
+        setting_less_than_or_equal_to_zero!(self, retract_speed);
+        setting_less_than_zero!(self, number_of_perimeters);
+        setting_less_than_zero!(self, infill_percentage);
+        setting_less_than_zero!(self, top_layers);
+        setting_less_than_zero!(self, bottom_layers);
+        setting_less_than_zero!(self, retract_length);
+        setting_less_than_zero!(self, retract_lift_z);
+
+        SettingsValidationResult::NoIssue
+    }
+}
+
+///Possible results of validation the settings
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub enum SettingsValidationResult {
+    ///No Issue
+    NoIssue,
+    ///A warning
+    Warning(SlicerWarnings),
+    ///An error
+    Error(SlicerErrors),
 }
 
 ///Settings specific to a Layer
@@ -562,7 +665,7 @@ impl PartialSettings {
             extrusion_width: self
                 .extrusion_width
                 .clone()
-                .or_else(||other.extrusion_width.clone()),
+                .or_else(|| other.extrusion_width.clone()),
             layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
             filament: self.filament.clone().or_else(|| other.filament.clone()),
             fan: self.fan.clone().or_else(|| other.fan.clone()),
@@ -699,7 +802,7 @@ impl PartialLayerSettings {
             extrusion_width: self
                 .extrusion_width
                 .clone()
-                .or_else(||other.extrusion_width.clone()),
+                .or_else(|| other.extrusion_width.clone()),
             speed: self.speed.clone().or_else(|| other.speed.clone()),
             acceleration: self
                 .acceleration
@@ -767,4 +870,233 @@ fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, St
 
         layer_settings: part.layer_settings.unwrap_or_default(),
     })
+}
+
+fn check_extrusions(
+    extrusion_width: &MovementParameter,
+    nozzle_diameter: f64,
+) -> SettingsValidationResult {
+    //infill
+    if extrusion_width.infill < nozzle_diameter * 0.6 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooLow {
+            extrusion_width: extrusion_width.infill,
+            nozzle_diameter,
+        });
+    } else if extrusion_width.infill > nozzle_diameter * 2.0 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooHigh {
+            extrusion_width: extrusion_width.infill,
+            nozzle_diameter,
+        });
+    }
+
+    //top infill
+    if extrusion_width.solid_top_infill < nozzle_diameter * 0.6 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooLow {
+            extrusion_width: extrusion_width.solid_top_infill,
+            nozzle_diameter,
+        });
+    } else if extrusion_width.solid_top_infill > nozzle_diameter * 2.0 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooHigh {
+            extrusion_width: extrusion_width.solid_top_infill,
+            nozzle_diameter,
+        });
+    }
+
+    //solid infill
+    if extrusion_width.solid_infill < nozzle_diameter * 0.6 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooLow {
+            extrusion_width: extrusion_width.solid_infill,
+            nozzle_diameter,
+        });
+    } else if extrusion_width.solid_infill > nozzle_diameter * 2.0 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooHigh {
+            extrusion_width: extrusion_width.solid_infill,
+            nozzle_diameter,
+        });
+    }
+
+    //bridge
+    if extrusion_width.bridge < nozzle_diameter * 0.6 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooLow {
+            extrusion_width: extrusion_width.bridge,
+            nozzle_diameter,
+        });
+    } else if extrusion_width.bridge > nozzle_diameter * 2.0 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooHigh {
+            extrusion_width: extrusion_width.bridge,
+            nozzle_diameter,
+        });
+    }
+
+    //support
+    if extrusion_width.support < nozzle_diameter * 0.6 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooLow {
+            extrusion_width: extrusion_width.support,
+            nozzle_diameter,
+        });
+    } else if extrusion_width.support > nozzle_diameter * 2.0 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooHigh {
+            extrusion_width: extrusion_width.support,
+            nozzle_diameter,
+        });
+    }
+
+    //interior_surface_perimeter
+    if extrusion_width.interior_surface_perimeter < nozzle_diameter * 0.6 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooLow {
+            extrusion_width: extrusion_width.interior_surface_perimeter,
+            nozzle_diameter,
+        });
+    } else if extrusion_width.interior_surface_perimeter > nozzle_diameter * 2.0 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooHigh {
+            extrusion_width: extrusion_width.interior_surface_perimeter,
+            nozzle_diameter,
+        });
+    }
+
+    //interior_inner_perimeter
+    if extrusion_width.interior_inner_perimeter < nozzle_diameter * 0.6 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooLow {
+            extrusion_width: extrusion_width.interior_inner_perimeter,
+            nozzle_diameter,
+        });
+    } else if extrusion_width.interior_inner_perimeter > nozzle_diameter * 2.0 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooHigh {
+            extrusion_width: extrusion_width.interior_inner_perimeter,
+            nozzle_diameter,
+        });
+    }
+
+    //exterior_inner_perimeter
+    if extrusion_width.exterior_inner_perimeter < nozzle_diameter * 0.6 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooLow {
+            extrusion_width: extrusion_width.exterior_inner_perimeter,
+            nozzle_diameter,
+        });
+    } else if extrusion_width.exterior_inner_perimeter > nozzle_diameter * 2.0 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooHigh {
+            extrusion_width: extrusion_width.exterior_inner_perimeter,
+            nozzle_diameter,
+        });
+    }
+
+    //exterior_surface_perimeter
+    if extrusion_width.exterior_surface_perimeter < nozzle_diameter * 0.6 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooLow {
+            extrusion_width: extrusion_width.exterior_surface_perimeter,
+            nozzle_diameter,
+        });
+    } else if extrusion_width.exterior_surface_perimeter > nozzle_diameter * 2.0 {
+        return SettingsValidationResult::Warning(SlicerWarnings::ExtrusionWidthTooHigh {
+            extrusion_width: extrusion_width.exterior_surface_perimeter,
+            nozzle_diameter,
+        });
+    }
+
+    SettingsValidationResult::NoIssue
+}
+
+fn check_accelerations(
+    acceleration: &MovementParameter,
+    speed: &MovementParameter,
+    min_bed_dimension: f64,
+) -> SettingsValidationResult {
+    //infill
+    if (speed.infill * speed.infill) / (2.0 * acceleration.infill) > min_bed_dimension {
+        return SettingsValidationResult::Warning(SlicerWarnings::AccelerationTooLow {
+            acceleration: acceleration.infill,
+            speed: speed.infill,
+            bed_size: min_bed_dimension,
+        });
+    }
+
+    //top infill
+    if (speed.solid_top_infill * speed.solid_top_infill) / (2.0 * acceleration.solid_top_infill)
+        > min_bed_dimension
+    {
+        return SettingsValidationResult::Warning(SlicerWarnings::AccelerationTooLow {
+            acceleration: acceleration.solid_top_infill,
+            speed: speed.solid_top_infill,
+            bed_size: min_bed_dimension,
+        });
+    }
+
+    //solid infill
+    if (speed.solid_infill * speed.solid_infill) / (2.0 * acceleration.solid_infill)
+        > min_bed_dimension
+    {
+        return SettingsValidationResult::Warning(SlicerWarnings::AccelerationTooLow {
+            acceleration: acceleration.solid_infill,
+            speed: speed.solid_infill,
+            bed_size: min_bed_dimension,
+        });
+    }
+
+    //bridge
+    if (speed.bridge * speed.bridge) / (2.0 * acceleration.bridge) > min_bed_dimension {
+        return SettingsValidationResult::Warning(SlicerWarnings::AccelerationTooLow {
+            acceleration: acceleration.bridge,
+            speed: speed.bridge,
+            bed_size: min_bed_dimension,
+        });
+    }
+
+    //support
+    if (speed.support * speed.support) / (2.0 * acceleration.support) > min_bed_dimension {
+        return SettingsValidationResult::Warning(SlicerWarnings::AccelerationTooLow {
+            acceleration: acceleration.support,
+            speed: speed.support,
+            bed_size: min_bed_dimension,
+        });
+    }
+
+    //interior_surface_perimeter
+    if (speed.interior_surface_perimeter * speed.interior_surface_perimeter)
+        / (2.0 * acceleration.interior_surface_perimeter)
+        > min_bed_dimension
+    {
+        return SettingsValidationResult::Warning(SlicerWarnings::AccelerationTooLow {
+            acceleration: acceleration.interior_surface_perimeter,
+            speed: speed.interior_surface_perimeter,
+            bed_size: min_bed_dimension,
+        });
+    }
+
+    //interior_inner_perimeter
+    if (speed.interior_inner_perimeter * speed.interior_inner_perimeter)
+        / (2.0 * acceleration.interior_inner_perimeter)
+        > min_bed_dimension
+    {
+        return SettingsValidationResult::Warning(SlicerWarnings::AccelerationTooLow {
+            acceleration: acceleration.interior_inner_perimeter,
+            speed: speed.interior_inner_perimeter,
+            bed_size: min_bed_dimension,
+        });
+    }
+
+    //exterior_inner_perimeter
+    if (speed.exterior_inner_perimeter * speed.exterior_inner_perimeter)
+        / (2.0 * acceleration.exterior_inner_perimeter)
+        > min_bed_dimension
+    {
+        return SettingsValidationResult::Warning(SlicerWarnings::AccelerationTooLow {
+            acceleration: acceleration.exterior_inner_perimeter,
+            speed: speed.exterior_inner_perimeter,
+            bed_size: min_bed_dimension,
+        });
+    }
+
+    //exterior_surface_perimeter
+    if (speed.exterior_surface_perimeter * speed.exterior_surface_perimeter)
+        / (2.0 * acceleration.exterior_surface_perimeter)
+        > min_bed_dimension
+    {
+        return SettingsValidationResult::Warning(SlicerWarnings::AccelerationTooLow {
+            acceleration: acceleration.exterior_surface_perimeter,
+            speed: speed.exterior_surface_perimeter,
+            bed_size: min_bed_dimension,
+        });
+    }
+
+    SettingsValidationResult::NoIssue
 }

@@ -7,7 +7,7 @@ use gladius_shared::types::*;
 use crate::plotter::convert_objects_into_moves;
 use crate::tower::*;
 use geo::*;
-use gladius_shared::settings::{PartialSettings, Settings};
+use gladius_shared::settings::{PartialSettings, Settings, SettingsValidationResult};
 use std::fs::File;
 
 use std::ffi::OsStr;
@@ -20,7 +20,10 @@ use crate::input::files_input;
 use crate::plotter::polygon_operations::PolygonOperations;
 use crate::slice_pass::*;
 use crate::slicing::*;
-use crate::utils::{display_state_update, send_error_message, show_error_message};
+use crate::utils::{
+    display_state_update, send_error_message, send_warning_message, show_error_message,
+    show_warning_message,
+};
 use gladius_shared::error::SlicerErrors;
 use gladius_shared::messages::Message;
 use itertools::Itertools;
@@ -97,6 +100,8 @@ fn main() {
         ),
         send_messages,
     );
+
+    handle_setting_validation(settings.validate_settings(), send_messages);
 
     display_state_update("Creating Towers", send_messages);
 
@@ -234,6 +239,27 @@ fn handle_err_or_return<T>(res: Result<T, SlicerErrors>, send_message: bool) -> 
     match res {
         Ok(data) => data,
         Err(slicer_error) => {
+            if send_message {
+                send_error_message(slicer_error)
+            } else {
+                show_error_message(slicer_error)
+            }
+            std::process::exit(-1);
+        }
+    }
+}
+
+fn handle_setting_validation(res: SettingsValidationResult, send_message: bool) {
+    match res {
+        SettingsValidationResult::NoIssue => {}
+        SettingsValidationResult::Warning(slicer_warning) => {
+            if send_message {
+                send_warning_message(slicer_warning)
+            } else {
+                show_warning_message(slicer_warning)
+            }
+        }
+        SettingsValidationResult::Error(slicer_error) => {
             if send_message {
                 send_error_message(slicer_error)
             } else {

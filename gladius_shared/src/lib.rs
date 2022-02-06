@@ -15,3 +15,6 @@ pub mod types;
 
 ///Messages for IPC
 pub mod messages;
+
+///Warning Types
+pub mod warning;
