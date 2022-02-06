@@ -120,6 +120,44 @@ pub struct Settings {
     /// The instructions to append between object changes
     pub object_change_instructions: String,
 
+    ///Maximum Acceleration in x dimension
+    pub max_acceleration_x: f64,
+    ///Maximum Acceleration in y dimension
+    pub max_acceleration_y: f64,
+    ///Maximum Acceleration in z dimension
+    pub max_acceleration_z: f64,
+    ///Maximum Acceleration in e dimension
+    pub max_acceleration_e: f64,
+
+    ///Maximum Acceleration while extruding
+    pub max_acceleration_extruding: f64,
+    ///Maximum Acceleration while traveling
+    pub max_acceleration_travel: f64,
+    ///Maximum Acceleration while retracting
+    pub max_acceleration_retracting: f64,
+
+    ///Maximum Jerk in x dimension
+    pub max_jerk_x: f64,
+    ///Maximum Jerk in y dimension
+    pub max_jerk_y: f64,
+    ///Maximum Jerk in z dimension
+    pub max_jerk_z: f64,
+    ///Maximum Jerk in e dimension
+    pub max_jerk_e: f64,
+
+    ///Minimum feedrate for extrusion moves
+    pub minimum_feedrate_print: f64,
+    ///Minimum feedrate for travel moves
+    pub minimum_feedrate_travel: f64,
+    ///Maximum feedrate for x dimension
+    pub maximum_feedrate_x: f64,
+    ///Maximum feedrate for y dimension
+    pub maximum_feedrate_y: f64,
+    ///Maximum feedrate for z dimension
+    pub maximum_feedrate_z: f64,
+    ///Maximum feedrate for e dimension
+    pub maximum_feedrate_e: f64,
+
     ///Settings for specific layers
     pub layer_settings: Vec<(LayerRange, PartialLayerSettings)>,
 }
@@ -213,6 +251,16 @@ impl Default for Settings {
             before_layer_change_instructions: "".to_string(),
             after_layer_change_instructions: "".to_string(),
             object_change_instructions: "".to_string(),
+            max_acceleration_x: 1000.0,
+            max_acceleration_y: 1000.0,
+            max_acceleration_z: 1000.0,
+            max_acceleration_e: 5000.0,
+            max_acceleration_extruding: 1250.0,
+            max_acceleration_travel: 1250.0,
+            max_acceleration_retracting: 1250.0,
+            max_jerk_x: 8.0,
+            max_jerk_y: 8.0,
+            max_jerk_z: 0.4,
             brim_width: None,
             layer_settings: vec![(
                 LayerRange::SingleLayer(0),
@@ -237,6 +285,13 @@ impl Default for Settings {
                 },
             )],
             layer_shrink_amount: None,
+            max_jerk_e: 1.5,
+            minimum_feedrate_print: 0.0,
+            minimum_feedrate_travel: 0.0,
+            maximum_feedrate_x: 200.0,
+            maximum_feedrate_y: 200.0,
+            maximum_feedrate_z: 12.0,
+            maximum_feedrate_e: 120.0,
         }
     }
 }
@@ -282,6 +337,37 @@ impl Settings {
 
     ///Validate settings and return any warnings and errors
     pub fn validate_settings(&self) -> SettingsValidationResult {
+        setting_less_than_or_equal_to_zero!(self, print_x);
+        setting_less_than_or_equal_to_zero!(self, print_y);
+        setting_less_than_or_equal_to_zero!(self, print_z);
+        setting_less_than_or_equal_to_zero!(self, nozzle_diameter);
+        setting_less_than_or_equal_to_zero!(self, layer_height);
+        setting_less_than_or_equal_to_zero!(self, retract_speed);
+        setting_less_than_or_equal_to_zero!(self, max_acceleration_x);
+        setting_less_than_or_equal_to_zero!(self, max_acceleration_y);
+        setting_less_than_or_equal_to_zero!(self, max_acceleration_z);
+        setting_less_than_or_equal_to_zero!(self, max_acceleration_e);
+        setting_less_than_or_equal_to_zero!(self, max_jerk_x);
+        setting_less_than_or_equal_to_zero!(self, max_jerk_y);
+        setting_less_than_or_equal_to_zero!(self, max_jerk_z);
+        setting_less_than_or_equal_to_zero!(self, max_jerk_e);
+        setting_less_than_or_equal_to_zero!(self, max_acceleration_extruding);
+        setting_less_than_or_equal_to_zero!(self, max_acceleration_travel);
+        setting_less_than_or_equal_to_zero!(self, max_acceleration_retracting);
+        setting_less_than_or_equal_to_zero!(self, maximum_feedrate_x);
+        setting_less_than_or_equal_to_zero!(self, maximum_feedrate_y);
+        setting_less_than_or_equal_to_zero!(self, maximum_feedrate_z);
+        setting_less_than_or_equal_to_zero!(self, maximum_feedrate_e);
+        setting_less_than_zero!(self, number_of_perimeters);
+        setting_less_than_zero!(self, infill_percentage);
+        setting_less_than_zero!(self, top_layers);
+        setting_less_than_zero!(self, bottom_layers);
+        setting_less_than_zero!(self, retract_length);
+        setting_less_than_zero!(self, retract_lift_z);
+        setting_less_than_zero!(self, minimum_feedrate_travel);
+        setting_less_than_zero!(self, minimum_feedrate_print);
+        setting_less_than_zero!(self, minimum_retract_distance);
+
         if self.layer_height < self.nozzle_diameter * 0.2 {
             return SettingsValidationResult::Warning(SlicerWarnings::LayerSizeTooLow {
                 layer_height: self.layer_height,
@@ -332,19 +418,6 @@ impl Settings {
                 temp: self.filament.extruder_temp,
             });
         }
-
-        setting_less_than_or_equal_to_zero!(self, print_x);
-        setting_less_than_or_equal_to_zero!(self, print_y);
-        setting_less_than_or_equal_to_zero!(self, print_z);
-        setting_less_than_or_equal_to_zero!(self, nozzle_diameter);
-        setting_less_than_or_equal_to_zero!(self, layer_height);
-        setting_less_than_or_equal_to_zero!(self, retract_speed);
-        setting_less_than_zero!(self, number_of_perimeters);
-        setting_less_than_zero!(self, infill_percentage);
-        setting_less_than_zero!(self, top_layers);
-        setting_less_than_zero!(self, bottom_layers);
-        setting_less_than_zero!(self, retract_length);
-        setting_less_than_zero!(self, retract_lift_z);
 
         SettingsValidationResult::NoIssue
     }
@@ -616,6 +689,44 @@ pub struct PartialSettings {
     ///Other files to load
     pub other_files: Option<Vec<String>>,
 
+    ///Maximum Acceleration in x dimension
+    pub max_acceleration_x: Option<f64>,
+    ///Maximum Acceleration in y dimension
+    pub max_acceleration_y: Option<f64>,
+    ///Maximum Acceleration in z dimension
+    pub max_acceleration_z: Option<f64>,
+    ///Maximum Acceleration in e dimension
+    pub max_acceleration_e: Option<f64>,
+
+    ///Maximum Acceleration while extruding
+    pub max_acceleration_extruding: Option<f64>,
+    ///Maximum Acceleration while traveling
+    pub max_acceleration_travel: Option<f64>,
+    ///Maximum Acceleration while retracting
+    pub max_acceleration_retracting: Option<f64>,
+
+    ///Maximum Jerk in x dimension
+    pub max_jerk_x: Option<f64>,
+    ///Maximum Jerk in y dimension
+    pub max_jerk_y: Option<f64>,
+    ///Maximum Jerk in z dimension
+    pub max_jerk_z: Option<f64>,
+    ///Maximum Jerk in e dimension
+    pub max_jerk_e: Option<f64>,
+
+    ///Minimum feedrate for extrusion moves
+    pub minimum_feedrate_print: Option<f64>,
+    ///Minimum feedrate for travel moves
+    pub minimum_feedrate_travel: Option<f64>,
+    ///Maximum feedrate for x dimension
+    pub maximum_feedrate_x: Option<f64>,
+    ///Maximum feedrate for y dimension
+    pub maximum_feedrate_y: Option<f64>,
+    ///Maximum feedrate for z dimension
+    pub maximum_feedrate_z: Option<f64>,
+    ///Maximum feedrate for e dimension
+    pub maximum_feedrate_e: Option<f64>,
+
     ///Settings for specific layers
     pub layer_settings: Option<Vec<(LayerRange, PartialLayerSettings)>>,
 }
@@ -717,6 +828,31 @@ impl PartialSettings {
                 .clone()
                 .or(other.object_change_instructions),
             other_files: None,
+            max_acceleration_x: self.max_acceleration_x.or(other.max_acceleration_x),
+            max_acceleration_y: self.max_acceleration_y.or(other.max_acceleration_y),
+            max_acceleration_z: self.max_acceleration_z.or(other.max_acceleration_z),
+            max_acceleration_e: self.max_acceleration_e.or(other.max_acceleration_e),
+            max_acceleration_extruding: self
+                .max_acceleration_extruding
+                .or(other.max_acceleration_extruding),
+            max_acceleration_travel: self
+                .max_acceleration_travel
+                .or(other.max_acceleration_travel),
+            max_acceleration_retracting: self
+                .max_acceleration_retracting
+                .or(other.max_acceleration_retracting),
+            max_jerk_x: self.max_jerk_x.or(other.max_jerk_x),
+            max_jerk_y: self.max_jerk_y.or(other.max_jerk_y),
+            max_jerk_z: self.max_jerk_z.or(other.max_jerk_z),
+            max_jerk_e: self.max_jerk_e.or(other.max_jerk_e),
+            minimum_feedrate_print: self.minimum_feedrate_print.or(other.minimum_feedrate_print),
+            minimum_feedrate_travel: self
+                .minimum_feedrate_travel
+                .or(other.minimum_feedrate_travel),
+            maximum_feedrate_x: self.maximum_feedrate_x.or(other.maximum_feedrate_x),
+            maximum_feedrate_y: self.maximum_feedrate_y.or(other.maximum_feedrate_y),
+            maximum_feedrate_z: self.maximum_feedrate_z.or(other.maximum_feedrate_z),
+            maximum_feedrate_e: self.maximum_feedrate_e.or(other.maximum_feedrate_e),
             layer_settings: {
                 match (self.layer_settings.as_ref(), other.layer_settings.as_ref()) {
                     (None, None) => None,
@@ -868,6 +1004,33 @@ fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, St
             .object_change_instructions
             .ok_or("object_change_instructions")?,
 
+        max_acceleration_x: part.max_acceleration_x.ok_or("max_acceleration_x")?,
+        max_acceleration_y: part.max_acceleration_y.ok_or("max_acceleration_y")?,
+        max_acceleration_z: part.max_acceleration_z.ok_or("max_acceleration_z")?,
+        max_acceleration_e: part.max_acceleration_e.ok_or("max_acceleration_e")?,
+        max_acceleration_extruding: part
+            .max_acceleration_extruding
+            .ok_or("max_acceleration_extruding")?,
+        max_acceleration_travel: part
+            .max_acceleration_travel
+            .ok_or("max_acceleration_travel")?,
+        max_acceleration_retracting: part
+            .max_acceleration_retracting
+            .ok_or("max_acceleration_retracting")?,
+        max_jerk_x: part.max_jerk_x.ok_or("max_jerk_x")?,
+        max_jerk_y: part.max_jerk_y.ok_or("max_jerk_y")?,
+        max_jerk_z: part.max_jerk_z.ok_or("max_jerk_z")?,
+        max_jerk_e: part.max_jerk_e.ok_or("max_jerk_e")?,
+        minimum_feedrate_print: part
+            .minimum_feedrate_print
+            .ok_or("minimum_feedrate_print")?,
+        minimum_feedrate_travel: part
+            .minimum_feedrate_travel
+            .ok_or("minimum_feedrate_travel")?,
+        maximum_feedrate_x: part.maximum_feedrate_x.ok_or("maximum_feedrate_x")?,
+        maximum_feedrate_y: part.maximum_feedrate_y.ok_or("maximum_feedrate_y")?,
+        maximum_feedrate_z: part.maximum_feedrate_z.ok_or("maximum_feedrate_z")?,
+        maximum_feedrate_e: part.maximum_feedrate_e.ok_or("maximum_feedrate_e")?,
         layer_settings: part.layer_settings.unwrap_or_default(),
     })
 }

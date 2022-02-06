@@ -19,7 +19,38 @@ pub fn convert(
         current_object,
         settings,
     );
+
+    writeln!(
+        write_buf,
+        "M201 X{:.1} Y{:.1} Z{:.1} E{:.1}; sets maximum accelerations, mm/sec^2",
+        settings.max_acceleration_x,
+        settings.max_acceleration_y,
+        settings.max_acceleration_z,
+        settings.max_acceleration_e
+    )?;
+    writeln!(
+        write_buf,
+        "M203 X{:.1} Y{:.1} Z{:.1} E{:.1}; ; sets maximum feedrates, mm/sec",
+        settings.maximum_feedrate_x,
+        settings.maximum_feedrate_y,
+        settings.maximum_feedrate_z,
+        settings.maximum_feedrate_e
+    )?;
+    writeln!(write_buf, "M204 P{:.1} R{:.1} T{:.1}; sets acceleration (P, T) and retract acceleration (R), mm/sec^2", settings.max_acceleration_extruding, settings.max_acceleration_retracting, settings.max_acceleration_travel)?;
+    writeln!(
+        write_buf,
+        "M205 X{:.1} Y{:.1} Z{:.1} E{:.1}; sets the jerk limits, mm/sec",
+        settings.max_jerk_x, settings.max_jerk_y, settings.max_jerk_z, settings.max_jerk_e
+    )?;
+    writeln!(
+        write_buf,
+        "M205 S{:.1} T{:.1} ; sets the minimum extruding and travel feed rate, mm/sec",
+        settings.minimum_feedrate_print, settings.minimum_feedrate_travel
+    )?;
     writeln!(write_buf, "{}", start)?;
+    writeln!(write_buf, "G21 ; set units to millimeters")?;
+    writeln!(write_buf, "G90 ; use absolute coordinates")?;
+    writeln!(write_buf, "M83 ; use relative distances for extrusion")?;
 
     for cmd in cmds {
         match cmd {
