@@ -1,4 +1,5 @@
 use crate::{Command, Settings};
+use gladius_shared::types::RetractionType;
 use std::io::{BufWriter, Write};
 
 pub fn convert(
@@ -81,9 +82,9 @@ pub fn convert(
                 writeln!(write_buf, "G1 X{:.5} Y{:.5} E{:.5}", end.x, end.y, extrude)?;
             }
             Command::SetState { new_state } => {
-                match new_state.retract {
+                match new_state.retract.as_ref() {
                     None => {}
-                    Some(true) => {
+                    Some(RetractionType::Retract) => {
                         //retract
                         writeln!(
                             write_buf,
@@ -99,7 +100,7 @@ pub fn convert(
                             60.0 * settings.speed.travel,
                         )?;
                     }
-                    Some(false) => {
+                    Some(RetractionType::Unretract) => {
                         //unretract
                         writeln!(write_buf, "G1 Z{:.5}; z unlift", current_z,)?;
                         writeln!(
@@ -107,6 +108,22 @@ pub fn convert(
                             "G1 E{:.5} F{:.5}; Retract or unretract",
                             settings.retract_length,
                             60.0 * settings.retract_speed,
+                        )?;
+                    }
+                    Some(RetractionType::MoveRetract(moves)) => {
+                        for (retract_amount, end) in moves {
+                            writeln!(
+                                write_buf,
+                                "G1 X{:.5} Y{:.5} E{:.5}; Retract with move",
+                                end.x, end.y, -retract_amount
+                            )?;
+                        }
+
+                        writeln!(
+                            write_buf,
+                            "G1 Z{:.5} F{:.5}; z Lift",
+                            current_z + settings.retract_lift_z,
+                            60.0 * settings.speed.travel,
                         )?;
                     }
                 }

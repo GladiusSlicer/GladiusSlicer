@@ -286,6 +286,7 @@ impl LightningNode {
                             move_type: MoveType::Infill,
                         }],
                         start_point: child.location,
+                        is_loop: false,
                     })
                 }
                 chains.into_iter()

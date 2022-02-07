@@ -50,6 +50,7 @@ pub fn inset_polygon_recursive(
         outer_chains.push(MoveChain {
             start_point: polygon.exterior()[0],
             moves,
+            is_loop: true,
         });
 
         for interior in polygon.interiors() {
@@ -71,6 +72,7 @@ pub fn inset_polygon_recursive(
             outer_chains.push(MoveChain {
                 start_point: interior.0[0],
                 moves,
+                is_loop: true,
             });
         }
 
@@ -121,6 +123,7 @@ pub fn inset_polygon_recursive(
             MoveChain {
                 moves: full_moves,
                 start_point: starting_point,
+                is_loop: true,
             }
         })
 }

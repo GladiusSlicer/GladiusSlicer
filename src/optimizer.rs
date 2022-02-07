@@ -2,7 +2,7 @@ use geo::algorithm::euclidean_length::EuclideanLength;
 use geo::euclidean_distance::EuclideanDistance;
 use geo::{Coordinate, Line};
 use gladius_shared::settings::Settings;
-use gladius_shared::types::{Command, StateChange};
+use gladius_shared::types::{Command, RetractionType, StateChange};
 use itertools::Itertools;
 
 pub fn unary_optimizer(cmds: &mut Vec<Command>) {
@@ -84,7 +84,7 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                     },
                     Command::MoveTo { end },
                 ) => {
-                    if f_state.retract == Some(true)
+                    if f_state.retract == Some(RetractionType::Retract)
                         && Line::new(current_pos, end).euclidean_length()
                             < settings.minimum_retract_distance
                     {

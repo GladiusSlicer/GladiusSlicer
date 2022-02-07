@@ -67,7 +67,12 @@
   "inner_perimeters_first" : true,
   "partial_infill_type" : "Cubic",
 
+  "retraction_wipe" : {
+    "speed": 140,
+    "acceleration": 1000,
+    "distance": 2
 
+  },
 
   "max_acceleration_x": 1000.0,
   "max_acceleration_y": 1000.0,

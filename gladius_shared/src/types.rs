@@ -298,6 +298,9 @@ pub struct MoveChain {
 
     ///List of all moves in order that they must be moved
     pub moves: Vec<Move>,
+
+    ///Indicates that chain is a loop where the start can be changed to any point
+    pub is_loop: bool,
 }
 
 ///Types of Moves
@@ -409,6 +412,20 @@ pub enum Command {
 }
 
 ///A change in the state of the printer. all fields are optional and should only be set when the state is changing.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum RetractionType {
+    ///Unretract
+    Unretract,
+
+    ///Standard Retract without Move
+    Retract,
+
+    ///MoveWhileRetracting
+    ///Vector of (retraction amount, points to travel to)
+    MoveRetract(Vec<(f64, Coordinate<f64>)>),
+}
+
+///A change in the state of the printer. all fields are optional and should only be set when the state is changing.
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct StateChange {
     ///The temperature of the current extruder
@@ -427,7 +444,7 @@ pub struct StateChange {
     pub acceleration: Option<f64>,
 
     ///Whether the filament is retracted
-    pub retract: Option<bool>,
+    pub retract: Option<RetractionType>,
 }
 
 impl StateChange {
@@ -479,8 +496,8 @@ impl StateChange {
                 if self.retract == new_state.retract {
                     None
                 } else {
-                    self.retract = new_state.retract.or(self.retract);
-                    new_state.retract
+                    self.retract = new_state.retract.clone().or(self.retract.clone());
+                    new_state.retract.clone()
                 }
             },
         }
@@ -495,7 +512,7 @@ impl StateChange {
             fan_speed: { new_state.fan_speed.or(self.fan_speed) },
             movement_speed: { new_state.movement_speed.or(self.movement_speed) },
             acceleration: { new_state.acceleration.or(self.acceleration) },
-            retract: { new_state.retract.or(self.retract) },
+            retract: { new_state.retract.clone().or_else(|| self.retract.clone()) },
         }
     }
 }
@@ -518,7 +535,7 @@ impl MoveChain {
                                 fan_speed: None,
                                 movement_speed: Some(settings.speed.solid_top_infill),
                                 acceleration: Some(settings.acceleration.solid_top_infill),
-                                retract: Some(false),
+                                retract: Some(RetractionType::Unretract),
                             },
                         });
                     }
@@ -530,7 +547,7 @@ impl MoveChain {
                                 fan_speed: None,
                                 movement_speed: Some(settings.speed.solid_infill),
                                 acceleration: Some(settings.acceleration.solid_infill),
-                                retract: Some(false),
+                                retract: Some(RetractionType::Unretract),
                             },
                         });
                     }
@@ -542,7 +559,7 @@ impl MoveChain {
                                 fan_speed: None,
                                 movement_speed: Some(settings.speed.infill),
                                 acceleration: Some(settings.acceleration.infill),
-                                retract: Some(false),
+                                retract: Some(RetractionType::Unretract),
                             },
                         });
                     }
@@ -554,7 +571,7 @@ impl MoveChain {
                                 fan_speed: None,
                                 movement_speed: Some(settings.speed.bridge),
                                 acceleration: Some(settings.acceleration.bridge),
-                                retract: Some(false),
+                                retract: Some(RetractionType::Unretract),
                             },
                         });
                     }
@@ -568,7 +585,7 @@ impl MoveChain {
                                 acceleration: Some(
                                     settings.acceleration.exterior_surface_perimeter,
                                 ),
-                                retract: Some(false),
+                                retract: Some(RetractionType::Unretract),
                             },
                         });
                     }
@@ -580,7 +597,7 @@ impl MoveChain {
                                 fan_speed: None,
                                 movement_speed: Some(settings.speed.exterior_inner_perimeter),
                                 acceleration: Some(settings.acceleration.exterior_inner_perimeter),
-                                retract: Some(false),
+                                retract: Some(RetractionType::Unretract),
                             },
                         });
                     }
@@ -594,7 +611,7 @@ impl MoveChain {
                                 acceleration: Some(
                                     settings.acceleration.interior_surface_perimeter,
                                 ),
-                                retract: Some(false),
+                                retract: Some(RetractionType::Unretract),
                             },
                         });
                     }
@@ -606,7 +623,7 @@ impl MoveChain {
                                 fan_speed: None,
                                 movement_speed: Some(settings.speed.interior_inner_perimeter),
                                 acceleration: Some(settings.acceleration.interior_inner_perimeter),
-                                retract: Some(false),
+                                retract: Some(RetractionType::Unretract),
                             },
                         });
                     }
@@ -618,7 +635,7 @@ impl MoveChain {
                                 fan_speed: None,
                                 movement_speed: Some(settings.speed.support),
                                 acceleration: Some(settings.acceleration.support),
-                                retract: Some(false),
+                                retract: Some(RetractionType::Unretract),
                             },
                         });
                     }
@@ -630,7 +647,7 @@ impl MoveChain {
                                 fan_speed: None,
                                 movement_speed: Some(settings.speed.travel),
                                 acceleration: Some(settings.acceleration.travel),
-                                retract: Some(true),
+                                retract: Some(RetractionType::Retract),
                             },
                         });
                     }

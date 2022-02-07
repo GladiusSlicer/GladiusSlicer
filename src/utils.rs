@@ -1,3 +1,4 @@
+use geo::Coordinate;
 use gladius_shared::error::SlicerErrors;
 use gladius_shared::messages::Message;
 use gladius_shared::warning::SlicerWarnings;
@@ -50,4 +51,25 @@ pub fn display_state_update(state_message: &str, send_message: bool) {
     } else {
         info!("{}", state_message);
     }
+}
+
+#[inline]
+pub fn point_y_lerp(a: &Coordinate<f64>, b: &Coordinate<f64>, y: f64) -> Coordinate<f64> {
+    Coordinate {
+        x: lerp(a.x, b.x, (y - a.y) / (b.y - a.y)),
+        y,
+    }
+}
+
+#[inline]
+pub fn point_lerp(a: &Coordinate<f64>, b: &Coordinate<f64>, f: f64) -> Coordinate<f64> {
+    Coordinate {
+        x: lerp(a.x, b.x, f),
+        y: lerp(a.y, b.y, f),
+    }
+}
+
+#[inline]
+pub fn lerp(a: f64, b: f64, f: f64) -> f64 {
+    a + f * (b - a)
 }

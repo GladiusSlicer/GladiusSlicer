@@ -60,6 +60,9 @@ pub struct Settings {
     ///The velocity of retracts
     pub retract_speed: f64,
 
+    ///Retraction Wipe
+    pub retraction_wipe: Option<RetractionWipeSettings>,
+
     ///The speeds used for movement
     pub speed: MovementParameter,
 
@@ -292,6 +295,7 @@ impl Default for Settings {
             maximum_feedrate_y: 200.0,
             maximum_feedrate_z: 12.0,
             maximum_feedrate_e: 120.0,
+            retraction_wipe: None,
         }
     }
 }
@@ -332,6 +336,10 @@ impl Settings {
                 .unwrap_or(self.inner_perimeters_first),
             bed_temp: changes.bed_temp.unwrap_or(self.filament.bed_temp),
             extruder_temp: changes.extruder_temp.unwrap_or(self.filament.extruder_temp),
+            retraction_wipe: changes
+                .retraction_wipe
+                .or_else(|| self.retraction_wipe.clone()),
+            retraction_length: changes.retraction_length.unwrap_or(self.retract_length),
         }
     }
 
@@ -468,6 +476,12 @@ pub struct LayerSettings {
 
     ///Temperature of the extuder
     pub extruder_temp: f64,
+
+    ///Retraction Wipe
+    pub retraction_wipe: Option<RetractionWipeSettings>,
+
+    ///Retraction Distance
+    pub retraction_length: f64,
 }
 
 ///A set of values for different movement types
@@ -599,6 +613,19 @@ pub struct SkirtSettings {
     pub distance: f64,
 }
 
+///The Settings for Skirt generation
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RetractionWipeSettings {
+    ///The speed the retract wipe move
+    pub speed: f64,
+
+    ///The acceleration the retract wipe move
+    pub acceleration: f64,
+
+    ///Wipe Distance in mm
+    pub distance: f64,
+}
+
 ///A partial complete settings file
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PartialSettings {
@@ -623,6 +650,10 @@ pub struct PartialSettings {
 
     ///length to retract in mm
     pub retract_length: Option<f64>,
+
+    ///Retraction Wipe
+    pub retraction_wipe: Option<RetractionWipeSettings>,
+
     ///Distance to lift the z axis during a retract
     pub retract_lift_z: Option<f64>,
 
@@ -784,6 +815,7 @@ impl PartialSettings {
             support: self.support.clone().or_else(|| other.support.clone()),
             nozzle_diameter: self.nozzle_diameter.or(other.nozzle_diameter),
             retract_length: self.retract_length.or(other.retract_length),
+            retraction_wipe: self.retraction_wipe.clone().or(other.retraction_wipe),
             retract_lift_z: self.retract_lift_z.or(other.retract_lift_z),
             retract_speed: self.retract_speed.or(other.retract_speed),
             speed: self.speed.clone().or_else(|| other.speed.clone()),
@@ -929,6 +961,12 @@ pub struct PartialLayerSettings {
 
     ///The Extruder Temperature
     pub extruder_temp: Option<f64>,
+
+    ///Retraction Wipe
+    pub retraction_wipe: Option<RetractionWipeSettings>,
+
+    ///Retraction Distance
+    pub retraction_length: Option<f64>,
 }
 
 impl PartialLayerSettings {
@@ -950,11 +988,16 @@ impl PartialLayerSettings {
 
             bed_temp: self.bed_temp.or(other.bed_temp),
             extruder_temp: self.extruder_temp.or(other.extruder_temp),
+            retraction_wipe: self
+                .retraction_wipe
+                .clone()
+                .or_else(|| other.retraction_wipe.clone()),
             infill_perimeter_overlap_percentage: self
                 .infill_perimeter_overlap_percentage
                 .or(other.infill_perimeter_overlap_percentage),
             partial_infill_type: self.partial_infill_type.or(other.partial_infill_type),
             layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
+            retraction_length: self.retraction_length.or(other.retraction_length),
         }
     }
 }
@@ -971,6 +1014,7 @@ fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, St
         retract_length: part.retract_length.ok_or("retract_length")?,
         retract_lift_z: part.retract_lift_z.ok_or("retract_lift_z")?,
         retract_speed: part.retract_speed.ok_or("retract_speed")?,
+        retraction_wipe: part.retraction_wipe,
         speed: part.speed.ok_or("speed")?,
         acceleration: part.acceleration.ok_or("acceleration")?,
         infill_percentage: part.infill_percentage.ok_or("infill_percentage")?,

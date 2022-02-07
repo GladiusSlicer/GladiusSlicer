@@ -8,13 +8,14 @@ pub(crate) mod support;
 pub use crate::plotter::infill::*;
 use crate::plotter::perimeter::*;
 use crate::plotter::polygon_operations::PolygonOperations;
+use crate::utils::point_lerp;
 use crate::{Object, Settings, StateChange};
 use geo::coordinate_position::CoordPos;
 use geo::coordinate_position::CoordinatePosition;
 use geo::prelude::*;
 use geo::*;
 use gladius_shared::settings::SkirtSettings;
-use gladius_shared::types::{Command, Move, MoveChain, MoveType, Slice};
+use gladius_shared::types::{Command, Move, MoveChain, MoveType, RetractionType, Slice};
 use itertools::Itertools;
 use log::info;
 use ordered_float::OrderedFloat;
@@ -198,6 +199,7 @@ impl Plotter for Slice {
         self.fixed_chains.push(MoveChain {
             start_point: offset_hull_multi.0[0].exterior()[0],
             moves,
+            is_loop: true,
         });
     }
 
@@ -233,6 +235,7 @@ impl Plotter for Slice {
                         MoveChain {
                             start_point: poly.exterior()[0],
                             moves,
+                            is_loop: true,
                         }
                     })
                 }),
@@ -275,24 +278,87 @@ impl Plotter for Slice {
 
     fn slice_into_commands(&mut self, commands: &mut Vec<Command>, layer_thickness: f64) {
         if !self.fixed_chains.is_empty() {
-            let mut full_moves = vec![];
-            let starting_point = self.fixed_chains[0].start_point;
-            for chain in self.fixed_chains.iter_mut().chain(self.chains.iter_mut()) {
-                full_moves.push(Move {
-                    end: chain.start_point,
-                    move_type: MoveType::Travel,
-                    width: 0.0,
-                });
-                full_moves.append(&mut chain.moves)
-            }
+            commands.push(Command::SetState {
+                new_state: StateChange {
+                    extruder_temp: None,
+                    bed_temp: None,
+                    fan_speed: None,
+                    movement_speed: None,
+                    acceleration: None,
+                    retract: Some(RetractionType::Retract),
+                },
+            });
 
-            commands.append(
-                &mut MoveChain {
-                    moves: full_moves,
-                    start_point: starting_point,
-                }
-                .create_commands(&self.layer_settings, layer_thickness),
-            );
+            for chain in self.fixed_chains.drain(..).chain(self.chains.drain(..)) {
+                let retraction_length = self.layer_settings.retraction_length;
+                let retract_command = if let Some(retraction_wipe) =
+                    self.layer_settings.retraction_wipe.as_ref()
+                {
+                    let mut remaining_distance = retraction_wipe.distance;
+                    let wipe_moves = chain
+                        .moves
+                        .iter()
+                        .rev()
+                        .map(|m| m.end)
+                        .tuple_windows::<(_, _)>()
+                        .map(|(cur_point, next_point)| {
+                            let len: f64 = cur_point.euclidean_distance(&next_point);
+
+                            (len, cur_point, next_point)
+                        })
+                        .filter_map(|(len, cur_point, next_point)| {
+                            if remaining_distance - len > 0.0 {
+                                remaining_distance -= len;
+                                Some((len, next_point))
+                            } else if remaining_distance > 0.0 {
+                                let ret = (
+                                    remaining_distance,
+                                    point_lerp(&cur_point, &next_point, remaining_distance / len),
+                                );
+                                remaining_distance -= len;
+                                Some(ret)
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|(len, next_point)| {
+                            let retaction_distance =
+                                len / retraction_wipe.distance * retraction_length;
+
+                            (retaction_distance, next_point)
+                        })
+                        .collect();
+
+                    Command::SetState {
+                        new_state: StateChange {
+                            extruder_temp: None,
+                            bed_temp: None,
+                            fan_speed: None,
+                            movement_speed: Some(retraction_wipe.speed),
+                            acceleration: Some(retraction_wipe.acceleration),
+                            retract: Some(RetractionType::MoveRetract(wipe_moves)),
+                        },
+                    }
+                } else {
+                    Command::SetState {
+                        new_state: StateChange {
+                            bed_temp: None,
+                            extruder_temp: None,
+                            fan_speed: None,
+                            movement_speed: Some(self.layer_settings.speed.travel),
+                            acceleration: Some(self.layer_settings.acceleration.travel),
+                            retract: Some(RetractionType::Retract),
+                        },
+                    }
+                };
+
+                commands.push(Command::MoveTo {
+                    end: chain.start_point,
+                });
+                commands.append(&mut chain.create_commands(&self.layer_settings, layer_thickness));
+
+                commands.push(retract_command);
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ use crate::plotter::monotone::get_monotone_sections;
 use gladius_shared::settings::LayerSettings;
 use gladius_shared::types::{Move, MoveChain, MoveType, PartialInfillTypes};
 
+use crate::utils::*;
 use crate::PolygonOperations;
 use geo::prelude::*;
 use geo::*;
@@ -265,8 +266,8 @@ pub fn spaced_fill_polygon(
                 let right_top = section.right_chain[right_index - 1];
                 let right_bot = section.right_chain[right_index];
 
-                let left_point = point_lerp(&left_top, &left_bot, current_y);
-                let right_point = point_lerp(&right_top, &right_bot, current_y);
+                let left_point = point_y_lerp(&left_top, &left_bot, current_y);
+                let right_point = point_y_lerp(&right_top, &right_bot, current_y);
 
                 //add moves to connect lines together
                 if start_point.is_some() {
@@ -346,22 +347,13 @@ pub fn spaced_fill_polygon(
                 current_y -= spacing;
             }
 
-            start_point.map(|start_point| MoveChain { start_point, moves })
+            start_point.map(|start_point| MoveChain {
+                start_point,
+                moves,
+                is_loop: false,
+            })
         })
         .collect::<Vec<_>>()
         .into_iter()
         .collect()
-}
-
-#[inline]
-fn point_lerp(a: &Coordinate<f64>, b: &Coordinate<f64>, y: f64) -> Coordinate<f64> {
-    Coordinate {
-        x: lerp(a.x, b.x, (y - a.y) / (b.y - a.y)),
-        y,
-    }
-}
-
-#[inline]
-fn lerp(a: f64, b: f64, f: f64) -> f64 {
-    a + f * (b - a)
 }
