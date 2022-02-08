@@ -320,7 +320,7 @@ impl Plotter for Slice {
                     };
 
                     let mut remaining_distance = retraction_wipe.distance;
-                    let wipe_moves = ordered_iter
+                    let mut wipe_moves = ordered_iter
                         .tuple_windows::<(_, _)>()
                         .map(|(cur_point, next_point)| {
                             let len: f64 = cur_point.euclidean_distance(&next_point);
@@ -348,7 +348,13 @@ impl Plotter for Slice {
 
                             (retaction_distance, next_point)
                         })
-                        .collect();
+                        .collect::<Vec<_>>();
+
+                    if remaining_distance >0.0{
+                        if let Some((distance,_)) = wipe_moves.last_mut(){
+                            *distance += remaining_distance / retraction_wipe.distance * retraction_length
+                        }
+                    }
 
                     Command::SetState {
                         new_state: StateChange {
