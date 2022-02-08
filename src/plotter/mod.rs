@@ -49,7 +49,6 @@ impl Plotter for Slice {
             })
             .collect::<Vec<_>>();
 
-        println!("{}", new_chains.len());
         self.fixed_chains.append(&mut new_chains);
 
         let perimeter_inset = if number_of_perimeters == 0 {
@@ -297,19 +296,31 @@ impl Plotter for Slice {
                 },
             });
 
-            println!("{}", self.fixed_chains.len());
-
             for chain in self.fixed_chains.drain(..).chain(self.chains.drain(..)) {
                 let retraction_length = self.layer_settings.retraction_length;
                 let retract_command = if let Some(retraction_wipe) =
                     self.layer_settings.retraction_wipe.as_ref()
                 {
+                    let ordered_iter: Box<dyn Iterator<Item = Coordinate<f64>>> = if chain.is_loop {
+
+                        //fixme this is bad
+                        Box::new(
+                            chain
+                                .moves
+                                .iter()
+                                .rev()
+                                .take_while(|m| m.move_type != MoveType::Travel)
+                                .map(|m| m.end)
+                                .collect::<Vec<_>>()
+                                .into_iter()
+                                .rev(),
+                        )
+                    } else {
+                        Box::new(chain.moves.iter().rev().map(|m| m.end))
+                    };
+
                     let mut remaining_distance = retraction_wipe.distance;
-                    let wipe_moves = chain
-                        .moves
-                        .iter()
-                        .rev()
-                        .map(|m| m.end)
+                    let wipe_moves = ordered_iter
                         .tuple_windows::<(_, _)>()
                         .map(|(cur_point, next_point)| {
                             let len: f64 = cur_point.euclidean_distance(&next_point);
