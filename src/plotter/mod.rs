@@ -35,14 +35,22 @@ pub trait Plotter {
 
 impl Plotter for Slice {
     fn slice_perimeters_into_chains(&mut self, number_of_perimeters: usize) {
-        if let Some(mc) = inset_polygon_recursive(
-            &self.remaining_area,
-            &self.layer_settings,
-            true,
-            number_of_perimeters - 1,
-        ) {
-            self.fixed_chains.push(mc);
-        }
+        let mut new_chains = self
+            .remaining_area
+            .iter()
+            .map(|poly| MultiPolygon(vec![poly.clone()]))
+            .filter_map(|multi| {
+                inset_polygon_recursive(
+                    &multi,
+                    &self.layer_settings,
+                    true,
+                    number_of_perimeters - 1,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        println!("{}", new_chains.len());
+        self.fixed_chains.append(&mut new_chains);
 
         let perimeter_inset = if number_of_perimeters == 0 {
             0.0
@@ -285,9 +293,11 @@ impl Plotter for Slice {
                     fan_speed: None,
                     movement_speed: None,
                     acceleration: None,
-                    retract: Some(RetractionType::Retract),
+                    retract: RetractionType::Retract,
                 },
             });
+
+            println!("{}", self.fixed_chains.len());
 
             for chain in self.fixed_chains.drain(..).chain(self.chains.drain(..)) {
                 let retraction_length = self.layer_settings.retraction_length;
@@ -336,7 +346,7 @@ impl Plotter for Slice {
                             fan_speed: None,
                             movement_speed: Some(retraction_wipe.speed),
                             acceleration: Some(retraction_wipe.acceleration),
-                            retract: Some(RetractionType::MoveRetract(wipe_moves)),
+                            retract: RetractionType::MoveRetract(wipe_moves),
                         },
                     }
                 } else {
@@ -347,7 +357,7 @@ impl Plotter for Slice {
                             fan_speed: None,
                             movement_speed: Some(self.layer_settings.speed.travel),
                             acceleration: Some(self.layer_settings.acceleration.travel),
-                            retract: Some(RetractionType::Retract),
+                            retract: RetractionType::Retract,
                         },
                     }
                 };
@@ -450,7 +460,7 @@ pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> 
                             }),
                             movement_speed: None,
                             acceleration: None,
-                            retract: None,
+                            retract: RetractionType::NoRetract,
                         },
                     });
                     slice.slice_into_commands(&mut moves, slice.top_height - last_layer);

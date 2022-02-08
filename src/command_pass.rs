@@ -76,7 +76,7 @@ impl CommandPass for SlowDownLayerPass {
                                     if let Some(speed) = new_state.movement_speed {
                                         current_speed = speed
                                     }
-                                    if new_state.retract.is_some() {
+                                    if new_state.retract != RetractionType::NoRetract {
                                         non_move_time +=
                                             settings.retract_length / settings.retract_speed;
                                         non_move_time +=

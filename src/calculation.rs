@@ -40,7 +40,7 @@ pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedVal
                 if let Some(speed) = new_state.movement_speed {
                     current_speed = speed
                 }
-                if new_state.retract.is_some() {
+                if new_state.retract != RetractionType::NoRetract {
                     values.total_time += settings.retract_length / settings.retract_speed;
                     values.total_time += settings.retract_lift_z / settings.speed.travel;
                 }

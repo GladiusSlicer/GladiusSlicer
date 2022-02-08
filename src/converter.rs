@@ -82,13 +82,13 @@ pub fn convert(
                 writeln!(write_buf, "G1 X{:.5} Y{:.5} E{:.5}", end.x, end.y, extrude)?;
             }
             Command::SetState { new_state } => {
-                match new_state.retract.as_ref() {
-                    None => {}
-                    Some(RetractionType::Retract) => {
+                match &new_state.retract {
+                    RetractionType::NoRetract => {}
+                    RetractionType::Retract => {
                         //retract
                         writeln!(
                             write_buf,
-                            "G1 E{:.5} F{:.5}; Retract or unretract",
+                            "G1 E{:.5} F{:.5}; Retract",
                             -settings.retract_length,
                             60.0 * settings.retract_speed,
                         )?;
@@ -100,17 +100,17 @@ pub fn convert(
                             60.0 * settings.speed.travel,
                         )?;
                     }
-                    Some(RetractionType::Unretract) => {
+                    RetractionType::Unretract => {
                         //unretract
                         writeln!(write_buf, "G1 Z{:.5}; z unlift", current_z,)?;
                         writeln!(
                             write_buf,
-                            "G1 E{:.5} F{:.5}; Retract or unretract",
+                            "G1 E{:.5} F{:.5}; Unretract",
                             settings.retract_length,
                             60.0 * settings.retract_speed,
                         )?;
                     }
-                    Some(RetractionType::MoveRetract(moves)) => {
+                    RetractionType::MoveRetract(moves) => {
                         for (retract_amount, end) in moves {
                             writeln!(
                                 write_buf,

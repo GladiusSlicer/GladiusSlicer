@@ -15,7 +15,7 @@ pub fn unary_optimizer(cmds: &mut Vec<Command>) {
             !(new_state.acceleration.is_none()
                 && new_state.movement_speed.is_none()
                 && new_state.fan_speed.is_none()
-                && new_state.retract.is_none()
+                && new_state.retract == RetractionType::NoRetract
                 && new_state.extruder_temp.is_none()
                 && new_state.bed_temp.is_none())
         }
@@ -84,14 +84,14 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                     },
                     Command::MoveTo { end },
                 ) => {
-                    if f_state.retract == Some(RetractionType::Retract)
+                    if f_state.retract == RetractionType::Retract
                         && Line::new(current_pos, end).euclidean_length()
                             < settings.minimum_retract_distance
                     {
                         current_pos = end;
 
                         //remove retract command
-                        f_state.retract = None;
+                        f_state.retract = RetractionType::NoRetract;
 
                         return Err((
                             Command::SetState { new_state: f_state },
