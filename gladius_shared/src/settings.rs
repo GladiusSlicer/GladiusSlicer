@@ -16,6 +16,19 @@ macro_rules! setting_less_than_or_equal_to_zero {
     }};
 }
 
+macro_rules! option_setting_less_than_or_equal_to_zero {
+    ($settings:ident,$setting:ident) => {{
+        if let Some(temp) = $settings.$setting{
+            if (temp as f64) <= 0.0{
+                return SettingsValidationResult::Error(SlicerErrors::SettingLessThanOrEqualToZero {
+                    setting: stringify!($setting).to_string(),
+                    value: temp as f64,
+                });
+            }
+        }
+    }};
+}
+
 macro_rules! setting_less_than_zero {
     ($settings:ident,$setting:ident) => {{
         if ($settings.$setting as f64) < 0.0 {
@@ -23,6 +36,20 @@ macro_rules! setting_less_than_zero {
                 setting: stringify!($setting).to_string(),
                 value: $settings.$setting as f64,
             });
+        }
+    }};
+}
+
+
+macro_rules! option_setting_less_than_zero {
+    ($settings:ident,$setting:ident) => {{
+        if let Some(temp) = $settings.$setting{
+            if (temp as f64) < 0.0{
+                return SettingsValidationResult::Error(SlicerErrors::SettingLessThanOrEqualToZero {
+                    setting: stringify!($setting).to_string(),
+                    value: temp as f64,
+                });
+            }
         }
     }};
 }
@@ -425,6 +452,64 @@ impl Settings {
             return SettingsValidationResult::Warning(SlicerWarnings::NozzleTemperatureTooHigh {
                 temp: self.filament.extruder_temp,
             });
+        }
+
+        for (_,pls) in &self.layer_settings{
+
+            option_setting_less_than_or_equal_to_zero!(pls,layer_height);
+            option_setting_less_than_zero!(pls,infill_percentage);
+            option_setting_less_than_zero!(pls,retraction_length);
+
+            if let Some(layer_height)  = pls.layer_height{
+                if layer_height < self.nozzle_diameter * 0.2 {
+                    return SettingsValidationResult::Warning(SlicerWarnings::LayerSizeTooLow {
+                        layer_height: self.layer_height,
+                        nozzle_diameter: self.nozzle_diameter,
+                    });
+                } else if layer_height > self.nozzle_diameter * 0.8 {
+                    return SettingsValidationResult::Warning(SlicerWarnings::LayerSizeTooHigh {
+                        layer_height: self.layer_height,
+                        nozzle_diameter: self.nozzle_diameter,
+                    });
+                }
+            }
+
+            if let Some(extruder_temp)  = pls.extruder_temp {
+                if extruder_temp < 140.0 {
+                    return SettingsValidationResult::Warning(SlicerWarnings::NozzleTemperatureTooLow {
+                        temp: self.filament.extruder_temp,
+                    });
+                } else if extruder_temp > 260.0 {
+                    return SettingsValidationResult::Warning(SlicerWarnings::NozzleTemperatureTooHigh {
+                        temp: self.filament.extruder_temp,
+                    });
+                }
+            }
+
+
+
+            let r = if let Some(extrusion_width) = &pls.extrusion_width {
+                check_extrusions(extrusion_width, self.nozzle_diameter)
+            }
+            else{
+                SettingsValidationResult::NoIssue
+            };
+
+            match r {
+                SettingsValidationResult::NoIssue => {}
+                _ => return r,
+            }
+
+            let r = check_accelerations(
+                pls.acceleration.as_ref().unwrap_or(&self.acceleration),
+                pls.speed.as_ref().unwrap_or(&self.speed),
+                self.print_x.min(self.print_y),
+            );
+            match r {
+                SettingsValidationResult::NoIssue => {}
+                _ => return r,
+            }
+
         }
 
         SettingsValidationResult::NoIssue
