@@ -16,9 +16,12 @@ pub fn show_error_message(error: SlicerErrors) {
     error!("\n\n\n");
 }
 pub fn send_error_message(error: SlicerErrors) {
+    let stdout = std::io::stdout();
+    let mut stdio_lock = stdout.lock();
+
     let message = Message::Error(error);
-    bincode::serialize_into(BufWriter::new(std::io::stdout()), &message).unwrap();
-    std::io::stdout()
+    bincode::serialize_into(&mut stdio_lock, &message).unwrap();
+    stdio_lock
         .flush()
         .expect("Standard Out should be limited");
 }
@@ -34,18 +37,22 @@ pub fn show_warning_message(warning: SlicerWarnings) {
     warn!("\n\n\n");
 }
 pub fn send_warning_message(warning: SlicerWarnings) {
+    let stdout = std::io::stdout();
+    let mut stdio_lock = stdout.lock();
     let message = Message::Warning(warning);
-    bincode::serialize_into(BufWriter::new(std::io::stdout()), &message).unwrap();
-    std::io::stdout()
+    bincode::serialize_into(&mut stdio_lock, &message).unwrap();
+    stdio_lock
         .flush()
         .expect("Standard Out should be limited");
 }
 
 pub fn display_state_update(state_message: &str, send_message: bool) {
     if send_message {
+        let stdout = std::io::stdout();
+        let mut stdio_lock = stdout.lock();
         let message = Message::StateUpdate(state_message.to_string());
-        bincode::serialize_into(std::io::stdout(), &message).unwrap();
-        std::io::stdout()
+        bincode::serialize_into(&mut stdio_lock, &message).unwrap();
+        stdio_lock
             .flush()
             .expect("Standard Out should be limited");
     } else {

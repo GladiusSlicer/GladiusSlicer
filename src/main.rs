@@ -177,8 +177,9 @@ fn main() {
     } else {
         //Output to stdout
         let stdout = std::io::stdout();
+        let mut stdio_lock = stdout.lock();
         debug!("Converting {} Moves", moves.len());
-        convert(&moves, &settings, &mut stdout.lock()).unwrap();
+        convert(&moves, &settings, &mut stdio_lock).unwrap();
     };
 }
 

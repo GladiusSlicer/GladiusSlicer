@@ -12,7 +12,7 @@
 - Added Retraction Wipe
 
 ### Fixes
-
+- Fixed issue when slicing multiple objects and outputting bincode overlapping and conflicting 
 
 ## [0.3.0]
 ### New Features
