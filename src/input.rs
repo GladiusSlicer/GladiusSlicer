@@ -27,18 +27,23 @@ pub fn files_input(
 
             debug!("Using input file: {:?}", model_path);
 
-            let extension = model_path
-                .extension()
-                .and_then(OsStr::to_str)
-                .expect("File Parse Issue");
+            let extension = model_path.extension().and_then(OsStr::to_str).ok_or(
+                SlicerErrors::FileFormatNotSupported {
+                    filepath: model_path.to_string_lossy().to_string(),
+                },
+            )?;
 
-            let loader: &dyn Loader = match extension.to_lowercase().as_str() {
-                "stl" => &STLLoader {},
-                "3mf" => &ThreeMFLoader {},
-                _ => panic!("File Format {} not supported", extension),
+            let loader: Result<&dyn Loader, SlicerErrors> = match extension.to_lowercase().as_str()
+            {
+                "stl" => Ok(&STLLoader {}),
+                "3mf" => Ok(&ThreeMFLoader {}),
+                _ => Err(SlicerErrors::FileFormatNotSupported {
+                    filepath: model_path.to_string_lossy().to_string(),
+                }),
             };
 
-            let models = match loader.load(model_path.to_str().ok_or(SlicerErrors::InputNotUTF8)?) {
+            let models = match loader?.load(model_path.to_str().ok_or(SlicerErrors::InputNotUTF8)?)
+            {
                 Ok(v) => v,
                 Err(err) => {
                     show_error_message(err);

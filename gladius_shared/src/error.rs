@@ -90,6 +90,12 @@ pub enum SlicerErrors {
         value: f64,
     },
 
+    ///The file format is not supported
+    FileFormatNotSupported {
+        /// File with invalid Format
+        filepath: String,
+    },
+
     ///Another error, here for plugins to use
     UnspecifiedError(String),
 }
@@ -154,6 +160,9 @@ impl SlicerErrors {
             }
             SlicerErrors::FileWriteError { filepath } => {
                 (0x1011,format!("Could not write to file \"{}\".",filepath))
+            }
+            SlicerErrors::FileFormatNotSupported { filepath} => {
+                (0x100A,format!("The file {} has an invalid or unsupported format",filepath))
             }
         }
     }

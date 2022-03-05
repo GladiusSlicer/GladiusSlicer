@@ -151,21 +151,21 @@ impl LightningNode {
     fn add_point_to_tree(&mut self, node: LightningNode) {
         let self_dist = self.location.euclidean_distance(&node.location);
 
-        if let Some((index, closest)) = self
+        if let Some((child, closest)) = self
             .children
-            .iter()
-            .enumerate()
-            .map(|(index, child)| (index, child.get_closest_child(&node.location)))
+            .iter_mut()
+            .map(|child| {
+                let closest_child = child.get_closest_child(&node.location);
+
+                (child, closest_child)
+            })
             .min_by(|a, b| {
                 a.1.partial_cmp(&b.1)
                     .expect("Points Should not contain NAN")
             })
         {
             if closest < self_dist {
-                self.children
-                    .get_mut(index)
-                    .expect("Index received from above")
-                    .add_point_to_tree(node);
+                child.add_point_to_tree(node);
                 return;
             }
         }
@@ -394,19 +394,20 @@ impl LightningForest {
 
             return;
         }
-        if let Some((index, closest)) = self
+
+        if let Some((tree, closest)) = self
             .trees
-            .par_iter()
-            .enumerate()
-            .map(|(index, child)| (index, child.get_closest_child(&node.location)))
-            .filter(|(_index, dist)| *dist < poly_dist)
+            .par_iter_mut()
+            .map(|tree| {
+                let closest_child = tree.get_closest_child(&node.location);
+
+                (tree, closest_child)
+            })
+            .filter(|(_, dist)| *dist < poly_dist)
             .min_by(|a, b| a.1.partial_cmp(&b.1).expect("Dist Should not contain NAN"))
         {
             if closest < poly_dist {
-                self.trees
-                    .get_mut(index)
-                    .expect("Index recieved from above")
-                    .add_point_to_tree(node);
+                tree.add_point_to_tree(node);
                 return;
             }
         }
