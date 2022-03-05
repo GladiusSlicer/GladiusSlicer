@@ -1,6 +1,6 @@
 use crate::plotter::monotone::get_monotone_sections;
 use gladius_shared::settings::LayerSettings;
-use gladius_shared::types::{Move, MoveChain, MoveType, PartialInfillTypes};
+use gladius_shared::types::{Move, MoveChain, MoveType, PartialInfillTypes, SolidInfillTypes};
 
 use crate::utils::*;
 use crate::PolygonOperations;
@@ -107,9 +107,22 @@ pub fn solid_infill_polygon(
     layer_count: usize,
     _layer_height: f64,
 ) -> Vec<MoveChain> {
-    let angle = 45.0 + (120_f64) * layer_count as f64;
 
-    linear_fill_polygon(poly, settings, fill_type, angle)
+    match settings.solid_infill_type {
+        SolidInfillTypes::Rectilinear =>{
+
+            ///120 degrees between layers
+            let angle = 45.0 + (120_f64) *layer_count as f64;
+
+            linear_fill_polygon(poly, settings, fill_type, angle)
+        }
+
+        SolidInfillTypes::RectilinearCustom(degrees_per_angle) => {
+            let angle = 45.0 + (degrees_per_angle) *layer_count as f64;
+
+            linear_fill_polygon(poly, settings, fill_type, angle)
+        }
+    }
 }
 
 pub fn partial_infill_polygon(

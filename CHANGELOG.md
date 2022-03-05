@@ -10,6 +10,7 @@
 - Added warnings
 - Added Acceleration, Feedrate, and Jerk settings
 - Added Retraction Wipe
+- Added Solid Infill types
 
 ### Fixes
 - Fixed issue when slicing multiple objects and outputting bincode overlapping and conflicting 

@@ -137,9 +137,12 @@ impl Slice {
 
 ///Types of solid infill
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub enum SolidInfillsTypes {
-    ///Back and forth lines to fill polygons
+pub enum SolidInfillTypes {
+    ///Back and forth lines to fill polygons, Rotating 120 degree each layer
     Rectilinear,
+
+    ///Back and forth lines to fill polygons, rotating custom degrees each layer
+    RectilinearCustom(f64),
 }
 
 ///Types of partial infill

@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 
 use crate::error::SlicerErrors;
-use crate::types::{MoveType, PartialInfillTypes};
+use crate::types::{MoveType, PartialInfillTypes, SolidInfillTypes};
 use crate::warning::SlicerWarnings;
 use serde::{Deserialize, Serialize};
 
@@ -132,6 +132,9 @@ pub struct Settings {
     ///Overlap between infill and interior perimeters
     pub infill_perimeter_overlap_percentage: f64,
 
+    ///Solid Infill type
+    pub solid_infill_type: SolidInfillTypes,
+
     ///Partial Infill type
     pub partial_infill_type: PartialInfillTypes,
 
@@ -254,6 +257,7 @@ impl Default for Settings {
             inner_perimeters_first: true,
             minimum_retract_distance: 1.0,
             infill_perimeter_overlap_percentage: 0.25,
+            solid_infill_type: SolidInfillTypes::Rectilinear,
             partial_infill_type: PartialInfillTypes::Linear,
             starting_instructions: "G90 ; use absolute coordinates \n\
                                 M83 ; extruder relative mode\n\
@@ -351,6 +355,9 @@ impl Settings {
             extrusion_width: changes
                 .extrusion_width
                 .unwrap_or_else(|| self.extrusion_width.clone()),
+            solid_infill_type: changes
+                .solid_infill_type
+                .unwrap_or(self.solid_infill_type),
             partial_infill_type: changes
                 .partial_infill_type
                 .unwrap_or(self.partial_infill_type),
@@ -543,6 +550,9 @@ pub struct LayerSettings {
 
     ///The extrusion width of the layers
     pub extrusion_width: MovementParameter,
+
+    ///Solid Infill type
+    pub solid_infill_type: SolidInfillTypes,
 
     ///Partial Infill type
     pub partial_infill_type: PartialInfillTypes,
@@ -784,6 +794,10 @@ pub struct PartialSettings {
     ///Overlap between infill and interior perimeters
     pub infill_perimeter_overlap_percentage: Option<f64>,
 
+
+    ///Solid Infill type
+    pub solid_infill_type: Option<SolidInfillTypes>,
+
     ///Partial Infill type
     pub partial_infill_type: Option<PartialInfillTypes>,
 
@@ -923,6 +937,7 @@ impl PartialSettings {
             infill_perimeter_overlap_percentage: self
                 .infill_perimeter_overlap_percentage
                 .or(other.infill_perimeter_overlap_percentage),
+            solid_infill_type: self.solid_infill_type.or(other.solid_infill_type),
             partial_infill_type: self.partial_infill_type.or(other.partial_infill_type),
             starting_instructions: self
                 .starting_instructions
@@ -1029,6 +1044,9 @@ pub struct PartialLayerSettings {
     ///The extrusion widths of the layers
     pub extrusion_width: Option<MovementParameter>,
 
+    ///Solid Infill type
+    pub solid_infill_type: Option<SolidInfillTypes>,
+
     ///Partial Infill type
     pub partial_infill_type: Option<PartialInfillTypes>,
 
@@ -1080,6 +1098,7 @@ impl PartialLayerSettings {
             infill_perimeter_overlap_percentage: self
                 .infill_perimeter_overlap_percentage
                 .or(other.infill_perimeter_overlap_percentage),
+            solid_infill_type: self.solid_infill_type.or(other.solid_infill_type),
             partial_infill_type: self.partial_infill_type.or(other.partial_infill_type),
             layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
             retraction_length: self.retraction_length.or(other.retraction_length),
@@ -1120,6 +1139,7 @@ fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, St
         infill_perimeter_overlap_percentage: part
             .infill_perimeter_overlap_percentage
             .ok_or("infill_perimeter_overlap_percentage")?,
+        solid_infill_type: part.solid_infill_type.ok_or("solid_infill_type")?,
         partial_infill_type: part.partial_infill_type.ok_or("partial_infill_type")?,
         starting_instructions: part.starting_instructions.ok_or("starting_instructions")?,
         ending_instructions: part.ending_instructions.ok_or("ending_instructions")?,

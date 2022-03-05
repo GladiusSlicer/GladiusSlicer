@@ -66,11 +66,12 @@
   "infill_perimeter_overlap_percentage": 0.25,
   "inner_perimeters_first" : true,
   "partial_infill_type" : "Cubic",
+  "solid_infill_type" : "Rectilinear",
 
   "retraction_wipe" : {
     "speed": 140,
     "acceleration": 1000,
-    "distance": 2
+    "distance": 3.0
 
   },
 
