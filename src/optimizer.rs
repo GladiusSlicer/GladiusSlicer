@@ -97,9 +97,10 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                             Command::SetState { new_state: f_state },
                             Command::MoveTo { end },
                         ));
-                    }
-                    else if let RetractionType::MoveRetract(_) = f_state.retract{
-                        if Line::new(current_pos, end).euclidean_length() < settings.minimum_retract_distance{
+                    } else if let RetractionType::MoveRetract(_) = f_state.retract {
+                        if Line::new(current_pos, end).euclidean_length()
+                            < settings.minimum_retract_distance
+                        {
                             current_pos = end;
 
                             //remove retract command
@@ -110,8 +111,7 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                                 Command::MoveTo { end },
                             ));
                         }
-                    }
-                    else {
+                    } else {
                         current_pos = end;
                     }
                 }

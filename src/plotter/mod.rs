@@ -262,15 +262,15 @@ impl Plotter for Slice {
                         OrderedFloat(
                             ordered_chains
                                 .last()
-                                .unwrap()
+                                .expect("Chains is tests not to be empty")
                                 .moves
                                 .last()
-                                .unwrap()
+                                .expect("chain should contain moves")
                                 .end
                                 .euclidean_distance(&a.start_point),
                         )
                     })
-                    .unwrap();
+                    .expect("Chains is tests not to be empty");
                 let closest_chain = self.chains.remove(index);
                 ordered_chains.push(closest_chain);
             }
@@ -302,7 +302,6 @@ impl Plotter for Slice {
                     self.layer_settings.retraction_wipe.as_ref()
                 {
                     let ordered_iter: Box<dyn Iterator<Item = Coordinate<f64>>> = if chain.is_loop {
-
                         //fixme this is bad
                         Box::new(
                             chain
@@ -350,9 +349,10 @@ impl Plotter for Slice {
                         })
                         .collect::<Vec<_>>();
 
-                    if remaining_distance >0.0{
-                        if let Some((distance,_)) = wipe_moves.last_mut(){
-                            *distance += remaining_distance / retraction_wipe.distance * retraction_length
+                    if remaining_distance > 0.0 {
+                        if let Some((distance, _)) = wipe_moves.last_mut() {
+                            *distance +=
+                                remaining_distance / retraction_wipe.distance * retraction_length
                         }
                     }
 
@@ -441,7 +441,11 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
             }
             .map(|projection_sum: f64| (per_vec, projection_sum))
         })
-        .min_by(|(_, l_sum), (_, r_sum)| l_sum.partial_cmp(r_sum).unwrap())
+        .min_by(|(_, l_sum), (_, r_sum)| {
+            l_sum
+                .partial_cmp(r_sum)
+                .expect("Sum should not contain NAN")
+        })
         .map(|((x, y), _)| -90.0 - (y).atan2(x).to_degrees())
         .unwrap_or(0.0)
 }

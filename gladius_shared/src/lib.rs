@@ -1,3 +1,4 @@
+#![deny(clippy::unwrap_used)]
 #![deny(missing_docs)]
 //!Crate for shared types between slicer and external applications like GUI and Mods
 

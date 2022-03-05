@@ -21,10 +21,14 @@ struct MonotonePoint {
 
 impl PartialOrd for MonotonePoint {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.pos
-            .y
-            .partial_cmp(&other.pos.y)
-            .map(|cmp| cmp.then(self.pos.x.partial_cmp(&other.pos.x).unwrap()))
+        self.pos.y.partial_cmp(&other.pos.y).map(|cmp| {
+            cmp.then(
+                self.pos
+                    .x
+                    .partial_cmp(&other.pos.x)
+                    .expect("Points Should not contain NAN"),
+            )
+        })
     }
 }
 
@@ -32,7 +36,8 @@ impl Eq for MonotonePoint {}
 
 impl Ord for MonotonePoint {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        self.partial_cmp(other)
+            .expect("Points Should not contain NAN")
     }
 }
 
@@ -119,8 +124,9 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                         let right_top = section
                             .right_chain
                             .get(section.right_chain.len() - 2)
-                            .unwrap();
-                        let right_bot = section.right_chain.last().unwrap();
+                            .expect("Chain must have 2 entries");
+                        let right_bot =
+                            section.right_chain.last().expect("Chain must have entries");
 
                         let right_x = point_lerp(right_top, right_bot, point.pos.y).x;
                         point.pos.x < right_x
@@ -132,7 +138,9 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
             PointType::End => {
                 let index = sweep_line_storage
                     .iter()
-                    .position(|section| *section.left_chain.last().unwrap() == point.pos)
+                    .position(|section| {
+                        *section.left_chain.last().expect("Chain must have entries") == point.pos
+                    })
                     .unwrap_or_else(|| {
                         panic!(
                             "End point must be in the storage {:?} |||| {:?}",
@@ -148,7 +156,9 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
             PointType::Left => {
                 let index = sweep_line_storage
                     .iter()
-                    .position(|section| *section.left_chain.last().unwrap() == point.pos)
+                    .position(|section| {
+                        *section.left_chain.last().expect("Chain must have entries") == point.pos
+                    })
                     .unwrap_or_else(|| panic!("left error {:?} {:?}", point, sweep_line_storage));
 
                 sweep_line_storage[index].left_chain.push(point.prev);
@@ -157,7 +167,9 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
             PointType::Right => {
                 let index = sweep_line_storage
                     .iter()
-                    .position(|section| *section.right_chain.last().unwrap() == point.pos)
+                    .position(|section| {
+                        *section.right_chain.last().expect("Chain must have entries") == point.pos
+                    })
                     .unwrap_or_else(|| {
                         panic!(
                             "right error {:?}\n {}",
@@ -175,19 +187,31 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
 
             //Handle Merge Point
             PointType::Merge => {
-                let index = sweep_line_storage.iter().position(|section| *section.right_chain.last().unwrap() == point.pos).unwrap_or_else( || panic!("Merge point must be in the storage as the end of a chain{:?} |||| {:?}", point, sweep_line_storage));
+                let index = sweep_line_storage.iter().position(|section| *section.right_chain.last().expect("Chain must have entries") == point.pos).unwrap_or_else( || panic!("Merge point must be in the storage as the end of a chain{:?} |||| {:?}", point, sweep_line_storage));
 
                 let mut right_section = sweep_line_storage.remove(index + 1);
                 let left_section = &mut sweep_line_storage[index];
 
                 assert_eq!(
-                    *left_section.right_chain.last().unwrap(),
-                    *right_section.left_chain.last().unwrap()
+                    *left_section
+                        .right_chain
+                        .last()
+                        .expect("Chain must have entries"),
+                    *right_section
+                        .left_chain
+                        .last()
+                        .expect("Chain must have entries")
                 );
 
                 //The new point generated on the right most edge
-                let break_point_low = right_section.right_chain.pop().unwrap();
-                let break_point_high = right_section.right_chain.last().unwrap();
+                let break_point_low = right_section
+                    .right_chain
+                    .pop()
+                    .expect("Chain must have entries");
+                let break_point_high = right_section
+                    .right_chain
+                    .last()
+                    .expect("Chain must have entries");
 
                 let break_point = point_lerp(break_point_high, &break_point_low, point.pos.y);
 
@@ -208,13 +232,14 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                         let left_top = section
                             .left_chain
                             .get(section.left_chain.len() - 2)
-                            .unwrap();
-                        let left_bot = section.left_chain.last().unwrap();
+                            .expect("Chain must have 2 entries");
+                        let left_bot = section.left_chain.last().expect("Chain must have entries");
                         let right_top = section
                             .right_chain
                             .get(section.right_chain.len() - 2)
-                            .unwrap();
-                        let right_bot = section.right_chain.last().unwrap();
+                            .expect("Chain must have 2 entries");
+                        let right_bot =
+                            section.right_chain.last().expect("Chain must have entries");
 
                         let left_x = point_lerp(left_top, left_bot, point.pos.y).x;
                         let right_x = point_lerp(right_top, right_bot, point.pos.y).x;
@@ -224,10 +249,18 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                     .unwrap_or_else(|| panic!("split error {:?} {:?}", point, sweep_line_storage));
 
                 //will become new left section
-                let old_section = sweep_line_storage.get_mut(index).unwrap();
+                let old_section = sweep_line_storage
+                    .get_mut(index)
+                    .expect("Chain must have entries");
 
-                let break_point_low = old_section.right_chain.pop().unwrap();
-                let break_point_high = old_section.right_chain.last().unwrap();
+                let break_point_low = old_section
+                    .right_chain
+                    .pop()
+                    .expect("Chain must have entries");
+                let break_point_high = old_section
+                    .right_chain
+                    .last()
+                    .expect("Chain must have entries");
 
                 let break_point = point_lerp(break_point_high, &break_point_low, point.pos.y);
 
@@ -249,8 +282,13 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
 
 fn isabove(a: &Coordinate<f64>, b: &Coordinate<f64>) -> bool {
     a.y.partial_cmp(&b.y)
-        .map(|cmp| cmp.then(a.x.partial_cmp(&b.x).unwrap()))
-        .unwrap()
+        .map(|cmp| {
+            cmp.then(
+                a.x.partial_cmp(&b.x)
+                    .expect("Coordinates should not be NAN"),
+            )
+        })
+        .expect("Coordinates should not be NAN")
         == Ordering::Greater
 }
 

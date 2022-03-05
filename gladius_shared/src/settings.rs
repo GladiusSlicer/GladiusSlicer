@@ -18,12 +18,14 @@ macro_rules! setting_less_than_or_equal_to_zero {
 
 macro_rules! option_setting_less_than_or_equal_to_zero {
     ($settings:ident,$setting:ident) => {{
-        if let Some(temp) = $settings.$setting{
-            if (temp as f64) <= 0.0{
-                return SettingsValidationResult::Error(SlicerErrors::SettingLessThanOrEqualToZero {
-                    setting: stringify!($setting).to_string(),
-                    value: temp as f64,
-                });
+        if let Some(temp) = $settings.$setting {
+            if (temp as f64) <= 0.0 {
+                return SettingsValidationResult::Error(
+                    SlicerErrors::SettingLessThanOrEqualToZero {
+                        setting: stringify!($setting).to_string(),
+                        value: temp as f64,
+                    },
+                );
             }
         }
     }};
@@ -40,15 +42,16 @@ macro_rules! setting_less_than_zero {
     }};
 }
 
-
 macro_rules! option_setting_less_than_zero {
     ($settings:ident,$setting:ident) => {{
-        if let Some(temp) = $settings.$setting{
-            if (temp as f64) < 0.0{
-                return SettingsValidationResult::Error(SlicerErrors::SettingLessThanOrEqualToZero {
-                    setting: stringify!($setting).to_string(),
-                    value: temp as f64,
-                });
+        if let Some(temp) = $settings.$setting {
+            if (temp as f64) < 0.0 {
+                return SettingsValidationResult::Error(
+                    SlicerErrors::SettingLessThanOrEqualToZero {
+                        setting: stringify!($setting).to_string(),
+                        value: temp as f64,
+                    },
+                );
             }
         }
     }};
@@ -355,9 +358,7 @@ impl Settings {
             extrusion_width: changes
                 .extrusion_width
                 .unwrap_or_else(|| self.extrusion_width.clone()),
-            solid_infill_type: changes
-                .solid_infill_type
-                .unwrap_or(self.solid_infill_type),
+            solid_infill_type: changes.solid_infill_type.unwrap_or(self.solid_infill_type),
             partial_infill_type: changes
                 .partial_infill_type
                 .unwrap_or(self.partial_infill_type),
@@ -461,13 +462,12 @@ impl Settings {
             });
         }
 
-        for (_,pls) in &self.layer_settings{
+        for (_, pls) in &self.layer_settings {
+            option_setting_less_than_or_equal_to_zero!(pls, layer_height);
+            option_setting_less_than_zero!(pls, infill_percentage);
+            option_setting_less_than_zero!(pls, retraction_length);
 
-            option_setting_less_than_or_equal_to_zero!(pls,layer_height);
-            option_setting_less_than_zero!(pls,infill_percentage);
-            option_setting_less_than_zero!(pls,retraction_length);
-
-            if let Some(layer_height)  = pls.layer_height{
+            if let Some(layer_height) = pls.layer_height {
                 if layer_height < self.nozzle_diameter * 0.2 {
                     return SettingsValidationResult::Warning(SlicerWarnings::LayerSizeTooLow {
                         layer_height: self.layer_height,
@@ -481,24 +481,25 @@ impl Settings {
                 }
             }
 
-            if let Some(extruder_temp)  = pls.extruder_temp {
+            if let Some(extruder_temp) = pls.extruder_temp {
                 if extruder_temp < 140.0 {
-                    return SettingsValidationResult::Warning(SlicerWarnings::NozzleTemperatureTooLow {
-                        temp: self.filament.extruder_temp,
-                    });
+                    return SettingsValidationResult::Warning(
+                        SlicerWarnings::NozzleTemperatureTooLow {
+                            temp: self.filament.extruder_temp,
+                        },
+                    );
                 } else if extruder_temp > 260.0 {
-                    return SettingsValidationResult::Warning(SlicerWarnings::NozzleTemperatureTooHigh {
-                        temp: self.filament.extruder_temp,
-                    });
+                    return SettingsValidationResult::Warning(
+                        SlicerWarnings::NozzleTemperatureTooHigh {
+                            temp: self.filament.extruder_temp,
+                        },
+                    );
                 }
             }
 
-
-
             let r = if let Some(extrusion_width) = &pls.extrusion_width {
                 check_extrusions(extrusion_width, self.nozzle_diameter)
-            }
-            else{
+            } else {
                 SettingsValidationResult::NoIssue
             };
 
@@ -516,7 +517,6 @@ impl Settings {
                 SettingsValidationResult::NoIssue => {}
                 _ => return r,
             }
-
         }
 
         SettingsValidationResult::NoIssue
@@ -793,7 +793,6 @@ pub struct PartialSettings {
 
     ///Overlap between infill and interior perimeters
     pub infill_perimeter_overlap_percentage: Option<f64>,
-
 
     ///Solid Infill type
     pub solid_infill_type: Option<SolidInfillTypes>,

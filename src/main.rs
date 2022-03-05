@@ -1,3 +1,4 @@
+#![deny(clippy::unwrap_used)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use clap::{load_yaml, App};
@@ -58,7 +59,7 @@ fn main() {
         rayon::ThreadPoolBuilder::new()
             .num_threads(number_of_threads)
             .build_global()
-            .unwrap();
+            .expect("Only call to build global");
     }
 
     let send_messages = matches.is_present("MESSAGES");
@@ -66,28 +67,17 @@ fn main() {
     if !send_messages {
         // Vary the output based on how many times the user used the "verbose" flag
         // (i.e. 'myprog -v -v -v' or 'myprog -vvv' vs 'myprog -v'
-        match matches.occurrences_of("VERBOSE") {
-            0 => SimpleLogger::new()
-                .with_level(LevelFilter::Error)
-                .init()
-                .unwrap(),
-            1 => SimpleLogger::new()
-                .with_level(LevelFilter::Warn)
-                .init()
-                .unwrap(),
-            2 => SimpleLogger::new()
-                .with_level(LevelFilter::Info)
-                .init()
-                .unwrap(),
-            3 => SimpleLogger::new()
-                .with_level(LevelFilter::Debug)
-                .init()
-                .unwrap(),
-            _ => SimpleLogger::new()
-                .with_level(LevelFilter::Trace)
-                .init()
-                .unwrap(),
-        }
+
+        SimpleLogger::new()
+            .with_level(match matches.occurrences_of("VERBOSE") {
+                0 => LevelFilter::Error,
+                1 => LevelFilter::Warn,
+                2 => LevelFilter::Info,
+                3 => LevelFilter::Debug,
+                _ => LevelFilter::Trace,
+            })
+            .init()
+            .expect("Only Logger Setup");
     }
 
     display_state_update("Loading Inputs", send_messages);
@@ -128,7 +118,8 @@ fn main() {
 
     if send_messages {
         let message = Message::Commands(moves.clone());
-        bincode::serialize_into(BufWriter::new(std::io::stdout()), &message).unwrap();
+        bincode::serialize_into(BufWriter::new(std::io::stdout()), &message)
+            .expect("Write Limit should not be hit");
     }
     display_state_update("Calculate Values", send_messages);
 
@@ -136,7 +127,8 @@ fn main() {
 
     if send_messages {
         let message = Message::CalculatedValues(cv);
-        bincode::serialize_into(BufWriter::new(std::io::stdout()), &message).unwrap();
+        bincode::serialize_into(BufWriter::new(std::io::stdout()), &message)
+            .expect("Write Limit should not be hit");
     } else {
         let (hour, min, sec, _) = cv.get_hours_minutes_seconds_fract_time();
 
@@ -162,24 +154,37 @@ fn main() {
     if let Some(file_path) = matches.value_of("OUTPUT") {
         //Output to file
         debug!("Converting {} Moves", moves.len());
-        convert(
-            &moves,
-            &settings,
-            &mut File::create(file_path).expect("File not Found"),
-        )
-        .unwrap();
+        handle_err_or_return(
+            convert(
+                &moves,
+                &settings,
+                &mut handle_err_or_return(
+                    File::create(file_path).map_err(|_| SlicerErrors::FileCreateError {
+                        filepath: file_path.to_string(),
+                    }),
+                    send_messages,
+                ),
+            )
+            .map_err(|_| SlicerErrors::FileWriteError {
+                filepath: file_path.to_string(),
+            }),
+            send_messages,
+        );
     } else if send_messages {
         //Output as message
         let mut gcode: Vec<u8> = Vec::new();
-        convert(&moves, &settings, &mut gcode).unwrap();
-        let message = Message::GCode(String::from_utf8(gcode).unwrap());
-        bincode::serialize_into(BufWriter::new(std::io::stdout()), &message).unwrap();
+        convert(&moves, &settings, &mut gcode).expect("Writing to Vec shouldn't fail");
+        let message = Message::GCode(
+            String::from_utf8(gcode).expect("All write occur from write macro so should be utf8"),
+        );
+        bincode::serialize_into(BufWriter::new(std::io::stdout()), &message)
+            .expect("Write Limit should not be hit");
     } else {
         //Output to stdout
         let stdout = std::io::stdout();
         let mut stdio_lock = stdout.lock();
         debug!("Converting {} Moves", moves.len());
-        convert(&moves, &settings, &mut stdio_lock).unwrap();
+        convert(&moves, &settings, &mut stdio_lock).expect("Writing to STDOUT shouldn't fail");
     };
 }
 

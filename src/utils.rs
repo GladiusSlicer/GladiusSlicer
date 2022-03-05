@@ -3,7 +3,7 @@ use gladius_shared::error::SlicerErrors;
 use gladius_shared::messages::Message;
 use gladius_shared::warning::SlicerWarnings;
 use log::{error, info, warn};
-use std::io::{BufWriter, Write};
+use std::io::Write;
 
 pub fn show_error_message(error: SlicerErrors) {
     let (error_code, message) = error.get_code_and_message();
@@ -20,10 +20,8 @@ pub fn send_error_message(error: SlicerErrors) {
     let mut stdio_lock = stdout.lock();
 
     let message = Message::Error(error);
-    bincode::serialize_into(&mut stdio_lock, &message).unwrap();
-    stdio_lock
-        .flush()
-        .expect("Standard Out should be limited");
+    bincode::serialize_into(&mut stdio_lock, &message).expect("Write Limit should not be hit");
+    stdio_lock.flush().expect("Standard Out should be limited");
 }
 
 pub fn show_warning_message(warning: SlicerWarnings) {
@@ -40,10 +38,8 @@ pub fn send_warning_message(warning: SlicerWarnings) {
     let stdout = std::io::stdout();
     let mut stdio_lock = stdout.lock();
     let message = Message::Warning(warning);
-    bincode::serialize_into(&mut stdio_lock, &message).unwrap();
-    stdio_lock
-        .flush()
-        .expect("Standard Out should be limited");
+    bincode::serialize_into(&mut stdio_lock, &message).expect("Write Limit should not be hit");
+    stdio_lock.flush().expect("Standard Out should be limited");
 }
 
 pub fn display_state_update(state_message: &str, send_message: bool) {
@@ -51,10 +47,8 @@ pub fn display_state_update(state_message: &str, send_message: bool) {
         let stdout = std::io::stdout();
         let mut stdio_lock = stdout.lock();
         let message = Message::StateUpdate(state_message.to_string());
-        bincode::serialize_into(&mut stdio_lock, &message).unwrap();
-        stdio_lock
-            .flush()
-            .expect("Standard Out should be limited");
+        bincode::serialize_into(&mut stdio_lock, &message).expect("Write Limit should not be hit");
+        stdio_lock.flush().expect("Standard Out should be limited");
     } else {
         info!("{}", state_message);
     }

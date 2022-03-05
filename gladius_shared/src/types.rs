@@ -2,7 +2,6 @@
 
 use crate::error::SlicerErrors;
 use crate::settings::{LayerSettings, Settings};
-use crate::types::RetractionType::Retract;
 use geo::contains::Contains;
 use geo::prelude::SimplifyVW;
 use geo::simplifyvw::SimplifyVWPreserve;
@@ -94,7 +93,8 @@ impl Slice {
             .filter(|(_, area)| area.abs() > 0.0001)
             .collect();
 
-        lines_and_area.sort_by(|(_l1, a1), (_l2, a2)| a2.partial_cmp(a1).unwrap());
+        lines_and_area
+            .sort_by(|(_l1, a1), (_l2, a2)| a2.partial_cmp(a1).expect("Areas should not be NAN"));
         let mut polygons = vec![];
 
         for (line, area) in lines_and_area {
@@ -435,6 +435,7 @@ pub enum RetractionType {
 impl RetractionType {
     ///returns the retraction type of self or if it's no retraction the other retraction type
     /// See Options or function
+    #[must_use]
     pub fn or(self, rtb: RetractionType) -> RetractionType {
         match self {
             RetractionType::NoRetract => rtb,

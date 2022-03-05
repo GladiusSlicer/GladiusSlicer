@@ -11,7 +11,13 @@ use rand::thread_rng;
 pub fn lightning_infill(slices: &mut Vec<Slice>) {
     let mut lt = LightningForest { trees: vec![] };
 
-    lightning_layer(slices.last_mut().unwrap(), None, &mut lt);
+    lightning_layer(
+        slices
+            .last_mut()
+            .expect("At this point, we have tested if slices exist"),
+        None,
+        &mut lt,
+    );
 
     (1..slices.len()).into_iter().rev().for_each(|q| {
         //todo Fix this, it feels hacky
@@ -109,7 +115,10 @@ pub fn lightning_layer(
         //shuffle so same distance points are random
         points.shuffle(&mut thread_rng());
 
-        points.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        points.sort_by(|a, b| {
+            a.1.partial_cmp(&b.1)
+                .expect("Points Should not contain NAN")
+        });
 
         for (node, _distance, closet) in points {
             lightning_forest.add_node_to_tree(node, &closet, inset_amount)
@@ -147,12 +156,15 @@ impl LightningNode {
             .iter()
             .enumerate()
             .map(|(index, child)| (index, child.get_closest_child(&node.location)))
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .min_by(|a, b| {
+                a.1.partial_cmp(&b.1)
+                    .expect("Points Should not contain NAN")
+            })
         {
             if closest < self_dist {
                 self.children
                     .get_mut(index)
-                    .unwrap()
+                    .expect("Index received from above")
                     .add_point_to_tree(node);
                 return;
             }
@@ -256,7 +268,7 @@ impl LightningNode {
             .children
             .iter()
             .map(|child| child.get_closest_child(point))
-            .min_by(|a, b| a.partial_cmp(b).unwrap());
+            .min_by(|a, b| a.partial_cmp(b).expect("Distance should not contain NAN"));
 
         if let Some(min_child_dist) = min_child {
             min_dist.min(min_child_dist)
@@ -272,7 +284,7 @@ impl LightningNode {
                 let mut chains = child.get_move_chains(width);
 
                 if !chains.is_empty() {
-                    let first_chain = chains.get_mut(0).unwrap();
+                    let first_chain = chains.first_mut().expect("Chains is not empty");
                     first_chain.moves.push(Move {
                         end: self.location,
                         width,
@@ -310,7 +322,7 @@ impl LightningNode {
                         },
                         polygon,
                     )
-                    .unwrap();
+                    .expect("Polygon contains point so must contain at least");
 
                     let new_child = LightningNode {
                         children: vec![],
@@ -339,7 +351,7 @@ impl LightningNode {
                         },
                         polygon,
                     )
-                    .unwrap();
+                    .expect("Polygon contains point so must contain at least");
 
                     let mut new_node = LightningNode {
                         children: vec![child],
@@ -388,10 +400,13 @@ impl LightningForest {
             .enumerate()
             .map(|(index, child)| (index, child.get_closest_child(&node.location)))
             .filter(|(_index, dist)| *dist < poly_dist)
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .min_by(|a, b| a.1.partial_cmp(&b.1).expect("Dist Should not contain NAN"))
         {
             if closest < poly_dist {
-                self.trees.get_mut(index).unwrap().add_point_to_tree(node);
+                self.trees
+                    .get_mut(index)
+                    .expect("Index recieved from above")
+                    .add_point_to_tree(node);
                 return;
             }
         }
@@ -429,24 +444,21 @@ impl LightningForest {
     }
 
     fn shorten_and_straighten(&mut self, settings: &LayerSettings) {
-        for index in (0..self.trees.len()).rev() {
-            let tree_l = self.trees.get(index).unwrap().location;
-
-            let reponse = self
-                .trees
-                .get_mut(index)
-                .unwrap()
-                .shorten_and_straighten(tree_l, settings);
-            match reponse {
-                StraightenResponse::Remove { .. } => {
-                    self.trees.remove(index);
-                }
+        self.trees = self
+            .trees
+            .drain(..)
+            .map(|mut tree| {
+                let res = tree.shorten_and_straighten(tree.location, settings);
+                (tree, res)
+            })
+            .filter_map(|(tree, response)| match response {
+                StraightenResponse::Remove { .. } => None,
                 StraightenResponse::Replace(..) => {
                     unreachable!()
                 }
-                StraightenResponse::DoNothing => {}
-            }
-        }
+                StraightenResponse::DoNothing => Some(tree),
+            })
+            .collect();
     }
 }
 
@@ -467,6 +479,9 @@ fn get_closest_intersection_point_on_polygon(
             })
         })
         .map(|coord| (coord, coord.euclidean_distance(&line.start) as f64))
-        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+        .min_by(|a, b| {
+            a.1.partial_cmp(&b.1)
+                .expect("Points Should not contain NAN")
+        })
         .map(|(c, _d)| c)
 }

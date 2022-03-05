@@ -103,10 +103,22 @@ impl CommandPass for SlowDownLayerPass {
                         if map.is_empty() {
                             None
                         } else {
-                            Some((map, non_move_time, start_index.unwrap(), end_index))
+                            Some((
+                                map,
+                                non_move_time,
+                                start_index
+                                    .expect("For map to have values, start index must be set"),
+                                end_index,
+                            ))
                         }
                     } else {
-                        Some((map, non_move_time, start_index.unwrap(), end_index))
+                        Some((
+                            map,
+                            non_move_time,
+                            start_index
+                                .expect("For return_none to be false, start index must be set"),
+                            end_index,
+                        ))
                     }
                 })
                 .into_iter()
@@ -124,7 +136,9 @@ impl CommandPass for SlowDownLayerPass {
 
                         let max_speed: f64;
                         loop {
-                            let (speed, len) = sorted.pop().unwrap();
+                            let (speed, len) = sorted
+                                .pop()
+                                .expect("Because map isn't empty, sorted can't be empty");
                             let (top_speed, _) =
                                 sorted.last().unwrap_or(&(OrderedFloat(0.000001), 0.0));
 

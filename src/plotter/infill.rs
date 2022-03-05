@@ -107,18 +107,16 @@ pub fn solid_infill_polygon(
     layer_count: usize,
     _layer_height: f64,
 ) -> Vec<MoveChain> {
-
     match settings.solid_infill_type {
-        SolidInfillTypes::Rectilinear =>{
-
-            ///120 degrees between layers
-            let angle = 45.0 + (120_f64) *layer_count as f64;
+        SolidInfillTypes::Rectilinear => {
+            //120 degrees between layers
+            let angle = 45.0 + (120_f64) * layer_count as f64;
 
             linear_fill_polygon(poly, settings, fill_type, angle)
         }
 
         SolidInfillTypes::RectilinearCustom(degrees_per_angle) => {
-            let angle = 45.0 + (degrees_per_angle) *layer_count as f64;
+            let angle = 45.0 + (degrees_per_angle) * layer_count as f64;
 
             linear_fill_polygon(poly, settings, fill_type, angle)
         }
