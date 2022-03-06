@@ -48,6 +48,12 @@ pub enum SlicerErrors {
     ///Input string is misformated
     InputMisformat,
 
+    ///Model would cause moves outside build area
+    ModelOutsideBuildArea,
+
+    ///Generated move outside build area
+    MovesOutsideBuildArea,
+
     ///settings file could not be loaded
     SettingsRecursiveLoadError {
         ///File that was not found
@@ -162,7 +168,13 @@ impl SlicerErrors {
                 (0x1011,format!("Could not write to file \"{}\".",filepath))
             }
             SlicerErrors::FileFormatNotSupported { filepath} => {
-                (0x100A,format!("The file {} has an invalid or unsupported format",filepath))
+                (0x1012,format!("The file {} has an invalid or unsupported format",filepath))
+            }
+            SlicerErrors::ModelOutsideBuildArea => {
+                (0x1013,"Model is outside printers build area.".to_string())
+            }
+            SlicerErrors::MovesOutsideBuildArea => {
+                (0x1014,"Slicer generated move outside build area.".to_string())
             }
         }
     }

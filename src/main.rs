@@ -14,6 +14,7 @@ use std::fs::File;
 use std::ffi::OsStr;
 use std::path::Path;
 
+use crate::bounds_checking::{check_model_bounds, check_moves_bounds};
 use crate::calculation::calculate_values;
 use crate::command_pass::{CommandPass, OptimizePass, SlowDownLayerPass};
 use crate::converter::*;
@@ -35,6 +36,7 @@ use simple_logger::SimpleLogger;
 use std::collections::HashMap;
 use std::io::BufWriter;
 
+mod bounds_checking;
 mod calculation;
 mod command_pass;
 mod converter;
@@ -91,6 +93,8 @@ fn main() {
         send_messages,
     );
 
+    handle_err_or_return(check_model_bounds(&models, &settings), send_messages);
+
     handle_setting_validation(settings.validate_settings(), send_messages);
 
     display_state_update("Creating Towers", send_messages);
@@ -107,6 +111,8 @@ fn main() {
         generate_moves(objects, &settings, send_messages),
         send_messages,
     );
+
+    handle_err_or_return(check_moves_bounds(&moves, &settings), send_messages);
 
     display_state_update("Optimizing", send_messages);
     debug!("Optimizing {} Moves", moves.len());
