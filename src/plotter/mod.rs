@@ -27,7 +27,12 @@ pub trait Plotter {
     fn fill_solid_subtracted_area(&mut self, other: &MultiPolygon<f64>, layer_count: usize);
     fn fill_solid_bridge_area(&mut self, layer_below: &MultiPolygon<f64>);
     fn fill_solid_top_layer(&mut self, layer_above: &MultiPolygon<f64>, layer_count: usize);
-    fn generate_skirt(&mut self, convex_polygon: &Polygon<f64>, skirt_settings: &SkirtSettings);
+    fn generate_skirt(
+        &mut self,
+        convex_polygon: &Polygon<f64>,
+        skirt_settings: &SkirtSettings,
+        settings: &Settings,
+    );
     fn generate_brim(&mut self, entire_first_layer: MultiPolygon<f64>, brim_width: f64);
     fn order_chains(&mut self);
     fn slice_into_commands(&mut self, commands: &mut Vec<Command>, layer_thickness: f64);
@@ -183,7 +188,12 @@ impl Plotter for Slice {
         self.remaining_area = self.remaining_area.difference_with(&solid_area)
     }
 
-    fn generate_skirt(&mut self, convex_polygon: &Polygon<f64>, skirt_settings: &SkirtSettings) {
+    fn generate_skirt(
+        &mut self,
+        convex_polygon: &Polygon<f64>,
+        skirt_settings: &SkirtSettings,
+        settings: &Settings,
+    ) {
         let offset_hull_multi = convex_polygon.offset_from(skirt_settings.distance);
 
         assert_eq!(offset_hull_multi.0.len(), 1);
@@ -193,18 +203,36 @@ impl Plotter for Slice {
             .0
             .iter()
             .circular_tuple_windows::<(_, _)>()
-            .map(|(&_start, &end)| Move {
-                end,
-                move_type: MoveType::ExteriorSurfacePerimeter,
-                width: self
-                    .layer_settings
-                    .extrusion_width
-                    .exterior_surface_perimeter,
+            .map(|(&_start, &end)| {
+                let bounded_endpoint = Coordinate {
+                    x: end.x.max(0.0).min(settings.print_x),
+                    y: end.y.max(0.0).min(settings.print_y),
+                };
+
+                Move {
+                    end: bounded_endpoint,
+                    move_type: MoveType::ExteriorSurfacePerimeter,
+                    width: self
+                        .layer_settings
+                        .extrusion_width
+                        .exterior_surface_perimeter,
+                }
             })
             .collect();
 
+        let start_point = Coordinate {
+            x: offset_hull_multi.0[0].exterior()[0]
+                .x
+                .max(0.0)
+                .min(settings.print_x),
+            y: offset_hull_multi.0[0].exterior()[0]
+                .y
+                .max(0.0)
+                .min(settings.print_y),
+        };
+
         self.fixed_chains.push(MoveChain {
-            start_point: offset_hull_multi.0[0].exterior()[0],
+            start_point,
             moves,
             is_loop: true,
         });

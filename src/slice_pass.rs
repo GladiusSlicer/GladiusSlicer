@@ -97,7 +97,7 @@ impl ObjectPass for SkirtPass {
                 .iter_mut()
                 .take(skirt.layers)
                 .enumerate()
-                .for_each(|(_layer_num, slice)| slice.generate_skirt(&convex_hull, skirt))
+                .for_each(|(_layer_num, slice)| slice.generate_skirt(&convex_hull, skirt, settings))
         }
     }
 }
