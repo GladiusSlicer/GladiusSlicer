@@ -18,10 +18,10 @@ pub fn check_model_bounds(
         .map(|v| {
             if v.x < total_offset
                 || v.y < total_offset
-                || v.z < total_offset
+                || v.z < 0.0
                 || v.x > settings.print_x - total_offset
                 || v.y > settings.print_y - total_offset
-                || v.z > settings.print_z - total_offset
+                || v.z > settings.print_z
             {
                 Err(SlicerErrors::ModelOutsideBuildArea)
             } else {
