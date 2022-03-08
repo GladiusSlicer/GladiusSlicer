@@ -216,8 +216,8 @@ pub fn convert(
                     if *clockwise { "G2" } else { "G3" },
                     end.x,
                     end.y,
-                    center.x,
-                    center.y,
+                    center.x - start.x,
+                    center.y - start.y,
                     extrude
                 )?;
             }

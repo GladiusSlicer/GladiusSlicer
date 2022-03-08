@@ -4,6 +4,7 @@ use geo::{Coordinate, Line};
 use gladius_shared::settings::Settings;
 use gladius_shared::types::{Command, RetractionType, StateChange};
 use itertools::Itertools;
+use crate::point;
 
 pub fn unary_optimizer(cmds: &mut Vec<Command>) {
     cmds.retain(|cmd| match cmd {
@@ -20,7 +21,7 @@ pub fn unary_optimizer(cmds: &mut Vec<Command>) {
                 && new_state.bed_temp.is_none())
         }
         Command::Delay { msec } => *msec != 0,
-        Command::Arc { start, end, .. } => start != end,
+        Command::Arc { start, end, center, .. } => start != end || start != center,
         Command::NoAction => false,
     });
 }
@@ -146,31 +147,38 @@ pub fn state_optomizer(cmds: &mut Vec<Command>) {
     }
 }
 
-/*
+
 pub fn arc_optomizer(cmds: &mut Vec<Command> ){
     let mut ranges = vec![];
 
-    for (b,group) in &cmds
+    //println!("{}",cmds.len());
+
+    for (wt,group) in &cmds
         .iter()
         .enumerate()
         .group_by(|cmd| {
-            if let Command::MoveAndExtrude { .. } = cmd.1 { true } else { false }
+            //println!("{}",cmd.0);
+            if let Command::MoveAndExtrude { thickness,width, ..} = cmd.1 { Some((thickness,width)) } else { None }
         })
     {
-        if b{
+        if let Some((thickness,width)) = wt{
 
             let mut current_center = (0.0,0.0);
             let mut current_radius = 0.0;
             let mut current_chain = 0;
 
             let mut last_pos =0;
+            let mut group_peek = group.peekable();
+            let mut start_pos =  group_peek.peek().unwrap().0;
 
 
-            for (pos,center,radius) in group
+            for (pos,center,radius) in group_peek
+
 
                 //commands -> lines
                 .map(|(pos,cmd)|{
-                    if let Command::MoveAndExtrude {start,end} = cmd{
+
+                    if let Command::MoveAndExtrude {start,end,..} = cmd{
                         (pos,(start,end))
                     }
                     else{
@@ -206,15 +214,16 @@ pub fn arc_optomizer(cmds: &mut Vec<Command> ){
                 }
 
                 if current_chain >5{
-                    ranges.push((center,(pos- current_chain..pos)));
+                    ranges.push((center,(start_pos..=pos),*thickness,*width));
 
-                    //println!("arc found {}..{}", pos- current_chain , pos);
+                    //println!("arc found {}..{}", start_pos , pos);
                 }
 
 
                 current_center = center;
                 current_radius = radius;
                 current_chain = 1;
+                start_pos =pos;
 
 
 
@@ -222,8 +231,8 @@ pub fn arc_optomizer(cmds: &mut Vec<Command> ){
             }
 
             if current_chain >5{
-                println!("{}..{}", current_chain , last_pos);
-                ranges.push((current_center,((last_pos +2)- current_chain..last_pos)));
+                //println!("{}..{}",start_pos,last_pos+2);
+                ranges.push((current_center,(start_pos..=last_pos+2),*thickness,*width));
 
 
                 //println!("arc found {}..{}", last_pos- current_chain , last_pos);
@@ -233,13 +242,15 @@ pub fn arc_optomizer(cmds: &mut Vec<Command> ){
         }
     }
 
-    for (center,mut range) in ranges{
-        let start = if let Command::MoveAndExtrude {start,..} = cmds[range.start]{
+    for (center,mut range,thickness,width) in ranges{
+
+
+        let start = if let Command::MoveAndExtrude {start,..} = cmds[*range.start()]{
             start
         }else{
             unreachable!()
         };
-        let end = if let Command::MoveAndExtrude {end,..} = cmds[range.end]{
+        let end = if let Command::MoveAndExtrude {end,..} = cmds[*range.end()]{
             end
         }else{
             unreachable!()
@@ -251,12 +262,17 @@ pub fn arc_optomizer(cmds: &mut Vec<Command> ){
             cmds[i] = Command::NoAction;
         }
 
-        cmds[range.start] = Command::Arc {start,end,clockwise: true,center: Coordinate{x: center.0, y: center.1}};
+        cmds[*range.start()] = Command::Arc {start,end,clockwise: true,center: Coordinate{x: center.0, y: center.1},thickness,width};
+
+       // println!("center = ({},{})",center.0,center.1);
+        //println!("ra = [{} {}]",range.start(),range.end());
+        //println!("s{:?}",start);
+        //println!("end{:?}",start);
 
     }
 
 }
-*/
+
 
 fn line_bisector(
     p0: &Coordinate<f64>,
@@ -403,7 +419,7 @@ mod tests {
 
     #[test]
     fn arc_optomizer_test() {
-        let mut commands = (0..600)
+        let mut commands = (0..200)
             .into_iter()
             .map(|a| {
                 let r = a as f64 / 100.0;
@@ -412,12 +428,57 @@ mod tests {
                 Coordinate { x, y }
             })
             .tuple_windows::<(Coordinate<f64>, Coordinate<f64>)>()
-            .map(|(start, end)| Command::MoveAndExtrude { start, end })
+            .map(|(start, end)| Command::MoveAndExtrude { start, end, thickness: 0.3, width: 0.4 })
             .collect::<Vec<Command>>();
 
         arc_optomizer(&mut commands);
         unary_optimizer(&mut commands);
 
-        assert_eq!(commands, vec![])
+
+        assert_eq!(commands.len(), 1);
+        if let Command::Arc {start,center,width,thickness,..} = commands[0]{
+            assert_eq!(start, Coordinate { x: 1.0, y: 0.0 });
+            assert_eq!(center, Coordinate { x: 0.0, y: 0.0 });
+            assert_eq!(width, 0.4);
+            assert_eq!(thickness, 0.3);
+        }else{
+            panic!("Command should be an arc")
+        }
+
+    }
+
+    #[test]
+    fn arc_optomizer_test_adv() {
+        let mut commands =vec![Command::Delay {msec: 1000}];
+
+
+        commands.extend((0..200)
+            .into_iter()
+            .map(|a| {
+                let r = a as f64 / 100.0;
+                let x = r.cos();
+                let y = r.sin();
+                Coordinate { x, y }
+            })
+            .tuple_windows::<(Coordinate<f64>, Coordinate<f64>)>()
+            .map(|(start, end)| Command::MoveAndExtrude { start, end, thickness: 0.3, width: 0.4 })
+        );
+
+        commands.push(Command::Delay {msec: 1000});
+
+        arc_optomizer(&mut commands);
+        unary_optimizer(&mut commands);
+
+
+        assert_eq!(commands.len(), 3);
+        if let Command::Arc {start,center,width,thickness,..} = commands[1]{
+            assert_eq!(start, Coordinate { x: 1.0, y: 0.0 });
+            assert_eq!(center, Coordinate { x: 0.0, y: 0.0 });
+            assert_eq!(width, 0.4);
+            assert_eq!(thickness, 0.3);
+        }else{
+            panic!("Command should be an arc")
+        }
+
     }
 }
