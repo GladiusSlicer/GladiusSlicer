@@ -11,12 +11,14 @@
 - Added Acceleration, Feedrate, and Jerk settings
 - Added Retraction Wipe
 - Added Solid Infill types
+- Added bounds checking
 
 ### Fixes
 - Fixed issue when slicing multiple objects and outputting bincode overlapping and conflicting 
 - Removed all unwraps. Converted some to errors and some to expect. deny(clippy::unwrap_used) is added to prevent unwrap being added in future
 - Added checks for models and moves to make sure they don't go out of bounds
 - Skirt won't leave bounds now
+- Fixed issue where retraction speed wasn't set correctly
 
 ## [0.3.0]
 ### New Features

@@ -82,17 +82,25 @@ pub fn convert(
                 writeln!(write_buf, "G1 X{:.5} Y{:.5} E{:.5}", end.x, end.y, extrude)?;
             }
             Command::SetState { new_state } => {
-                if let Some(speed) = new_state.movement_speed {
-                    writeln!(write_buf, "G1 F{:.5}", speed * 60.0)?;
-                }
-                if let Some(accel) = new_state.acceleration {
-                    writeln!(write_buf, "M204 S{:.1}", accel)?;
-                }
 
                 match &new_state.retract {
-                    RetractionType::NoRetract => {}
+                    RetractionType::NoRetract => {
+                        if let Some(speed) = new_state.movement_speed {
+                            writeln!(write_buf, "G1 F{:.5}", speed * 60.0)?;
+                        }
+                        if let Some(accel) = new_state.acceleration {
+                            writeln!(write_buf, "M204 S{:.1}", accel)?;
+                        }
+                    }
                     RetractionType::Retract => {
                         //retract
+                        if let Some(speed) = new_state.movement_speed {
+                            writeln!(write_buf, "G1 F{:.5}", speed * 60.0)?;
+                        }
+                        if let Some(accel) = new_state.acceleration {
+                            writeln!(write_buf, "M204 S{:.1}", accel)?;
+                        }
+
                         writeln!(
                             write_buf,
                             "G1 E{:.5} F{:.5}; Retract",
@@ -116,8 +124,24 @@ pub fn convert(
                             settings.retract_length,
                             60.0 * settings.retract_speed,
                         )?;
+
+                        if let Some(speed) = new_state.movement_speed {
+                            writeln!(write_buf, "G1 F{:.5}", speed * 60.0)?;
+                        }
+                        if let Some(accel) = new_state.acceleration {
+                            writeln!(write_buf, "M204 S{:.1}", accel)?;
+                        }
+
                     }
                     RetractionType::MoveRetract(moves) => {
+
+                        if let Some(speed) = new_state.movement_speed {
+                            writeln!(write_buf, "G1 F{:.5}", speed * 60.0)?;
+                        }
+                        if let Some(accel) = new_state.acceleration {
+                            writeln!(write_buf, "M204 S{:.1}", accel)?;
+                        }
+
                         for (retract_amount, end) in moves {
                             writeln!(
                                 write_buf,

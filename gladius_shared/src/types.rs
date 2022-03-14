@@ -286,6 +286,7 @@ pub struct IndexedLine {
 }
 
 ///A move of the plotter
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Move {
     ///The end Coordinate of the Move. The start of the move is the previous moves end point.
     pub end: Coordinate<f64>,
