@@ -4,6 +4,7 @@ use geo_svg::*;
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
+use crate::utils::{orientation, Orientation};
 
 #[derive(Debug)]
 pub struct MonotoneSection {
@@ -47,13 +48,6 @@ enum PointType {
     End,
     Merge,
     Split,
-    Left,
-    Right,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum Orientation {
-    Linear,
     Left,
     Right,
 }
@@ -292,18 +286,7 @@ fn isabove(a: &Coordinate<f64>, b: &Coordinate<f64>) -> bool {
         == Ordering::Greater
 }
 
-fn orientation(p: &Coordinate<f64>, q: &Coordinate<f64>, r: &Coordinate<f64>) -> Orientation {
-    let left_val = (q.x - p.x) * (r.y - p.y);
-    let right_val = (q.y - p.y) * (r.x - p.x);
 
-    if left_val == right_val {
-        Orientation::Linear
-    } else if left_val > right_val {
-        Orientation::Left
-    } else {
-        Orientation::Right
-    }
-}
 
 #[inline]
 fn point_lerp(a: &Coordinate<f64>, b: &Coordinate<f64>, y: f64) -> Coordinate<f64> {
