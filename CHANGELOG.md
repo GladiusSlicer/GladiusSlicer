@@ -12,6 +12,7 @@
 - Added Retraction Wipe
 - Added Solid Infill types
 - Added bounds checking
+- Added Binary Optimization for delay and object change
 
 ### Fixes
 - Fixed issue when slicing multiple objects and outputting bincode overlapping and conflicting 

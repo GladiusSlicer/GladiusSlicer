@@ -70,6 +70,17 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                     current_pos = s_end;
                     return Ok(Command::MoveTo { end: s_end });
                 }
+                (Command::Delay { msec: t1 }, Command::Delay { msec: t2 }) => {
+
+                    //merge back to back delays
+                    return Ok(Command::Delay { msec: t1 +t2 });
+                }
+
+                (Command::ChangeObject { ..}, Command::ChangeObject { object }) => {
+                    // skip an object change followed by another change
+                    return Ok(Command::ChangeObject { object });
+                }
+
 
                 (
                     Command::SetState { new_state: f_state },
