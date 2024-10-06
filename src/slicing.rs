@@ -2,7 +2,7 @@ use crate::*;
 
 pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Result<Vec<Object>, SlicerErrors> {
     towers
-        .iter()
+        .par_iter()
         .map(|tower| {
             let mut tower_iter = TriangleTowerIterator::new(tower);
 
@@ -10,7 +10,7 @@ pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Result<Vec<Object
 
             let mut first_layer = true;
 
-            let slices: Vec<_> = std::iter::repeat(())
+            let res_points : Result<Vec<(f64,f64,Vec<Vec<Vertex>>)>,SlicerErrors> = std::iter::repeat(())
                 .enumerate()
                 .map(|(layer_count, _)| {
                     //Advance to the correct height
@@ -34,35 +34,37 @@ pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Result<Vec<Object
                     } else {
                         true
                     }
-                })
-                .enumerate()
-                .map(|(count, r)| {
-                    match r {
-                        Ok((bot, top, layer_loops)) => {
-                            //Add this slice to the
-                            let slice = Slice::from_multiple_point_loop(
-                                layer_loops
-                                    .iter()
-                                    .map(|verts| {
-                                        verts
-                                            .iter()
-                                            .map(|v| Coordinate { x: v.x, y: v.y })
-                                            .collect::<Vec<Coordinate<f64>>>()
-                                    })
-                                    .collect(),
-                                bot,
-                                top,
-                                count,
-                                settings,
-                            );
-                            slice
-                        }
-                        Err(e) => Err(e),
-                    }
-                })
-                .try_collect()?;
+                }).collect();
 
-            Ok(Object { layers: slices })
+            let points = res_points?;
+
+             let slices : Result<Vec<Slice>,SlicerErrors> =    points.par_iter()
+             .enumerate()
+                .map(|(count, (bot, top, layer_loops))| {
+
+                        
+                    //Add this slice to the
+                    let slice = Slice::from_multiple_point_loop(
+                        layer_loops
+                            .iter()
+                            .map(|verts| {
+                                verts
+                                    .iter()
+                                    .map(|v| Coordinate { x: v.x, y: v.y })
+                                    .collect::<Vec<Coordinate<f64>>>()
+                            })
+                            .collect(),
+                        *bot,
+                        *top,
+                        count,
+                        settings,
+                    );
+                    slice
+
+                })
+                .collect();
+
+            Ok(Object { layers: slices? })
         })
-        .try_collect()
+        .collect()
 }
