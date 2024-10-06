@@ -1,10 +1,28 @@
-use crate::SlicerErrors;
+use crate::{SlicerErrors, TopAndBottomLayersPass};
 use gladius_shared::types::*;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
+
+use log::{trace};
+
+/*
+
+    Rough algortim 
+
+    build tower 
+        For each point store all edges and face connected to but above it
+
+    progress up tower
+
+
+
+    
+
+
+*/
 
 #[inline]
 fn line_z_intersection(z: f64, v_start: Vertex, v_end: Vertex) -> Vertex {
@@ -32,27 +50,36 @@ impl TriangleTower {
         let mut future_tower_vert: Vec<Vec<TriangleEvent>> =
             (0..vertices.len()).map(|_| vec![]).collect();
 
+        
+        //for each triangle add it to the tower
+
         for (triangle_index, index_tri) in triangles.iter().enumerate() {
+
+            //index 0 is always lowest
             future_tower_vert[index_tri.verts[0]].push(TriangleEvent::MiddleVertex {
                 trailing_edge: index_tri.verts[1],
                 leading_edge: index_tri.verts[2],
                 triangle: triangle_index,
             });
 
+
+            // depending what is the next vertex is its either leading or trailing
             if vertices[index_tri.verts[1]] < vertices[index_tri.verts[2]] {
                 future_tower_vert[index_tri.verts[1]].push(TriangleEvent::TrailingEdge {
                     trailing_edge: index_tri.verts[2],
                     triangle: triangle_index,
                 })
             }
-
-            if vertices[index_tri.verts[2]] < vertices[index_tri.verts[1]] {
+            else {
                 future_tower_vert[index_tri.verts[2]].push(TriangleEvent::LeadingEdge {
                     leading_edge: index_tri.verts[1],
                     triangle: triangle_index,
                 })
             }
         }
+
+        //for each triangle event, add it to the lowest vertex and
+        //create a list of all vertices and there above edges
 
         let res_tower_vertices: Result<Vec<TowerVertex>, SlicerErrors> = future_tower_vert
             .into_iter()
@@ -65,8 +92,10 @@ impl TriangleTower {
             })
             .collect();
 
+        //propagate errors
         let mut tower_vertices = res_tower_vertices?;
 
+        //sort lowest to highest
         tower_vertices.sort_by(|a, b| {
             vertices[a.start_index]
                 .partial_cmp(&vertices[b.start_index])
@@ -77,6 +106,7 @@ impl TriangleTower {
             vertices,
             tower_vertices,
         })
+        
     }
 
     pub fn get_height_of_vertex(&self, index: usize) -> f64 {
@@ -95,12 +125,11 @@ struct TowerVertex {
 }
 #[derive(Clone, Debug, PartialEq)]
 struct TowerRing {
-    pub first_element: Rc<RefCell<TowerRingElement>>,
-    pub last_element: Rc<RefCell<TowerRingElement>>,
+    elements: Vec<TowerRingElement>,
 }
 
 impl TowerRing {
-    fn repair_loop(&mut self) -> Result<(), SlicerErrors> {
+    /*fn repair_loop(&mut self) -> Result<(), SlicerErrors> {
         if *self.last_element.borrow() == *self.first_element.borrow() {
             let mut ring_ptr = self.first_element.clone();
 
@@ -122,21 +151,16 @@ impl TowerRing {
         }
 
         Ok(())
-    }
+    }*/
 
-    fn join_rings(first: TowerRing, second: TowerRing) -> Result<Self, SlicerErrors> {
-        let second_next = second.first_element.borrow().next_clone();
+    fn join_rings(mut first:  TowerRing, mut second: TowerRing) -> Result<Self, SlicerErrors> {
 
-        first.last_element.borrow_mut().set_next(second_next);
+        first.elements.extend(&mut second.elements.drain(1..));
 
-        let mut new_frag = TowerRing {
-            first_element: first.first_element,
-            last_element: second.last_element,
-        };
 
-        new_frag.repair_loop()?;
+        //new_frag.repair_loop()?;
 
-        Ok(new_frag)
+        Ok(first)
     }
     /*
     fn add_to_end(&mut self, second: TowerRing) {
@@ -148,66 +172,66 @@ impl TowerRing {
         self.repair_loop();
     }*/
 
+    //splits the ring by removing elements and returning fragments without that edge
+    
     fn split_on_edge(mut self, edge: usize) -> Result<Vec<Self>, SlicerErrors> {
+
+        let mut new_ring = vec![];
         let mut frags = vec![];
 
-        let mut ring_ptr = self.first_element.clone();
-        let mut last_ptr;
-
-        let mut temp_frag = TowerRing {
-            first_element: self.first_element.clone(),
-            last_element: self.last_element.clone(),
-        };
-
-        let mut found = false;
-
-        while {
-            last_ptr = ring_ptr.clone();
-            let next = ring_ptr
-                .borrow()
-                .next()
-                .ok_or(SlicerErrors::TowerGeneration)?
-                .clone();
-            ring_ptr = next;
-            if let TowerRingElement::Edge { end_index, .. } = *ring_ptr.borrow() {
-                if end_index == edge {
-                    last_ptr.borrow_mut().set_next(None);
-                    temp_frag.last_element = last_ptr.clone();
-
-                    frags.push(std::mem::replace(
-                        &mut temp_frag,
-                        TowerRing {
-                            first_element: ring_ptr
-                                .borrow()
-                                .next_clone()
-                                .ok_or(SlicerErrors::TowerGeneration)?,
-                            last_element: self.last_element.clone(),
-                        },
-                    ));
-                    self.first_element = ring_ptr
-                        .borrow()
-                        .next_clone()
-                        .ok_or(SlicerErrors::TowerGeneration)?;
-
-                    found = true;
+        for e in self.elements.drain(..){
+            if let TowerRingElement::Edge { end_index, .. } = e{
+                if end_index == edge{
+                    frags.push(TowerRing{elements: new_ring});
+                    new_ring = vec![];
+                }
+                else{
+                    new_ring.push (e)
                 }
             }
-
-            *ring_ptr.borrow() != *self.last_element.borrow()
-        } {}
-
-        if found {
-            let frag = frags.remove(0);
-            self.last_element = frag.last_element;
+            else{
+                new_ring.push(e);
+            }
         }
 
-        frags.push(self);
+        if(frags.is_empty() ){
+            //add in the fragment
+            frags.push(TowerRing{elements: new_ring});
+        }
+        else{
+            //append to the begining to prevent ophaned segments
+            if frags[0].elements.len() ==0{
+                frags[0].elements = new_ring;
+            }
+            else{
+                new_ring.extend(&mut frags[0].elements.drain(1..));
+                frags[0].elements = new_ring;
+            }
+            
+        }
 
-        frags.retain(|frag| frag.first_element.borrow().next().is_some());
+        //remove all fragments that are single sized and faces. They ends with that vertex
+
+        frags.retain(|frag|{
+            frag.elements.len() > 1
+
+        });
+
         Ok(frags)
     }
 }
 
+impl Display for TowerRing {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for e in self.elements.iter(){
+            write!(f, "{} ", e)?;
+        }
+
+        Ok(())
+    }
+}
+
+/*
 impl Display for TowerRing {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if *self.first_element.borrow() == *self.last_element.clone().borrow() {
@@ -261,18 +285,16 @@ impl Display for TowerRing {
 
         write!(f, "")
     }
-}
+}*/
 
 #[derive(Clone, Debug, Eq)]
 enum TowerRingElement {
     Face {
         triangle_index: usize,
-        next: Option<Rc<RefCell<TowerRingElement>>>,
     },
     Edge {
         start_index: usize,
         end_index: usize,
-        next: Option<Rc<RefCell<TowerRingElement>>>,
     },
 }
 
@@ -288,7 +310,7 @@ impl Display for TowerRingElement {
         }
     }
 }
-
+/* 
 impl TowerRingElement {
     fn next_clone(&self) -> Option<Rc<RefCell<TowerRingElement>>> {
         match self {
@@ -328,7 +350,7 @@ impl TowerRingElement {
         }
     }*/
 }
-
+*/
 impl PartialEq for TowerRingElement {
     fn eq(&self, other: &Self) -> bool {
         match self {
@@ -402,38 +424,32 @@ fn join_triangle_event(
                 leading_edge,
                 triangle,
             } => {
-                let triangle_element = Rc::new(RefCell::new(TowerRingElement::Face {
+                let triangle_element = TowerRingElement::Face {
                     triangle_index: *triangle,
-                    next: None,
-                }));
-                let edge_element = Rc::new(RefCell::new(TowerRingElement::Edge {
+                };
+                let edge_element =TowerRingElement::Edge {
                     start_index: starting_point,
                     end_index: *leading_edge,
-                    next: Some(triangle_element.clone()),
-                }));
-                let new_ring = TowerRing {
-                    first_element: edge_element,
-                    last_element: triangle_element,
                 };
+                
+                let new_ring = TowerRing{elements: vec![edge_element,triangle_element] };
+
                 element_list.push(new_ring);
             }
             TriangleEvent::TrailingEdge {
                 triangle,
                 trailing_edge,
             } => {
-                let edge_element = Rc::new(RefCell::new(TowerRingElement::Edge {
+                let edge_element = TowerRingElement::Edge {
                     start_index: starting_point,
                     end_index: *trailing_edge,
-                    next: None,
-                }));
-                let triangle_element = Rc::new(RefCell::new(TowerRingElement::Face {
-                    triangle_index: *triangle,
-                    next: Some(edge_element.clone()),
-                }));
-                let new_ring = TowerRing {
-                    first_element: triangle_element,
-                    last_element: edge_element,
                 };
+
+                let triangle_element = TowerRingElement::Face {
+                    triangle_index: *triangle,
+                };
+                let new_ring = TowerRing{elements: vec![triangle_element,edge_element] };
+
                 element_list.push(new_ring);
             }
             TriangleEvent::MiddleVertex {
@@ -441,24 +457,21 @@ fn join_triangle_event(
                 triangle,
                 trailing_edge,
             } => {
-                let trail_edge_element = Rc::new(RefCell::new(TowerRingElement::Edge {
+                let trail_edge_element = TowerRingElement::Edge {
                     start_index: starting_point,
                     end_index: *trailing_edge,
-                    next: None,
-                }));
-                let triangle_element = Rc::new(RefCell::new(TowerRingElement::Face {
+                };
+
+                let triangle_element = TowerRingElement::Face {
                     triangle_index: *triangle,
-                    next: Some(trail_edge_element.clone()),
-                }));
-                let lead_edge_element = Rc::new(RefCell::new(TowerRingElement::Edge {
+                };
+
+                let lead_edge_element = TowerRingElement::Edge {
                     start_index: starting_point,
                     end_index: *leading_edge,
-                    next: Some(triangle_element.clone()),
-                }));
-                let new_ring = TowerRing {
-                    first_element: lead_edge_element,
-                    last_element: trail_edge_element,
                 };
+                let new_ring = TowerRing{elements: vec![lead_edge_element,triangle_element,trail_edge_element] };
+
                 element_list.push(new_ring);
             }
         }
@@ -525,7 +538,7 @@ fn join_fragments(fragments: &mut Vec<TowerRing>) -> Result<(), SlicerErrors> {
                     .get(second_pos)
                     .ok_or(SlicerErrors::TowerGeneration)?;
 
-                if first.last_element == second.first_element {
+                if first.elements.last() == second.elements.get(0) {
                     let second_r = fragments.swap_remove(second_pos);
                     let first_r = fragments.swap_remove(first_pos);
 
@@ -579,11 +592,26 @@ impl<'s> TriangleTowerIterator<'s> {
                 .flat_map(|vec_frag| vec_frag.into_iter())
                 .collect();
 
+            trace!("split edge: {:?}", pop_tower_vert.start_index );
+            trace!("split frags:");
+            for f in &frags{
+                trace!("\t{}",f);
+            }
+            
+
             //Add the new fragments
 
             frags.extend(pop_tower_vert.next_ring_fragments.clone().into_iter());
+            trace!("all frags:");
+            for f in &frags{
+                trace!("\t{}",f);
+            }
 
             join_fragments(&mut frags)?;
+            trace!("join frags:");
+            for f in &frags{
+                trace!("\t{}",f);
+            }
             self.active_rings = frags;
             self.tower_vert_index += 1;
         }
@@ -594,41 +622,37 @@ impl<'s> TriangleTowerIterator<'s> {
     }
 
     pub fn get_points(&self) -> Vec<Vec<Vertex>> {
-        let mut points_vec = vec![];
-        for ring in &self.active_rings {
-            let mut points = vec![];
-            let mut ring_ptr = ring.first_element.clone();
-            while {
-                if let TowerRingElement::Edge {
-                    start_index,
-                    end_index,
-                    ..
-                } = ring_ptr.borrow().deref()
-                {
-                    points.push(line_z_intersection(
-                        self.z_height,
-                        self.tower.vertices[*start_index],
-                        self.tower.vertices[*end_index],
-                    ));
-                }
-                let next = ring_ptr
-                    .borrow()
-                    .next()
-                    .expect("Rings must be complete Loops")
-                    .clone();
 
-                ring_ptr = next;
+        self.active_rings.iter().map(|ring|{
+            let mut points : Vec<Vertex> = ring.elements.iter()
+                .filter_map(|e| {
+                    if let TowerRingElement::Edge {
+                        start_index,
+                        end_index,
+                        ..
+                    } = e
+                    {
+                        Some(line_z_intersection(
+                            self.z_height,
+                            self.tower.vertices[*start_index],
+                            self.tower.vertices[*end_index],
+                        ))
+                    }
+                    else{
+                        None
+                    }
+                }) 
+                .collect();
+            
+            //complete loop
+            if (points.len() > 0){
+                points.push(points[0]);
+            }
 
-                ring_ptr != ring.last_element
-            } {}
+            points
 
-            let first_point = points[0];
+        }).collect()
 
-            points.push(first_point);
-            points_vec.push(points);
-        }
-
-        points_vec
     }
 }
 
@@ -641,4 +665,193 @@ pub fn create_towers(
             TriangleTower::from_triangles_and_vertices(triangles, vertices.clone())
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::de::Expected;
+
+    use super::*;
+
+    #[test]
+    fn join_rings_test() {
+        let r1 = TowerRing{elements: vec![
+            TowerRingElement::Edge {
+                start_index: 0,
+                end_index: 1,
+            },
+            TowerRingElement::Face {
+                triangle_index: 0,
+            },
+            TowerRingElement::Edge {
+                start_index: 0,
+                end_index: 2,
+            }
+        ]};
+
+        let r2 = TowerRing{elements: vec![
+            TowerRingElement::Edge {
+                start_index: 0,
+                end_index: 2,
+            },
+            TowerRingElement::Face {
+                triangle_index: 2,
+            },
+            TowerRingElement::Edge {
+                start_index:4,
+                end_index: 6,
+            }
+        ]};
+
+        let r3 = TowerRing{elements: vec![
+            TowerRingElement::Edge {
+                start_index: 0,
+                end_index: 1,
+            },
+            TowerRingElement::Face {
+                triangle_index: 0,
+            },
+            TowerRingElement::Edge {
+                start_index: 0,
+                end_index: 2,
+            },
+            TowerRingElement::Face {
+                triangle_index: 2,
+            },
+            TowerRingElement::Edge {
+                start_index:4,
+                end_index: 6,
+            }
+        ]};
+
+        assert_eq!(TowerRing::join_rings(r1,r2),Ok(r3));
+    }
+    
+    #[test]
+    fn split_on_edge_test() {
+        let r1 = TowerRing{elements: vec![
+            TowerRingElement::Edge {
+                start_index: 0,
+                end_index: 1,
+            },
+            TowerRingElement::Face {
+                triangle_index: 0,
+            },
+            TowerRingElement::Edge {
+                start_index: 0,
+                end_index: 2,
+            },
+            TowerRingElement::Face {
+                triangle_index: 2,
+            },
+            TowerRingElement::Edge {
+                start_index:4,
+                end_index: 6,
+            }
+        ]};
+
+        let frags = r1.split_on_edge(2).unwrap();
+
+        let expected = vec![
+            TowerRing{elements: vec![
+            TowerRingElement::Edge {
+                start_index: 0,
+                end_index: 1,
+            },
+            TowerRingElement::Face {
+                triangle_index: 0,
+            }]},
+            TowerRing{elements: vec![
+            TowerRingElement::Face {
+                triangle_index: 2,
+            },
+            TowerRingElement::Edge {
+                start_index:4,
+                end_index: 6,
+            }]}
+        ];
+        assert_eq!(frags,expected);
+    }
+
+    #[test]
+    fn assemble_fragment_test() {
+        let mut frags = 
+            vec![
+                TowerRing{elements: vec![
+                TowerRingElement::Edge {
+                    start_index: 0,
+                    end_index: 1,
+                },
+                TowerRingElement::Face {
+                    triangle_index: 0,
+                },
+                TowerRingElement::Edge {
+                    start_index: 0,
+                    end_index: 2,
+                },
+                TowerRingElement::Face {
+                    triangle_index: 2,
+                },
+                TowerRingElement::Edge {
+                    start_index:4,
+                    end_index: 6,
+                }
+            ]},
+            TowerRing{elements: vec![ 
+                TowerRingElement::Edge {
+                    start_index:4,
+                    end_index: 6,
+                },
+                TowerRingElement::Face {
+                    triangle_index: 2,
+                },
+                TowerRingElement::Edge {
+                    start_index: 0,
+                    end_index: 1,
+                }
+            
+            ]}];
+
+         join_fragments(&mut frags).unwrap();
+
+
+
+
+
+
+        let expected = vec![
+            TowerRing{elements: vec![
+                TowerRingElement::Edge {
+                    start_index: 0,
+                    end_index: 1,
+                },
+                TowerRingElement::Face {
+                    triangle_index: 0,
+                },
+                TowerRingElement::Edge {
+                    start_index: 0,
+                    end_index: 2,
+                },
+                TowerRingElement::Face {
+                    triangle_index: 2,
+                },
+                TowerRingElement::Edge {
+                    start_index:4,
+                    end_index: 6,
+                },
+                TowerRingElement::Face {
+                    triangle_index: 2,
+                },
+                TowerRingElement::Edge {
+                    start_index: 0,
+                    end_index: 1,
+                }
+        
+        ]}];
+
+
+        assert_eq!(frags,expected);
+    }
+
+
 }

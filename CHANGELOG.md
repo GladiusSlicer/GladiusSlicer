@@ -13,7 +13,8 @@
 - Added Solid Infill types
 - Added bounds checking
 - Added Binary Optimization for delay and object change
-
+- Massive refactor of tower slicing logic
+- 
 ### Fixes
 - Fixed issue when slicing multiple objects and outputting bincode overlapping and conflicting 
 - Removed all unwraps. Converted some to errors and some to expect. deny(clippy::unwrap_used) is added to prevent unwrap being added in future
