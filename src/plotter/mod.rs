@@ -8,10 +8,9 @@ pub(crate) mod support;
 pub use crate::plotter::infill::*;
 use crate::plotter::perimeter::*;
 use crate::plotter::polygon_operations::PolygonOperations;
-use crate::utils::{directional_unit_bisector_left, point_lerp};
+use crate::utils::point_lerp;
 use crate::{Object, Settings, StateChange};
-use geo::coordinate_position::CoordPos;
-use geo::coordinate_position::CoordinatePosition;
+use coordinate_position::CoordPos;
 use geo::prelude::*;
 use geo::*;
 use gladius_shared::settings::SkirtSettings;
@@ -204,7 +203,7 @@ impl Plotter for Slice {
             .iter()
             .circular_tuple_windows::<(_, _)>()
             .map(|(&_start, &end)| {
-                let bounded_endpoint = Coordinate {
+                let bounded_endpoint = Coord {
                     x: end.x.max(0.0).min(settings.print_x),
                     y: end.y.max(0.0).min(settings.print_y),
                 };
@@ -220,7 +219,7 @@ impl Plotter for Slice {
             })
             .collect();
 
-        let start_point = Coordinate {
+        let start_point = Coord {
             x: offset_hull_multi.0[0].exterior()[0]
                 .x
                 .max(0.0)
@@ -326,106 +325,106 @@ impl Plotter for Slice {
 
             for chain in self.fixed_chains.drain(..).chain(self.chains.drain(..)) {
                 let retraction_length = self.layer_settings.retraction_length;
-                let retract_command = if let Some(retraction_wipe) =
-                    self.layer_settings.retraction_wipe.as_ref()
-                {
-                    let mut ordered: Vec<Coordinate<f64>> = if chain.is_loop {
-                        //fixme this is bad
-                        chain
-                            .moves
+                let retract_command =
+                    if let Some(retraction_wipe) = self.layer_settings.retraction_wipe.as_ref() {
+                        let ordered: Vec<Coord<f64>> = if chain.is_loop {
+                            //fixme this is bad
+                            chain
+                                .moves
+                                .iter()
+                                .rev()
+                                .take_while(|m| m.move_type != MoveType::Travel)
+                                .map(|m| m.end)
+                                .collect::<Vec<_>>()
+                                .into_iter()
+                                .rev()
+                                .collect_vec()
+                        } else {
+                            chain.moves.iter().rev().map(|m| m.end).collect_vec()
+                        };
+
+                        let mut remaining_distance = retraction_wipe.distance;
+                        let mut wipe_moves = ordered
                             .iter()
-                            .rev()
-                            .take_while(|m| m.move_type != MoveType::Travel)
-                            .map(|m| m.end)
-                            .collect::<Vec<_>>()
-                            .into_iter()
-                            .rev()
-                            .collect_vec()
+                            .tuple_windows::<(_, _)>()
+                            .map(|(cur_point, next_point)| {
+                                let len: f64 = cur_point.euclidean_distance(next_point);
+
+                                (len, cur_point, next_point)
+                            })
+                            .filter_map(|(len, cur_point, next_point)| {
+                                if remaining_distance - len > 0.0 {
+                                    remaining_distance -= len;
+                                    Some((len, *next_point))
+                                } else if remaining_distance > 0.0 {
+                                    let ret = (
+                                        remaining_distance,
+                                        point_lerp(cur_point, next_point, remaining_distance / len),
+                                    );
+                                    remaining_distance -= len;
+                                    Some(ret)
+                                } else {
+                                    None
+                                }
+                            })
+                            .map(|(len, next_point)| {
+                                let retaction_distance =
+                                    len / retraction_wipe.distance * retraction_length;
+
+                                (retaction_distance, next_point)
+                            })
+                            .collect::<Vec<_>>();
+                        /*
+                        if chain.is_loop && chain.moves.len() > 3{
+                            if let [m2,m1,..] = ordered[ordered.len()-3..ordered.len()]{
+                                if let Some(m0) = ordered.first() {
+                                    //let m1 = chain.start_point ;
+                                    //inset the first move
+                                    let bisector = directional_unit_bisector_left(&m0, &m1, &m2);
+
+                                    let scaled_bisector = bisector.scale(self.layer_settings.extrusion_width.exterior_surface_perimeter);
+
+                                    let inset_point = Coord::from((m1.x - scaled_bisector.x,m1.y - scaled_bisector.y));
+
+                                    println!("{:?} {:?} {:?} ",m0,m1,m2);
+                                    println!("{:?} {:?} {:?} ",bisector,scaled_bisector,inset_point);
+
+                                    wipe_moves.insert(0,(0.0,inset_point))
+
+
+                                }
+                            }
+                        }*/
+
+                        if remaining_distance > 0.0 {
+                            if let Some((distance, _)) = wipe_moves.last_mut() {
+                                *distance += remaining_distance / retraction_wipe.distance
+                                    * retraction_length
+                            }
+                        }
+
+                        Command::SetState {
+                            new_state: StateChange {
+                                extruder_temp: None,
+                                bed_temp: None,
+                                fan_speed: None,
+                                movement_speed: Some(retraction_wipe.speed),
+                                acceleration: Some(retraction_wipe.acceleration),
+                                retract: RetractionType::MoveRetract(wipe_moves),
+                            },
+                        }
                     } else {
-                        chain.moves.iter().rev().map(|m| m.end).collect_vec()
+                        Command::SetState {
+                            new_state: StateChange {
+                                bed_temp: None,
+                                extruder_temp: None,
+                                fan_speed: None,
+                                movement_speed: Some(self.layer_settings.speed.travel),
+                                acceleration: Some(self.layer_settings.acceleration.travel),
+                                retract: RetractionType::Retract,
+                            },
+                        }
                     };
-
-                    let mut remaining_distance = retraction_wipe.distance;
-                    let mut wipe_moves = ordered.iter()
-                        .tuple_windows::<(_, _)>()
-                        .map(|(cur_point, next_point)| {
-                            let len: f64 = cur_point.euclidean_distance(next_point);
-
-                            (len, cur_point, next_point)
-                        })
-                        .filter_map(|(len, cur_point, next_point)| {
-                            if remaining_distance - len > 0.0 {
-                                remaining_distance -= len;
-                                Some((len, *next_point))
-                            } else if remaining_distance > 0.0 {
-                                let ret = (
-                                    remaining_distance,
-                                    point_lerp(&cur_point, &next_point, remaining_distance / len),
-                                );
-                                remaining_distance -= len;
-                                Some(ret)
-                            } else {
-                                None
-                            }
-                        })
-                        .map(|(len, next_point)| {
-                            let retaction_distance =
-                                len / retraction_wipe.distance * retraction_length;
-
-                            (retaction_distance, next_point)
-                        })
-                        .collect::<Vec<_>>();
-/*
-                    if chain.is_loop && chain.moves.len() > 3{
-                        if let [m2,m1,..] = ordered[ordered.len()-3..ordered.len()]{
-                            if let Some(m0) = ordered.first() {
-                                //let m1 = chain.start_point ;
-                                //inset the first move
-                                let bisector = directional_unit_bisector_left(&m0, &m1, &m2);
-
-                                let scaled_bisector = bisector.scale(self.layer_settings.extrusion_width.exterior_surface_perimeter);
-
-                                let inset_point = Coordinate::from((m1.x - scaled_bisector.x,m1.y - scaled_bisector.y));
-
-                                println!("{:?} {:?} {:?} ",m0,m1,m2);
-                                println!("{:?} {:?} {:?} ",bisector,scaled_bisector,inset_point);
-
-                                wipe_moves.insert(0,(0.0,inset_point))
-
-
-                            }
-                        }
-                    }*/
-
-                    if remaining_distance > 0.0 {
-                        if let Some((distance, _)) = wipe_moves.last_mut() {
-                            *distance +=
-                                remaining_distance / retraction_wipe.distance * retraction_length
-                        }
-                    }
-
-                    Command::SetState {
-                        new_state: StateChange {
-                            extruder_temp: None,
-                            bed_temp: None,
-                            fan_speed: None,
-                            movement_speed: Some(retraction_wipe.speed),
-                            acceleration: Some(retraction_wipe.acceleration),
-                            retract: RetractionType::MoveRetract(wipe_moves),
-                        },
-                    }
-                } else {
-                    Command::SetState {
-                        new_state: StateChange {
-                            bed_temp: None,
-                            extruder_temp: None,
-                            fan_speed: None,
-                            movement_speed: Some(self.layer_settings.speed.travel),
-                            acceleration: Some(self.layer_settings.acceleration.travel),
-                            retract: RetractionType::Retract,
-                        },
-                    }
-                };
 
                 commands.push(Command::MoveTo {
                     end: chain.start_point,
@@ -446,7 +445,7 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
             line_string
                 .0
                 .iter()
-                .circular_tuple_windows::<(&Coordinate<f64>, &Coordinate<f64>)>()
+                .circular_tuple_windows::<(&Coord<f64>, &Coord<f64>)>()
         })
         .filter(|(&s, &f)| {
             //test the midpoint if it supported

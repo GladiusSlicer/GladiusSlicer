@@ -108,7 +108,7 @@ pub fn inset_polygon_recursive(
 
     let mut full_moves = vec![];
     move_chains
-        .get(0)
+        .first()
         .map(|mc| mc.start_point)
         .map(|starting_point| {
             for mut chain in move_chains {

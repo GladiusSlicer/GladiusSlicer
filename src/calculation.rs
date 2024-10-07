@@ -9,7 +9,7 @@ pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedVal
     };
 
     let mut current_speed = 0.0;
-    let mut current_pos = Coordinate { x: 0.0, y: 0.0 };
+    let mut current_pos = Coord { x: 0.0, y: 0.0 };
 
     for cmd in moves {
         match cmd {
@@ -48,8 +48,15 @@ pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedVal
             Command::Delay { msec } => {
                 values.total_time += *msec as f64 / 1000.0;
             }
-            Command::Arc { start, end, center,width, thickness, .. } => {
-                                let x_diff = end.x - start.x;
+            Command::Arc {
+                start,
+                end,
+                center,
+                width,
+                thickness,
+                ..
+            } => {
+                let x_diff = end.x - start.x;
                 let y_diff = end.y - start.y;
                 let cord_length = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
                 let x_diff_r = end.x - center.x;
@@ -68,8 +75,6 @@ pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedVal
                 values.total_time += extrusion_length / current_speed;
 
                 values.plastic_volume += width * thickness * extrusion_length;
-
-
             }
             Command::NoAction | Command::LayerChange { .. } | Command::ChangeObject { .. } => {}
         }

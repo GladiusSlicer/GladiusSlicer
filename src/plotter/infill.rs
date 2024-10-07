@@ -21,7 +21,7 @@ pub fn linear_fill_polygon(
     fill_type: MoveType,
     angle: f64,
 ) -> Vec<MoveChain> {
-    let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+    let rotate_poly = poly.rotate_around_point(angle, Point(Coord::zero()));
 
     let mut new_moves: Vec<MoveChain> = rotate_poly
         .offset_from(
@@ -58,7 +58,7 @@ pub fn partial_linear_fill_polygon(
     angle: f64,
     offset: f64,
 ) -> Vec<MoveChain> {
-    let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+    let rotate_poly = poly.rotate_around_point(angle, Point(Coord::zero()));
 
     let mut new_moves: Vec<MoveChain> = rotate_poly
         .offset_from(
@@ -85,7 +85,7 @@ pub fn support_linear_fill_polygon(
     angle: f64,
     offset: f64,
 ) -> Vec<MoveChain> {
-    let rotate_poly = poly.rotate_around_point(angle, Point(Coordinate::zero()));
+    let rotate_poly = poly.rotate_around_point(angle, Point(Coord::zero()));
 
     let mut new_moves: Vec<MoveChain> = rotate_poly
         .offset_from(-settings.extrusion_width.interior_surface_perimeter / 2.0)
@@ -303,14 +303,14 @@ pub fn spaced_fill_polygon(
                     }
                 }
 
-                start_point = start_point.or(Some(Coordinate {
+                start_point = start_point.or(Some(Coord {
                     x: left_point.x,
                     y: current_y,
                 }));
 
                 if orient {
                     moves.push(Move {
-                        end: Coordinate {
+                        end: Coord {
                             x: left_point.x,
                             y: current_y,
                         },
@@ -321,7 +321,7 @@ pub fn spaced_fill_polygon(
                     });
 
                     moves.push(Move {
-                        end: Coordinate {
+                        end: Coord {
                             x: right_point.x,
                             y: current_y,
                         },
@@ -332,7 +332,7 @@ pub fn spaced_fill_polygon(
                     });
                 } else {
                     moves.push(Move {
-                        end: Coordinate {
+                        end: Coord {
                             x: right_point.x,
                             y: current_y,
                         },
@@ -343,7 +343,7 @@ pub fn spaced_fill_polygon(
                     });
 
                     moves.push(Move {
-                        end: Coordinate {
+                        end: Coord {
                             x: left_point.x,
                             y: current_y,
                         },

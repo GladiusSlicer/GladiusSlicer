@@ -50,7 +50,7 @@ pub fn convert(
     )?;
     writeln!(write_buf, "{}", start)?;
     writeln!(write_buf, "G21 ; set units to millimeters")?;
-    writeln!(write_buf, "G90 ; use absolute coordinates")?;
+    writeln!(write_buf, "G90 ; use absolute Coords")?;
     writeln!(write_buf, "M83 ; use relative distances for extrusion")?;
 
     for cmd in cmds {
@@ -82,7 +82,6 @@ pub fn convert(
                 writeln!(write_buf, "G1 X{:.5} Y{:.5} E{:.5}", end.x, end.y, extrude)?;
             }
             Command::SetState { new_state } => {
-
                 match &new_state.retract {
                     RetractionType::NoRetract => {
                         if let Some(speed) = new_state.movement_speed {
@@ -131,10 +130,8 @@ pub fn convert(
                         if let Some(accel) = new_state.acceleration {
                             writeln!(write_buf, "M204 S{:.1}", accel)?;
                         }
-
                     }
                     RetractionType::MoveRetract(moves) => {
-
                         if let Some(speed) = new_state.movement_speed {
                             writeln!(write_buf, "G1 F{:.5}", speed * 60.0)?;
                         }
@@ -158,7 +155,6 @@ pub fn convert(
                         )?;
                     }
                 }
-
 
                 if let Some(ext_temp) = new_state.extruder_temp {
                     writeln!(write_buf, "M104 S{:.1} ; set extruder temp", ext_temp)?;

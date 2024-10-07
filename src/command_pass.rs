@@ -21,9 +21,6 @@ impl CommandPass for OptimizePass {
         } {
             size = cmds.len()
         }
-
-
-
     }
 }
 
@@ -34,7 +31,7 @@ impl CommandPass for SlowDownLayerPass {
         let mut layer_height = 0.0;
         //Slow down on small layers
         let mut current_speed = 0.0;
-        let mut current_pos = Coordinate { x: 0.0, y: 0.0 };
+        let mut current_pos = Coord { x: 0.0, y: 0.0 };
 
         {
             let reduction: Vec<(f64, usize, usize)> = cmds
@@ -90,13 +87,17 @@ impl CommandPass for SlowDownLayerPass {
                                 Command::Delay { msec } => {
                                     non_move_time += *msec as f64 / 1000.0;
                                 }
-                                Command::Arc { start, end, center,.. } => {
+                                Command::Arc {
+                                    start, end, center, ..
+                                } => {
                                     let x_diff = end.x - start.x;
                                     let y_diff = end.y - start.y;
-                                    let cord_length = ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
+                                    let cord_length =
+                                        ((x_diff * x_diff) + (y_diff * y_diff)).sqrt();
                                     let x_diff_r = end.x - center.x;
                                     let y_diff_r = end.y - center.y;
-                                    let radius = ((x_diff_r * x_diff_r) + (y_diff_r * y_diff_r)).sqrt();
+                                    let radius =
+                                        ((x_diff_r * x_diff_r) + (y_diff_r * y_diff_r)).sqrt();
 
                                     //Divide the chord length by double the radius.
                                     let t = cord_length / (2.0 * radius);
@@ -107,10 +108,9 @@ impl CommandPass for SlowDownLayerPass {
                                     //Once you have the central angle in radians, multiply it by the radius to get the arc length.
                                     let extrusion_length = central * radius;
 
-
                                     current_pos = *end;
-                                    *map.entry(OrderedFloat(current_speed)).or_insert(0.0) += extrusion_length;
-
+                                    *map.entry(OrderedFloat(current_speed)).or_insert(0.0) +=
+                                        extrusion_length;
                                 }
                                 Command::LayerChange { z, .. } => {
                                     layer_height = *z;
@@ -144,7 +144,6 @@ impl CommandPass for SlowDownLayerPass {
                         ))
                     }
                 })
-                .into_iter()
                 .filter_map(|(map, time, start, end)| {
                     let mut total_time = time
                         + map

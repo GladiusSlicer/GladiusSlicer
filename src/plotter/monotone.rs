@@ -1,46 +1,48 @@
-
-use geo::{Coordinate, Polygon, SimplifyVwPreserve};
+use crate::utils::{orientation, Orientation};
+use geo::{Coord, Polygon, SimplifyVwPreserve};
 use geo_svg::*;
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
-use crate::utils::{orientation, Orientation};
 
 #[derive(Debug)]
 pub struct MonotoneSection {
-    pub left_chain: Vec<Coordinate<f64>>,
-    pub right_chain: Vec<Coordinate<f64>>,
+    pub left_chain: Vec<Coord<f64>>,
+    pub right_chain: Vec<Coord<f64>>,
 }
 
 #[derive(Debug, PartialEq)]
 struct MonotonePoint {
-    pos: Coordinate<f64>,
-    next: Coordinate<f64>,
-    prev: Coordinate<f64>,
+    pos: Coord<f64>,
+    next: Coord<f64>,
+    prev: Coord<f64>,
     point_type: PointType,
+}
+
+impl Ord for MonotonePoint {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.pos
+            .y
+            .partial_cmp(&other.pos.y)
+            .map(|cmp| {
+                cmp.then(
+                    self.pos
+                        .x
+                        .partial_cmp(&other.pos.x)
+                        .expect("Points Should not contain NAN"),
+                )
+            })
+            .expect("Points Should not contain NAN")
+    }
 }
 
 impl PartialOrd for MonotonePoint {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.pos.y.partial_cmp(&other.pos.y).map(|cmp| {
-            cmp.then(
-                self.pos
-                    .x
-                    .partial_cmp(&other.pos.x)
-                    .expect("Points Should not contain NAN"),
-            )
-        })
+        Some(self.cmp(other))
     }
 }
 
 impl Eq for MonotonePoint {}
-
-impl Ord for MonotonePoint {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other)
-            .expect("Points Should not contain NAN")
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum PointType {
@@ -69,7 +71,7 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
                 .0
                 .iter()
                 .take(line_string.0.len() - 1)
-                .circular_tuple_windows::<(&Coordinate<f64>, &Coordinate<f64>, &Coordinate<f64>)>()
+                .circular_tuple_windows::<(&Coord<f64>, &Coord<f64>, &Coord<f64>)>()
                 .map(|(&next, &point, &prev)| {
                     // Identify what type of point this is
                     let point_type = if isabove(&point, &prev) && isabove(&point, &next) {
@@ -274,23 +276,16 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
     completed_sections
 }
 
-fn isabove(a: &Coordinate<f64>, b: &Coordinate<f64>) -> bool {
+fn isabove(a: &Coord<f64>, b: &Coord<f64>) -> bool {
     a.y.partial_cmp(&b.y)
-        .map(|cmp| {
-            cmp.then(
-                a.x.partial_cmp(&b.x)
-                    .expect("Coordinates should not be NAN"),
-            )
-        })
-        .expect("Coordinates should not be NAN")
+        .map(|cmp| cmp.then(a.x.partial_cmp(&b.x).expect("Coords should not be NAN")))
+        .expect("Coords should not be NAN")
         == Ordering::Greater
 }
 
-
-
 #[inline]
-fn point_lerp(a: &Coordinate<f64>, b: &Coordinate<f64>, y: f64) -> Coordinate<f64> {
-    Coordinate {
+fn point_lerp(a: &Coord<f64>, b: &Coord<f64>, y: f64) -> Coord<f64> {
+    Coord {
         x: lerp(a.x, b.x, (y - a.y) / (b.y - a.y)),
         y,
     }
