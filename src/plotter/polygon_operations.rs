@@ -3,7 +3,7 @@ use geo::*;
 use geo_offset::*;
 
 //todo remove dependency on geo clipper and by extension bindgen
-//use geo_clipper::Clipper;
+
 
 pub trait PolygonOperations {
     fn offset_from(&self, delta: f64) -> MultiPolygon<f64>;
@@ -19,44 +19,46 @@ pub trait PolygonOperations {
 
 impl PolygonOperations for MultiPolygon<f64> {
     fn offset_from(&self, delta: f64) -> MultiPolygon<f64> {
-        self.offset(delta).expect("All Points are valid")
+         geo_clipper::Clipper::offset(self,delta, geo_clipper::JoinType::Square, geo_clipper::EndType::ClosedPolygon, 1000000.0)
     }
 
     fn difference_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.difference(other)
+        geo_clipper::Clipper::difference(self, other, 1000000.0)
     }
 
     fn intersection_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.intersection(other)
+        geo_clipper::Clipper::intersection(self, other, 1000000.0)
     }
 
     fn union_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.union(other)
+        geo_clipper::Clipper::union(self, other, 1000000.0)
     }
 
     fn xor_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.xor(other)
+        geo_clipper::Clipper::xor(self, other, 1000000.0)
     }
+
 }
 
 impl PolygonOperations for Polygon<f64> {
     fn offset_from(&self, delta: f64) -> MultiPolygon<f64> {
-        self.offset(delta).expect("All Points are valid")
+        geo_clipper::Clipper::offset(self,delta, geo_clipper::JoinType::Square, geo_clipper::EndType::ClosedPolygon, 1000000.0)
+  
     }
 
     fn difference_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        MultiPolygon::from(self.clone()).difference(other)
+        geo_clipper::Clipper::difference(self, other, 1000000.0)
     }
 
     fn intersection_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        MultiPolygon::from(self.clone()).intersection(other)
+        geo_clipper::Clipper::intersection(self, other, 1000000.0)
     }
 
     fn union_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        MultiPolygon::from(self.clone()).union(other)
+        geo_clipper::Clipper::union(self, other, 1000000.0)
     }
 
     fn xor_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        MultiPolygon::from(self.clone()).union(other)
+        geo_clipper::Clipper::xor(self, other, 1000000.0)
     }
 }
