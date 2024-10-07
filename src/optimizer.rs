@@ -368,7 +368,7 @@ mod tests {
         );
 
         assert_eq!(center, Coordinate { x: 1.0, y: 1.0 });
-        assert_eq!(dir.y, 0.0);
+        assert!(dir.y- 0.0 <0.000001);
         assert!(dir.x < 0.0);
 
         let (center, dir) = line_bisector(

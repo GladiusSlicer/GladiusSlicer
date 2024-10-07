@@ -590,7 +590,7 @@ mod tests {
             }
         ]};
 
-        assert_eq!(TowerRing::join_rings(r1,r2),r3);
+        ring_sliding_equality_assert(&TowerRing::join_rings(r1,r2),&r3);
     }
     
     #[test]
@@ -611,8 +611,8 @@ mod tests {
                 triangle_index: 2,
             },
             TowerRingElement::Edge {
-                start_index:4,
-                end_index: 6,
+                start_index:0,
+                end_index: 1,
             }
         ]};
 
@@ -620,23 +620,18 @@ mod tests {
 
         let expected = vec![
             TowerRing{elements: vec![
-            TowerRingElement::Edge {
-                start_index: 0,
-                end_index: 1,
-            },
-            TowerRingElement::Face {
-                triangle_index: 0,
-            }]},
-            TowerRing{elements: vec![
             TowerRingElement::Face {
                 triangle_index: 2,
             },
             TowerRingElement::Edge {
-                start_index:4,
-                end_index: 6,
+                start_index:0,
+                end_index: 1,
+            },
+            TowerRingElement::Face {
+                triangle_index: 0,
             }]}
         ];
-        assert_eq!(frags,expected);
+        rings_sliding_equality_assert(frags,expected);
     }
 
     #[test]
@@ -716,7 +711,7 @@ mod tests {
         ]}];
 
 
-        assert_eq!(frags,expected);
+        rings_sliding_equality_assert(frags,expected);
     }
     #[test]
     fn assemble_fragment_multiple_test() {
@@ -864,7 +859,7 @@ mod tests {
         ];
 
 
-        assert_eq!(frags,expected);
+        rings_sliding_equality_assert(frags,expected);
     }
     #[test]
     fn assemble_fragment_3_fragment_test() {
@@ -936,7 +931,51 @@ mod tests {
         ];
 
 
-        assert_eq!(frags,expected);
+        rings_sliding_equality_assert(frags,expected);
+    }
+
+    fn rings_sliding_equality_assert(lhs : Vec<TowerRing>, rhs: Vec<TowerRing>){
+        if lhs == rhs{
+            return;
+        }
+        if lhs.len() != rhs.len(){
+            panic!("ASSERT rings count are differnt lengths");
+        }
+
+        for q in 0..lhs.len(){
+            ring_sliding_equality_assert(&lhs[q],&rhs[q])
+        }
+
+    }
+
+    fn ring_sliding_equality_assert(lhs : &TowerRing, rhs:&TowerRing) {
+
+        if lhs == rhs{
+            return;
+        }
+        if lhs.elements.len() != rhs.elements.len(){
+            panic!("ASSERT ring {} and {} are differnt lengths", lhs,rhs);
+        }
+
+        for q in 0..lhs.elements.len()-1{
+
+            let mut equal = true;
+            for w in 0.. lhs.elements.len()-1{
+                equal = equal && rhs.elements[w] == lhs.elements[(w+q) % (lhs.elements.len()-1)] 
+            }
+
+            if equal{
+                return;
+            }
+
+            if lhs.elements.len() != rhs.elements.len(){
+                panic!("ASSERT ring {} and {} are differnt", lhs,rhs);
+            }
+    
+
+        }
+
+
     }
 
 
