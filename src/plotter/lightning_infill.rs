@@ -86,17 +86,12 @@ pub fn lightning_layer(
         .cartesian_product((min_y / v_spacing) as usize..=(max_y / v_spacing) as usize + 1)
         .map(|(x, y)| {
             if y % 2 == 0 {
-                let mut new_x = x as f64;
-                new_x *= h_spacing;
-                let mut new_y = y as f64;
-                new_y *= v_spacing;
-                Coordinate::from((new_x,new_y))
+                Coordinate::from( (x as f64 * h_spacing, y as f64 * v_spacing))
             } else {
                 Coordinate::from(((x as f64 - 0.5) * h_spacing, y as f64 * v_spacing))
             }
         })
         .filter(|coord| {
-            println!("{:?}",coord);
             unsupported_area.contains(coord)}
         )
         .map(|coord| LightningNode {
