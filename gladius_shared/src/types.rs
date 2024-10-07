@@ -3,8 +3,6 @@
 use crate::error::SlicerErrors;
 use crate::settings::{LayerSettings, Settings};
 use geo::contains::Contains;
-use geo::prelude::SimplifyVW;
-use geo::simplifyvw::SimplifyVWPreserve;
 use geo::*;
 use itertools::Itertools;
 use nalgebra::Point3;
@@ -58,7 +56,7 @@ impl Slice {
             settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
 
         Slice {
-            main_polygon: MultiPolygon(vec![polygon.simplifyvw_preserve(&0.01)]),
+            main_polygon: MultiPolygon(vec![polygon.simplify_vw_preserve(&0.01)]),
             remaining_area: MultiPolygon(vec![polygon]),
             support_interface: None,
             support_tower: None,
@@ -118,7 +116,7 @@ impl Slice {
 
         Ok(Slice {
             main_polygon: multi_polygon.clone(),
-            remaining_area: multi_polygon.simplifyvw(&0.0001),
+            remaining_area: multi_polygon.simplify_vw(&0.0001),
             support_interface: None,
             support_tower: None,
             chains: vec![],

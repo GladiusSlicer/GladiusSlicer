@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zip = "0.5.13"
+zip = "2.2.0"
 
 nom_stl = "0.2.2"
 serde = { version = "1.0", features = ["derive"] }
-serde-xml-rs = "0.5.1"
-geo = "0.18.0"
-nalgebra = "0.27.1"
-deser-hjson = "1.0.2"
+serde-xml-rs = "0.6"
+geo = "0.28"
+nalgebra = "0.33"
+deser-hjson = "2.2"
 serde_json = "1.0.74"
-itertools = "0.10.3"
+itertools = "0.13"
