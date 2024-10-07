@@ -86,21 +86,26 @@ pub fn lightning_layer(
         .cartesian_product((min_y / v_spacing) as usize..=(max_y / v_spacing) as usize + 1)
         .map(|(x, y)| {
             if y % 2 == 0 {
-                (x as f64 * h_spacing, y as f64 * v_spacing)
+                let mut new_x = x as f64;
+                new_x *= h_spacing;
+                let mut new_y = y as f64;
+                new_y *= v_spacing;
+                Coordinate::from((new_x,new_y))
             } else {
-                ((x as f64 - 0.5) * h_spacing, y as f64 * v_spacing)
+                Coordinate::from(((x as f64 - 0.5) * h_spacing, y as f64 * v_spacing))
             }
         })
-        .map(|(x, y)| Coordinate { x, y })
-        .filter(|coord| unsupported_area.contains(coord))
+        .filter(|coord| {
+            println!("{:?}",coord);
+            unsupported_area.contains(coord)}
+        )
         .map(|coord| LightningNode {
             children: vec![],
             location: coord,
         })
         .chain(fragments.into_iter())
         .filter_map(|node| {
-            if let Closest::SinglePoint(closest_point) =
-                infill_area.closest_point(&node.location.into())
+            if let Closest::SinglePoint(closest_point) = closest_point_exterior_point(&infill_area,&node.location.into() )
             {
                 let closest_coordinate: Coordinate<f64> = closest_point.into();
                 let distance: f64 = node.location.euclidean_distance(&closest_coordinate);
@@ -485,4 +490,33 @@ fn get_closest_intersection_point_on_polygon(
                 .expect("Points Should not contain NAN")
         })
         .map(|(c, _d)| c)
+}
+
+fn closest_point_exterior_point(poly:&MultiPolygon, p: &Point<f64>) -> Closest<f64> {
+
+    closest_of(poly.iter().map(
+        |p| 
+        p.interiors().iter().chain(std::iter::once(p.exterior()))
+    ).flatten(), *p)
+}
+
+//Code sources from Geo lib
+fn closest_of<C, F, I>(iter: I, p: Point<F>) -> Closest<F>
+where
+    F: GeoFloat,
+    I: IntoIterator<Item = C>,
+    C: ClosestPoint<F>,
+{
+    let mut best = Closest::Indeterminate;
+
+    for element in iter {
+        let got = element.closest_point(&p);
+        best = got.best_of_two(&best, p);
+        if matches!(best, Closest::Intersection(_)) {
+            // short circuit - nothing can be closer than an intersection
+            return best;
+        }
+    }
+
+    best
 }
