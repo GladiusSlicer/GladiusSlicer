@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+
+
+## [0.4.0]
 ### New Features
 - Added more instruction sets (before/after layer change and object change)
 - Formalized instruction set replacements
