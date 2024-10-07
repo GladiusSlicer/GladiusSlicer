@@ -1,6 +1,6 @@
 [package]
 name = "gladius_shared"
-version = "0.1.1"
+version = "0.4.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,8 +10,9 @@ zip = "2.2.0"
 
 nom_stl = "0.2.2"
 serde = { version = "1.0", features = ["derive"] }
+
 serde-xml-rs = "0.6"
-geo = "0.28"
+geo = {version = "0.28.0", features = ["use-serde"]}
 nalgebra = "0.33"
 deser-hjson = "2.2"
 serde_json = "1.0.74"

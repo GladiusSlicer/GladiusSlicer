@@ -98,7 +98,7 @@ Settings files are hJSON, a human readable json that supports comments. Examples
 ### Supported Printers
 * I only own a Prusa Mk3
 * Friend owns a CR10
-* Other Merlin firmware printers can easily be added
+* Other Marlin firmware printers can easily be added
   * Additional access to community printers will be needed to support other firmwares/G-code flavors
 
 
