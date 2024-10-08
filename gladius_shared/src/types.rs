@@ -166,13 +166,13 @@ pub enum PartialInfillTypes {
 #[derive(Default, Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename = "vertex")]
 pub struct Vertex {
-    ///X Coordinate
+    ///X Coord
     pub x: f64,
 
-    ///Y Coordinate
+    ///Y Coord
     pub y: f64,
 
-    ///Z Coordinate
+    ///Z Coord
     pub z: f64,
 }
 impl Vertex {
@@ -286,8 +286,8 @@ pub struct IndexedLine {
 ///A move of the plotter
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Move {
-    ///The end Coordinate of the Move. The start of the move is the previous moves end point.
-    pub end: Coordinate<f64>,
+    ///The end Coord of the Move. The start of the move is the previous moves end point.
+    pub end: Coord<f64>,
     ///The width of plastic to extrude for this move
     pub width: f64,
     ///The type of move
@@ -297,7 +297,7 @@ pub struct Move {
 /// A chain of moves that should happen in order
 pub struct MoveChain {
     ///start point for the chain of moves. Needed as Moves don't contain there own start point.
-    pub start_point: Coordinate<f64>,
+    pub start_point: Coord<f64>,
 
     ///List of all moves in order that they must be moved
     pub moves: Vec<Move>,
@@ -346,15 +346,15 @@ pub enum Command {
     ///Move to a specific location without extrusion
     MoveTo {
         ///The end point of the move
-        end: Coordinate<f64>,
+        end: Coord<f64>,
     },
     ///Move to a location while extruding plastic
     MoveAndExtrude {
         ///Start point of the move
-        start: Coordinate<f64>,
+        start: Coord<f64>,
 
         ///End point of the move
-        end: Coordinate<f64>,
+        end: Coord<f64>,
 
         ///The height thickness of the move
         thickness: f64,
@@ -387,13 +387,13 @@ pub enum Command {
     ///An arc move of the extruder
     Arc {
         ///start point of the arc
-        start: Coordinate<f64>,
+        start: Coord<f64>,
 
         ///end point of the arc
-        end: Coordinate<f64>,
+        end: Coord<f64>,
 
         ///The center point that the arc keeps equidistant from
-        center: Coordinate<f64>,
+        center: Coord<f64>,
 
         ///Whether the arc is clockwise or anticlockwise
         clockwise: bool,
@@ -428,7 +428,7 @@ pub enum RetractionType {
 
     ///MoveWhileRetracting
     ///Vector of (retraction amount, points to travel to)
-    MoveRetract(Vec<(f64, Coordinate<f64>)>),
+    MoveRetract(Vec<(f64, Coord<f64>)>),
 }
 
 impl RetractionType {
