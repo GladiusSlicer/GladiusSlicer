@@ -1,7 +1,7 @@
 #![deny(clippy::unwrap_used)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use clap::{load_yaml, App};
+use clap::Parser;
 use gladius_shared::loader::*;
 use gladius_shared::types::*;
 
@@ -48,15 +48,29 @@ mod slicing;
 mod tower;
 mod utils;
 
+
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(required = true)]
+    input: Vec<String>,
+    #[arg(short = 'o')]
+    output: Option<String>,
+    #[arg(short = 'v',action = clap::ArgAction::Count,conflicts_with = "message")]
+    verbose: u8,
+    #[arg(short = 's')]
+    settings: Option<String>,
+    #[arg(short = 'm')]
+    message: bool,
+    #[arg(short = 'j')]
+    thread_count: Option<usize>,
+}
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
-    let yaml = load_yaml!("cli.yaml");
-    let matches = App::from_yaml(yaml).get_matches();
+    let args : Args = Args::parse();
 
     //set number of cores for rayon
-    if let Some(number_of_threads) = matches
-        .value_of("THREAD_COUNT")
-        .and_then(|str| str.parse::<usize>().ok())
+    if let Some(number_of_threads) = args.thread_count
     {
         rayon::ThreadPoolBuilder::new()
             .num_threads(number_of_threads)
@@ -64,14 +78,14 @@ fn main() {
             .expect("Only call to build global");
     }
 
-    let send_messages = matches.is_present("MESSAGES");
+    let send_messages = args.message;
 
     if !send_messages {
         // Vary the output based on how many times the user used the "verbose" flag
         // (i.e. 'myprog -v -v -v' or 'myprog -vvv' vs 'myprog -v'
 
         SimpleLogger::new()
-            .with_level(match matches.occurrences_of("VERBOSE") {
+            .with_level(match args.verbose {
                 0 => LevelFilter::Error,
                 1 => LevelFilter::Warn,
                 2 => LevelFilter::Info,
@@ -85,10 +99,8 @@ fn main() {
     display_state_update("Loading Inputs", send_messages);
     let (models, settings) = handle_err_or_return(
         files_input(
-            matches.value_of("SETTINGS"),
-            matches
-                .values_of("INPUT")
-                .map(|values| values.map(|v| v.to_string()).collect()),
+            args.settings.as_ref().map(|x| x.as_str()),
+            Some(args.input)
         ),
         send_messages,
     );
@@ -157,7 +169,7 @@ fn main() {
 
     display_state_update("Outputting G-code", send_messages);
     //Output the GCode
-    if let Some(file_path) = matches.value_of("OUTPUT") {
+    if let Some(file_path) = &args.output {
         //Output to file
         debug!("Converting {} Moves", moves.len());
         handle_err_or_return(
