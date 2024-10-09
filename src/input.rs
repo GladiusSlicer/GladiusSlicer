@@ -109,7 +109,7 @@ fn load_settings(filepath: &str) -> Result<Settings, SlicerErrors> {
         std::fs::read_to_string(filepath).map_err(|_| SlicerErrors::SettingsFileNotFound {
             filepath: filepath.to_string(),
         })?;
-    let partial_settings: PartialSettings =
+    let partial_settings: PartialSettingsFile =
         deser_hjson::from_str(&settings_data).map_err(|_| SlicerErrors::SettingsFileMisformat {
             filepath: filepath.to_string(),
         })?;

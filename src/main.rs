@@ -8,7 +8,7 @@ use gladius_shared::types::*;
 use crate::plotter::convert_objects_into_moves;
 use crate::tower::*;
 use geo::*;
-use gladius_shared::settings::{PartialSettings, Settings, SettingsValidationResult};
+use gladius_shared::settings::{PartialSettingsFile, Settings, SettingsValidationResult};
 use std::fs::File;
 
 use std::ffi::OsStr;

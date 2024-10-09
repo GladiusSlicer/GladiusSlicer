@@ -1,7 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+### New Features
+- Sub settings ( Acceleration.Bridge) can be set indepently now
 
+### Fixes
 
 ## [0.4.0]
 ### New Features

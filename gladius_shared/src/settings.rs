@@ -3,6 +3,7 @@
 use crate::error::SlicerErrors;
 use crate::types::{MoveType, PartialInfillTypes, SolidInfillTypes};
 use crate::warning::SlicerWarnings;
+use gladius_proc_macros::Settings;
 use serde::{Deserialize, Serialize};
 
 macro_rules! setting_less_than_or_equal_to_zero {
@@ -58,24 +59,29 @@ macro_rules! option_setting_less_than_zero {
 }
 
 ///A complete settings file for the entire slicer.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Settings,Serialize, Deserialize, Debug)]
 pub struct Settings {
     ///The height of the layers
     pub layer_height: f64,
 
+    #[Recursive(PartialMovementParameter)]
     ///The extrusion width of the layers
     pub extrusion_width: MovementParameter,
 
+    #[Recursive(PartialFilamentSettings)]
     ///The filament Settings
     pub filament: FilamentSettings,
 
+    #[Recursive(PartialFanSettings)]
     ///The fan settings
     pub fan: FanSettings,
 
     ///The skirt settings, if None no skirt will be generated
+    #[Optional]
     pub skirt: Option<SkirtSettings>,
 
     ///The support settings, if None no support will be generated
+    #[Optional]
     pub support: Option<SupportSettings>,
 
     ///Diameter of the nozzle in mm
@@ -90,12 +96,15 @@ pub struct Settings {
     ///The velocity of retracts
     pub retract_speed: f64,
 
+    #[Optional]
     ///Retraction Wipe
     pub retraction_wipe: Option<RetractionWipeSettings>,
 
+    #[Recursive(PartialMovementParameter)]
     ///The speeds used for movement
     pub speed: MovementParameter,
 
+    #[Recursive(PartialMovementParameter)]
     ///The acceleration for movement
     pub acceleration: MovementParameter,
 
@@ -123,9 +132,11 @@ pub struct Settings {
     ///Size of the printer in z dimension in mm
     pub print_z: f64,
 
+    #[Optional]
     ///Width of the brim, if None no brim will be generated
     pub brim_width: Option<f64>,
 
+    #[Optional]
     ///Inset the layer by the provided amount, if None on inset will be performed
     pub layer_shrink_amount: Option<f64>,
 
@@ -135,6 +146,8 @@ pub struct Settings {
     ///Overlap between infill and interior perimeters
     pub infill_perimeter_overlap_percentage: f64,
 
+
+    
     ///Solid Infill type
     pub solid_infill_type: SolidInfillTypes,
 
@@ -194,6 +207,8 @@ pub struct Settings {
     ///Maximum feedrate for e dimension
     pub maximum_feedrate_e: f64,
 
+    #[Combine]
+    #[AllowDefault]
     ///Settings for specific layers
     pub layer_settings: Vec<(LayerRange, PartialLayerSettings)>,
 }
@@ -346,7 +361,10 @@ impl Settings {
                 LayerRange::SingleLayer(filter_layer) => *filter_layer == layer,
             })
             .map(|(_lr, pls)| pls)
-            .fold(PartialLayerSettings::default(), |a, b| a.combine(b));
+            .fold(PartialLayerSettings::default(), |mut a, b| {
+                a.combine(b.clone());
+                a
+            });
 
         LayerSettings {
             layer_height: changes.layer_height.unwrap_or(self.layer_height),
@@ -535,10 +553,12 @@ pub enum SettingsValidationResult {
 }
 
 ///Settings specific to a Layer
+#[derive(Settings)]
 pub struct LayerSettings {
     ///The height of the layers
     pub layer_height: f64,
 
+    #[Optional]
     ///Inset the layer by the provided amount, if None on inset will be performed
     pub layer_shrink_amount: Option<f64>,
 
@@ -572,6 +592,7 @@ pub struct LayerSettings {
     ///Temperature of the extuder
     pub extruder_temp: f64,
 
+    #[Optional]
     ///Retraction Wipe
     pub retraction_wipe: Option<RetractionWipeSettings>,
 
@@ -580,7 +601,7 @@ pub struct LayerSettings {
 }
 
 ///A set of values for different movement types
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Settings,Serialize, Deserialize, Debug, Clone)]
 pub struct MovementParameter {
     ///Value for interior (perimeters that are inside the model
     pub interior_inner_perimeter: f64,
@@ -631,7 +652,7 @@ impl MovementParameter {
     }
 }
 ///Settings for a filament
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Settings,Serialize, Deserialize, Debug, Clone)]
 pub struct FilamentSettings {
     ///Diameter of this filament in mm
     pub diameter: f64,
@@ -650,7 +671,7 @@ pub struct FilamentSettings {
 }
 
 ///Settigns for the fans
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Settings,Serialize, Deserialize, Debug, Clone)]
 pub struct FanSettings {
     ///The default fan speed
     pub fan_speed: f64,
@@ -721,154 +742,27 @@ pub struct RetractionWipeSettings {
     pub distance: f64,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 ///A partial complete settings file
-#[derive(Serialize, Deserialize, Debug)]
-pub struct PartialSettings {
-    ///The height of the layers
-    pub layer_height: Option<f64>,
-
-    ///The extrusion width of the layers
-    pub extrusion_width: Option<MovementParameter>,
-
-    ///Inset the layer by the provided amount, if None on inset will be performed
-    pub layer_shrink_amount: Option<f64>,
-    ///The filament Settings
-    pub filament: Option<FilamentSettings>,
-    ///The fan settings
-    pub fan: Option<FanSettings>,
-    ///The skirt settings, if None no skirt will be generated
-    pub skirt: Option<SkirtSettings>,
-    ///The support settings, if None no support will be generated
-    pub support: Option<SupportSettings>,
-    ///Diameter of the nozzle in mm
-    pub nozzle_diameter: Option<f64>,
-
-    ///length to retract in mm
-    pub retract_length: Option<f64>,
-
-    ///Retraction Wipe
-    pub retraction_wipe: Option<RetractionWipeSettings>,
-
-    ///Distance to lift the z axis during a retract
-    pub retract_lift_z: Option<f64>,
-
-    ///The velocity of retracts
-    pub retract_speed: Option<f64>,
-
-    ///The speeds used for movement
-    pub speed: Option<MovementParameter>,
-
-    ///The acceleration for movement
-    pub acceleration: Option<MovementParameter>,
-
-    ///The percentage of infill to use for partial infill
-    pub infill_percentage: Option<f64>,
-
-    ///Controls the order of perimeters
-    pub inner_perimeters_first: Option<bool>,
-
-    ///Number of perimeters to use if possible
-    pub number_of_perimeters: Option<usize>,
-
-    ///Number of solid top layers before infill
-    pub top_layers: Option<usize>,
-
-    ///Number of solid bottom layers before infill
-    pub bottom_layers: Option<usize>,
-
-    ///Size of the printer in x dimension in mm
-    pub print_x: Option<f64>,
-
-    ///Size of the printer in y dimension in mm
-    pub print_y: Option<f64>,
-
-    ///Size of the printer in z dimension in mm
-    pub print_z: Option<f64>,
-
-    ///Width of the brim, if None no brim will be generated
-    pub brim_width: Option<f64>,
-
-    ///The minimum travel distance required to perform a retraction
-    pub minimum_retract_distance: Option<f64>,
-
-    ///Overlap between infill and interior perimeters
-    pub infill_perimeter_overlap_percentage: Option<f64>,
-
-    ///Solid Infill type
-    pub solid_infill_type: Option<SolidInfillTypes>,
-
-    ///Partial Infill type
-    pub partial_infill_type: Option<PartialInfillTypes>,
-
-    ///The instructions to prepend to the exported instructions
-    pub starting_instructions: Option<String>,
-
-    ///The instructions to append to the end of the exported instructions
-    pub ending_instructions: Option<String>,
-
-    /// The instructions to append before layer changes
-    pub before_layer_change_instructions: Option<String>,
-
-    /// The instructions to append after layer changes
-    pub after_layer_change_instructions: Option<String>,
-
-    /// The instructions to append between object changes
-    pub object_change_instructions: Option<String>,
-
+pub struct PartialSettingsFile{
     ///Other files to load
     pub other_files: Option<Vec<String>>,
 
-    ///Maximum Acceleration in x dimension
-    pub max_acceleration_x: Option<f64>,
-    ///Maximum Acceleration in y dimension
-    pub max_acceleration_y: Option<f64>,
-    ///Maximum Acceleration in z dimension
-    pub max_acceleration_z: Option<f64>,
-    ///Maximum Acceleration in e dimension
-    pub max_acceleration_e: Option<f64>,
+    #[serde(flatten)]
+    partial_settings: PartialSettings,
 
-    ///Maximum Acceleration while extruding
-    pub max_acceleration_extruding: Option<f64>,
-    ///Maximum Acceleration while traveling
-    pub max_acceleration_travel: Option<f64>,
-    ///Maximum Acceleration while retracting
-    pub max_acceleration_retracting: Option<f64>,
-
-    ///Maximum Jerk in x dimension
-    pub max_jerk_x: Option<f64>,
-    ///Maximum Jerk in y dimension
-    pub max_jerk_y: Option<f64>,
-    ///Maximum Jerk in z dimension
-    pub max_jerk_z: Option<f64>,
-    ///Maximum Jerk in e dimension
-    pub max_jerk_e: Option<f64>,
-
-    ///Minimum feedrate for extrusion moves
-    pub minimum_feedrate_print: Option<f64>,
-    ///Minimum feedrate for travel moves
-    pub minimum_feedrate_travel: Option<f64>,
-    ///Maximum feedrate for x dimension
-    pub maximum_feedrate_x: Option<f64>,
-    ///Maximum feedrate for y dimension
-    pub maximum_feedrate_y: Option<f64>,
-    ///Maximum feedrate for z dimension
-    pub maximum_feedrate_z: Option<f64>,
-    ///Maximum feedrate for e dimension
-    pub maximum_feedrate_e: Option<f64>,
-
-    ///Settings for specific layers
-    pub layer_settings: Option<Vec<(LayerRange, PartialLayerSettings)>>,
 }
 
-impl PartialSettings {
+impl PartialSettingsFile{
+
     ///Convert a partial settings file into a complete settings file
     /// returns an error if a settings is not present in this or any sub file
     pub fn get_settings(mut self) -> Result<Settings, SlicerErrors> {
         self.combine_with_other_files()?;
 
-        try_convert_partial_to_settings(self).map_err(|err| {
+        Settings::try_from(self.partial_settings).map_err(|err| {
             SlicerErrors::SettingsFileMissingSettings {
-                missing_setting: err,
+                missing_setting: err.0,
             }
         })
     }
@@ -881,124 +775,25 @@ impl PartialSettings {
             .unwrap_or_default();
 
         for file in &files {
-            let mut ps: PartialSettings =
+            let mut ps: PartialSettingsFile =
                 deser_hjson::from_str(&std::fs::read_to_string(file).map_err(|_| {
                     SlicerErrors::SettingsRecursiveLoadError {
                         filepath: file.to_string(),
                     }
                 })?)
                 .map_err(|_| SlicerErrors::SettingsFileMisformat {
-                    filepath: file.to_string(),
+                     filepath: file.to_string(),
                 })?;
 
             ps.combine_with_other_files()?;
 
-            *self = self.combine(ps);
+            self.partial_settings.combine(ps.partial_settings);
         }
 
         Ok(())
     }
-
-    fn combine(&self, other: PartialSettings) -> PartialSettings {
-        PartialSettings {
-            layer_height: self.layer_height.or(other.layer_height),
-            extrusion_width: self
-                .extrusion_width
-                .clone()
-                .or_else(|| other.extrusion_width.clone()),
-            layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
-            filament: self.filament.clone().or_else(|| other.filament.clone()),
-            fan: self.fan.clone().or_else(|| other.fan.clone()),
-            skirt: self.skirt.clone().or_else(|| other.skirt.clone()),
-            support: self.support.clone().or_else(|| other.support.clone()),
-            nozzle_diameter: self.nozzle_diameter.or(other.nozzle_diameter),
-            retract_length: self.retract_length.or(other.retract_length),
-            retraction_wipe: self.retraction_wipe.clone().or(other.retraction_wipe),
-            retract_lift_z: self.retract_lift_z.or(other.retract_lift_z),
-            retract_speed: self.retract_speed.or(other.retract_speed),
-            speed: self.speed.clone().or_else(|| other.speed.clone()),
-            acceleration: self
-                .acceleration
-                .clone()
-                .or_else(|| other.acceleration.clone()),
-            infill_percentage: self.infill_percentage.or(other.infill_percentage),
-            inner_perimeters_first: self.inner_perimeters_first.or(other.inner_perimeters_first),
-            number_of_perimeters: self.number_of_perimeters.or(other.number_of_perimeters),
-            top_layers: self.top_layers.or(other.top_layers),
-            bottom_layers: self.bottom_layers.or(other.bottom_layers),
-            print_x: self.print_x.or(other.print_x),
-            print_y: self.print_y.or(other.print_y),
-            print_z: self.print_z.or(other.print_z),
-            brim_width: self.brim_width.or(other.brim_width),
-            minimum_retract_distance: self
-                .minimum_retract_distance
-                .or(other.minimum_retract_distance),
-            infill_perimeter_overlap_percentage: self
-                .infill_perimeter_overlap_percentage
-                .or(other.infill_perimeter_overlap_percentage),
-            solid_infill_type: self.solid_infill_type.or(other.solid_infill_type),
-            partial_infill_type: self.partial_infill_type.or(other.partial_infill_type),
-            starting_instructions: self
-                .starting_instructions
-                .clone()
-                .or_else(|| other.starting_instructions.clone()),
-            ending_instructions: self
-                .ending_instructions
-                .clone()
-                .or(other.ending_instructions),
-            before_layer_change_instructions: self
-                .before_layer_change_instructions
-                .clone()
-                .or(other.before_layer_change_instructions),
-            after_layer_change_instructions: self
-                .after_layer_change_instructions
-                .clone()
-                .or(other.after_layer_change_instructions),
-            object_change_instructions: self
-                .object_change_instructions
-                .clone()
-                .or(other.object_change_instructions),
-            other_files: None,
-            max_acceleration_x: self.max_acceleration_x.or(other.max_acceleration_x),
-            max_acceleration_y: self.max_acceleration_y.or(other.max_acceleration_y),
-            max_acceleration_z: self.max_acceleration_z.or(other.max_acceleration_z),
-            max_acceleration_e: self.max_acceleration_e.or(other.max_acceleration_e),
-            max_acceleration_extruding: self
-                .max_acceleration_extruding
-                .or(other.max_acceleration_extruding),
-            max_acceleration_travel: self
-                .max_acceleration_travel
-                .or(other.max_acceleration_travel),
-            max_acceleration_retracting: self
-                .max_acceleration_retracting
-                .or(other.max_acceleration_retracting),
-            max_jerk_x: self.max_jerk_x.or(other.max_jerk_x),
-            max_jerk_y: self.max_jerk_y.or(other.max_jerk_y),
-            max_jerk_z: self.max_jerk_z.or(other.max_jerk_z),
-            max_jerk_e: self.max_jerk_e.or(other.max_jerk_e),
-            minimum_feedrate_print: self.minimum_feedrate_print.or(other.minimum_feedrate_print),
-            minimum_feedrate_travel: self
-                .minimum_feedrate_travel
-                .or(other.minimum_feedrate_travel),
-            maximum_feedrate_x: self.maximum_feedrate_x.or(other.maximum_feedrate_x),
-            maximum_feedrate_y: self.maximum_feedrate_y.or(other.maximum_feedrate_y),
-            maximum_feedrate_z: self.maximum_feedrate_z.or(other.maximum_feedrate_z),
-            maximum_feedrate_e: self.maximum_feedrate_e.or(other.maximum_feedrate_e),
-            layer_settings: {
-                match (self.layer_settings.as_ref(), other.layer_settings.as_ref()) {
-                    (None, None) => None,
-                    (None, Some(v)) | (Some(v), None) => Some(v.clone()),
-                    (Some(a), Some(b)) => {
-                        let mut v = vec![];
-                        v.append(&mut a.clone());
-                        v.append(&mut b.clone());
-                        Some(v)
-                    }
-                }
-            },
-        }
-    }
 }
+
 
 /// The different types of layer ranges supported
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -1025,163 +820,7 @@ pub enum LayerRange {
     },
 }
 
-///A Partial List of all slicer settings
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-pub struct PartialLayerSettings {
-    ///The height of the layers
-    pub layer_height: Option<f64>,
 
-    ///Inset the layer by the provided amount, if None on inset will be performed
-    pub layer_shrink_amount: Option<f64>,
-
-    ///The speeds used for movement
-    pub speed: Option<MovementParameter>,
-
-    ///The acceleration for movement
-    pub acceleration: Option<MovementParameter>,
-
-    ///The extrusion widths of the layers
-    pub extrusion_width: Option<MovementParameter>,
-
-    ///Solid Infill type
-    pub solid_infill_type: Option<SolidInfillTypes>,
-
-    ///Partial Infill type
-    pub partial_infill_type: Option<PartialInfillTypes>,
-
-    ///The percentage of infill to use for partial infill
-    pub infill_percentage: Option<f64>,
-
-    ///Overlap between infill and interior perimeters
-    pub infill_perimeter_overlap_percentage: Option<f64>,
-
-    ///Controls the order of perimeters
-    pub inner_perimeters_first: Option<bool>,
-
-    ///The Bed Temperature
-    pub bed_temp: Option<f64>,
-
-    ///The Extruder Temperature
-    pub extruder_temp: Option<f64>,
-
-    ///Retraction Wipe
-    pub retraction_wipe: Option<RetractionWipeSettings>,
-
-    ///Retraction Distance
-    pub retraction_length: Option<f64>,
-}
-
-impl PartialLayerSettings {
-    fn combine(&self, other: &PartialLayerSettings) -> PartialLayerSettings {
-        PartialLayerSettings {
-            layer_height: self.layer_height.or(other.layer_height),
-            extrusion_width: self
-                .extrusion_width
-                .clone()
-                .or_else(|| other.extrusion_width.clone()),
-            speed: self.speed.clone().or_else(|| other.speed.clone()),
-            acceleration: self
-                .acceleration
-                .clone()
-                .or_else(|| other.acceleration.clone()),
-            infill_percentage: self.infill_percentage.or(other.infill_percentage),
-
-            inner_perimeters_first: self.inner_perimeters_first.or(other.inner_perimeters_first),
-
-            bed_temp: self.bed_temp.or(other.bed_temp),
-            extruder_temp: self.extruder_temp.or(other.extruder_temp),
-            retraction_wipe: self
-                .retraction_wipe
-                .clone()
-                .or_else(|| other.retraction_wipe.clone()),
-            infill_perimeter_overlap_percentage: self
-                .infill_perimeter_overlap_percentage
-                .or(other.infill_perimeter_overlap_percentage),
-            solid_infill_type: self.solid_infill_type.or(other.solid_infill_type),
-            partial_infill_type: self.partial_infill_type.or(other.partial_infill_type),
-            layer_shrink_amount: self.layer_shrink_amount.or(other.layer_shrink_amount),
-            retraction_length: self.retraction_length.or(other.retraction_length),
-        }
-    }
-}
-
-fn try_convert_partial_to_settings(part: PartialSettings) -> Result<Settings, String> {
-    Ok(Settings {
-        layer_height: part.layer_height.ok_or("layer_height")?,
-        extrusion_width: part.extrusion_width.ok_or("extrusion_width")?,
-        filament: part.filament.ok_or("filament")?,
-        fan: part.fan.ok_or("fan")?,
-        skirt: part.skirt,
-        support: part.support,
-        nozzle_diameter: part.nozzle_diameter.ok_or("nozzle_diameter")?,
-        retract_length: part.retract_length.ok_or("retract_length")?,
-        retract_lift_z: part.retract_lift_z.ok_or("retract_lift_z")?,
-        retract_speed: part.retract_speed.ok_or("retract_speed")?,
-        retraction_wipe: part.retraction_wipe,
-        speed: part.speed.ok_or("speed")?,
-        acceleration: part.acceleration.ok_or("acceleration")?,
-        infill_percentage: part.infill_percentage.ok_or("infill_percentage")?,
-        inner_perimeters_first: part
-            .inner_perimeters_first
-            .ok_or("inner_perimeters_first")?,
-        number_of_perimeters: part.number_of_perimeters.ok_or("number_of_perimeters")?,
-        top_layers: part.top_layers.ok_or("top_layers")?,
-        bottom_layers: part.bottom_layers.ok_or("bottom_layers")?,
-        print_x: part.print_x.ok_or("print_x")?,
-        print_y: part.print_y.ok_or("print_y")?,
-        print_z: part.print_z.ok_or("print_z")?,
-        brim_width: part.brim_width,
-        layer_shrink_amount: part.layer_shrink_amount,
-        minimum_retract_distance: part
-            .minimum_retract_distance
-            .ok_or("minimum_retract_distance")?,
-        infill_perimeter_overlap_percentage: part
-            .infill_perimeter_overlap_percentage
-            .ok_or("infill_perimeter_overlap_percentage")?,
-        solid_infill_type: part.solid_infill_type.ok_or("solid_infill_type")?,
-        partial_infill_type: part.partial_infill_type.ok_or("partial_infill_type")?,
-        starting_instructions: part.starting_instructions.ok_or("starting_instructions")?,
-        ending_instructions: part.ending_instructions.ok_or("ending_instructions")?,
-        before_layer_change_instructions: part
-            .before_layer_change_instructions
-            .ok_or("before_layer_change_instructions")?,
-        after_layer_change_instructions: part
-            .after_layer_change_instructions
-            .ok_or("after_layer_change_instructions")?,
-        object_change_instructions: part
-            .object_change_instructions
-            .ok_or("object_change_instructions")?,
-
-        max_acceleration_x: part.max_acceleration_x.ok_or("max_acceleration_x")?,
-        max_acceleration_y: part.max_acceleration_y.ok_or("max_acceleration_y")?,
-        max_acceleration_z: part.max_acceleration_z.ok_or("max_acceleration_z")?,
-        max_acceleration_e: part.max_acceleration_e.ok_or("max_acceleration_e")?,
-        max_acceleration_extruding: part
-            .max_acceleration_extruding
-            .ok_or("max_acceleration_extruding")?,
-        max_acceleration_travel: part
-            .max_acceleration_travel
-            .ok_or("max_acceleration_travel")?,
-        max_acceleration_retracting: part
-            .max_acceleration_retracting
-            .ok_or("max_acceleration_retracting")?,
-        max_jerk_x: part.max_jerk_x.ok_or("max_jerk_x")?,
-        max_jerk_y: part.max_jerk_y.ok_or("max_jerk_y")?,
-        max_jerk_z: part.max_jerk_z.ok_or("max_jerk_z")?,
-        max_jerk_e: part.max_jerk_e.ok_or("max_jerk_e")?,
-        minimum_feedrate_print: part
-            .minimum_feedrate_print
-            .ok_or("minimum_feedrate_print")?,
-        minimum_feedrate_travel: part
-            .minimum_feedrate_travel
-            .ok_or("minimum_feedrate_travel")?,
-        maximum_feedrate_x: part.maximum_feedrate_x.ok_or("maximum_feedrate_x")?,
-        maximum_feedrate_y: part.maximum_feedrate_y.ok_or("maximum_feedrate_y")?,
-        maximum_feedrate_z: part.maximum_feedrate_z.ok_or("maximum_feedrate_z")?,
-        maximum_feedrate_e: part.maximum_feedrate_e.ok_or("maximum_feedrate_e")?,
-        layer_settings: part.layer_settings.unwrap_or_default(),
-    })
-}
 
 fn check_extrusions(
     extrusion_width: &MovementParameter,
@@ -1411,3 +1050,25 @@ fn check_accelerations(
 
     SettingsValidationResult::NoIssue
 }
+
+trait Combine{
+    fn combine(&mut self, other: Self);
+}
+
+impl<T> Combine for Vec<T>{
+    fn combine(&mut self, mut other: Self)  {
+        self.append(&mut other);
+    }
+}
+
+impl<T> Combine for Option<T>{
+    fn combine(&mut self, other: Self) {
+        if self.is_none(){
+            *self = other;
+        }
+    }
+}
+
+///Error for Partial Convertion to Full Type
+///String contains missing path
+pub struct PartialConvertError(String);
