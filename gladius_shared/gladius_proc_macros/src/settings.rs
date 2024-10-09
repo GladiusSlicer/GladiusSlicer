@@ -15,7 +15,7 @@
  *   limitations under the License.
 */
 
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DataStruct, DeriveInput};
 
 
@@ -35,6 +35,7 @@ pub fn derive_proc_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
         let partial_settings_struct_content = transform_fields_into_partial_struct_fields(&data_struct);
         let combine_function = transform_fields_into_combine_function(&data_struct);
         let try_from_internals = transform_fields_into_try_from_internals(&data_struct);
+        let names_and_types = transform_fields_into_names_and_types(&data_struct);
 
       quote! {
 
@@ -72,6 +73,14 @@ pub fn derive_proc_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
                 
             }
         }
+
+        impl  #struct_name_ident{
+            fn get_names_and_types() -> Vec<(String,String)>{
+                #names_and_types
+            }
+            
+        }
+
 
       }
 
@@ -259,3 +268,33 @@ fn transform_fields_into_try_from_internals( data_struct: &DataStruct) -> proc_m
 
 }
 
+
+fn transform_fields_into_names_and_types( data_struct: &DataStruct) -> proc_macro2::TokenStream{
+
+    match data_struct.fields {
+        syn::Fields::Named(ref fields) => {
+            let props_ts_iter = fields
+                .named
+                .iter()
+                .map(|named_field| {
+                    let field_ident = named_field.ident.as_ref().unwrap().to_string();
+                    let type_ident_original = &named_field.ty.to_token_stream().to_string();
+                    quote! { 
+                       ( #field_ident.to_string(), #type_ident_original.to_string()),
+                    }
+                });
+                  // Unwrap iterator into a [proc_macro2::TokenStream].
+            quote! {
+
+                vec![
+                    #(#props_ts_iter)*
+                ]
+
+
+            }
+        }
+    _ => quote! {},
+    }
+
+
+}
