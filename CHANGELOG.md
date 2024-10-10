@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 ### New Features
-- Sub settings ( Acceleration.Bridge) can be set indepently now
+- Sub settings ( Acceleration.Bridge) can be set independently now
 
 ### Fixes
 
