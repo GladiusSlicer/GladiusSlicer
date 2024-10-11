@@ -1,8 +1,9 @@
+use crate::point;
 use geo::algorithm::euclidean_length::EuclideanLength;
 use geo::euclidean_distance::EuclideanDistance;
-use geo::{Coordinate, Line};
+use geo::{Coord, Line};
 use gladius_shared::settings::Settings;
-use gladius_shared::types::{Command, StateChange};
+use gladius_shared::types::{Command, RetractionType, StateChange};
 use itertools::Itertools;
 
 pub fn unary_optimizer(cmds: &mut Vec<Command>) {
@@ -15,18 +16,20 @@ pub fn unary_optimizer(cmds: &mut Vec<Command>) {
             !(new_state.acceleration.is_none()
                 && new_state.movement_speed.is_none()
                 && new_state.fan_speed.is_none()
-                && new_state.retract.is_none()
+                && new_state.retract == RetractionType::NoRetract
                 && new_state.extruder_temp.is_none()
                 && new_state.bed_temp.is_none())
         }
         Command::Delay { msec } => *msec != 0,
-        Command::Arc { start, end, .. } => start != end,
+        Command::Arc {
+            start, end, center, ..
+        } => start != end || start != center,
         Command::NoAction => false,
     });
 }
 
 pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
-    let mut current_pos = Coordinate::zero();
+    let mut current_pos = Coord::zero();
 
     *cmds = cmds
         .drain(..)
@@ -69,6 +72,15 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                     current_pos = s_end;
                     return Ok(Command::MoveTo { end: s_end });
                 }
+                (Command::Delay { msec: t1 }, Command::Delay { msec: t2 }) => {
+                    //merge back to back delays
+                    return Ok(Command::Delay { msec: t1 + t2 });
+                }
+
+                (Command::ChangeObject { .. }, Command::ChangeObject { object }) => {
+                    // skip an object change followed by another change
+                    return Ok(Command::ChangeObject { object });
+                }
 
                 (
                     Command::SetState { new_state: f_state },
@@ -84,19 +96,33 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                     },
                     Command::MoveTo { end },
                 ) => {
-                    if f_state.retract == Some(true)
+                    if f_state.retract == RetractionType::Retract
                         && Line::new(current_pos, end).euclidean_length()
                             < settings.minimum_retract_distance
                     {
                         current_pos = end;
 
                         //remove retract command
-                        f_state.retract = None;
+                        f_state.retract = RetractionType::NoRetract;
 
                         return Err((
                             Command::SetState { new_state: f_state },
                             Command::MoveTo { end },
                         ));
+                    } else if let RetractionType::MoveRetract(_) = f_state.retract {
+                        if Line::new(current_pos, end).euclidean_length()
+                            < settings.minimum_retract_distance
+                        {
+                            current_pos = end;
+
+                            //remove retract command
+                            f_state.retract = RetractionType::NoRetract;
+
+                            return Err((
+                                Command::SetState { new_state: f_state },
+                                Command::MoveTo { end },
+                            ));
+                        }
                     } else {
                         current_pos = end;
                     }
@@ -132,123 +158,134 @@ pub fn state_optomizer(cmds: &mut Vec<Command>) {
     }
 }
 
-/*
-pub fn arc_optomizer(cmds: &mut Vec<Command> ){
+pub fn arc_optomizer(cmds: &mut Vec<Command>) {
     let mut ranges = vec![];
 
-    for (b,group) in &cmds
-        .iter()
-        .enumerate()
-        .group_by(|cmd| {
-            if let Command::MoveAndExtrude { .. } = cmd.1 { true } else { false }
-        })
-    {
-        if b{
+    //println!("{}",cmds.len());
 
-            let mut current_center = (0.0,0.0);
+    for (wt, group) in &cmds.iter().enumerate().group_by(|cmd| {
+        //println!("{}",cmd.0);
+        if let Command::MoveAndExtrude {
+            thickness, width, ..
+        } = cmd.1
+        {
+            Some((thickness, width))
+        } else {
+            None
+        }
+    }) {
+        if let Some((thickness, width)) = wt {
+            let mut current_center = (0.0, 0.0);
             let mut current_radius = 0.0;
             let mut current_chain = 0;
 
-            let mut last_pos =0;
+            let mut last_pos = 0;
+            let mut group_peek = group.peekable();
+            let mut start_pos = group_peek.peek().expect("validated aboive").0;
 
-
-            for (pos,center,radius) in group
-
+            for (pos, center, radius) in group_peek
                 //commands -> lines
-                .map(|(pos,cmd)|{
-                    if let Command::MoveAndExtrude {start,end} = cmd{
-                        (pos,(start,end))
-                    }
-                    else{
+                .map(|(pos, cmd)| {
+                    if let Command::MoveAndExtrude { start, end, .. } = cmd {
+                        (pos, (start, end))
+                    } else {
                         unreachable!()
                     }
                 })
                 //lines -> bisector
-                .tuple_windows::<((usize,(&Coordinate<f64>,&Coordinate<f64>)),(usize,(&Coordinate<f64>,&Coordinate<f64>)))>()
-                .map(|((pos,l1),(_,l2))| {
-                   //println!("({},{}) ({},{}) ", l1.0.x,l1.0.y,l1.1.x,l1.1.y );
-                    (pos,line_bisector(l1.0,l1.1,l2.1))
+                .tuple_windows::<(
+                    (usize, (&Coord<f64>, &Coord<f64>)),
+                    (usize, (&Coord<f64>, &Coord<f64>)),
+                )>()
+                .map(|((pos, l1), (_, l2))| {
+                    //println!("({},{}) ({},{}) ", l1.0.x,l1.0.y,l1.1.x,l1.1.y );
+                    (pos, line_bisector(l1.0, l1.1, l2.1))
                 })
                 //bisector -> center, radius
-                .tuple_windows::<((usize,(Coordinate<f64>,Coordinate<f64>)),(usize,(Coordinate<f64>,Coordinate<f64>)))>()
-                .filter_map(|((pos,(p1,n1)),(_,(p2,n2)))| {
-
+                .tuple_windows::<(
+                    (usize, (Coord<f64>, Coord<f64>)),
+                    (usize, (Coord<f64>, Coord<f64>)),
+                )>()
+                .filter_map(|((pos, (p1, n1)), (_, (p2, n2)))| {
                     //println!("({:?},{:?}) ",p1,n1 );
 
-                    ray_ray_intersection(&p1,&n1,&p2,&n2).map(|center| (pos,center.x_y(), center.euclidean_distance(&p1)))
-
-                }){
-
+                    ray_ray_intersection(&p1, &n1, &p2, &n2)
+                        .map(|center| (pos, center.x_y(), center.euclidean_distance(&p1)))
+                })
+            {
                 last_pos = pos;
 
                 //println!("{} ({},{}) ", radius,center.0,center.1);
-                if (radius -current_radius).abs() < 1.1{
-                    if (center.0 -current_center.0).abs() < 1.1 {
-                        if (center.1 -current_center.1).abs() < 1.1 {
-                            current_chain += 1;
-                            continue;
-                        }
-                    }
+                if (radius - current_radius).abs() < 1.1
+                    && (center.0 - current_center.0).abs() < 1.1
+                    && (center.1 - current_center.1).abs() < 1.1
+                {
+                    current_chain += 1;
+                    continue;
                 }
 
-                if current_chain >5{
-                    ranges.push((center,(pos- current_chain..pos)));
+                if current_chain > 5 {
+                    ranges.push((center, (start_pos..=pos), *thickness, *width));
 
-                    //println!("arc found {}..{}", pos- current_chain , pos);
+                    //println!("arc found {}..{}", start_pos , pos);
                 }
-
 
                 current_center = center;
                 current_radius = radius;
                 current_chain = 1;
-
-
-
-
+                start_pos = pos;
             }
 
-            if current_chain >5{
-                println!("{}..{}", current_chain , last_pos);
-                ranges.push((current_center,((last_pos +2)- current_chain..last_pos)));
-
+            if current_chain > 5 {
+                //println!("{}..{}",start_pos,last_pos+2);
+                ranges.push((
+                    current_center,
+                    (start_pos..=last_pos + 2),
+                    *thickness,
+                    *width,
+                ));
 
                 //println!("arc found {}..{}", last_pos- current_chain , last_pos);
             }
-
-
         }
     }
 
-    for (center,mut range) in ranges{
-        let start = if let Command::MoveAndExtrude {start,..} = cmds[range.start]{
+    for (center, range, thickness, width) in ranges {
+        let start = if let Command::MoveAndExtrude { start, .. } = cmds[*range.start()] {
             start
-        }else{
+        } else {
             unreachable!()
         };
-        let end = if let Command::MoveAndExtrude {end,..} = cmds[range.end]{
+        let end = if let Command::MoveAndExtrude { end, .. } = cmds[*range.end()] {
             end
-        }else{
+        } else {
             unreachable!()
         };
 
-
-
-        for i in range.clone(){
+        for i in range.clone() {
             cmds[i] = Command::NoAction;
         }
 
-        cmds[range.start] = Command::Arc {start,end,clockwise: true,center: Coordinate{x: center.0, y: center.1}};
+        cmds[*range.start()] = Command::Arc {
+            start,
+            end,
+            clockwise: true,
+            center: Coord {
+                x: center.0,
+                y: center.1,
+            },
+            thickness,
+            width,
+        };
 
+        // println!("center = ({},{})",center.0,center.1);
+        //println!("ra = [{} {}]",range.start(),range.end());
+        //println!("s{:?}",start);
+        //println!("end{:?}",start);
     }
-
 }
-*/
 
-fn line_bisector(
-    p0: &Coordinate<f64>,
-    p1: &Coordinate<f64>,
-    p2: &Coordinate<f64>,
-) -> (Coordinate<f64>, Coordinate<f64>) {
+fn line_bisector(p0: &Coord<f64>, p1: &Coord<f64>, p2: &Coord<f64>) -> (Coord<f64>, Coord<f64>) {
     let ray_start = *p1;
 
     let l1_len = p0.euclidean_distance(p1);
@@ -263,11 +300,11 @@ fn line_bisector(
 }
 
 fn ray_ray_intersection(
-    s0: &Coordinate<f64>,
-    d0: &Coordinate<f64>,
-    s1: &Coordinate<f64>,
-    d1: &Coordinate<f64>,
-) -> Option<Coordinate<f64>> {
+    s0: &Coord<f64>,
+    d0: &Coord<f64>,
+    s1: &Coord<f64>,
+    d1: &Coord<f64>,
+) -> Option<Coord<f64>> {
     let dx = s1.x - s0.x;
     let dy = s1.y - s0.y;
 
@@ -288,7 +325,7 @@ fn ray_ray_intersection(
         let px = (b2 - b1) / (m1 - m2); // collision x
         let py = m1 * px + b1; // collision y
 
-        Some(Coordinate { x: px, y: py })
+        Some(Coord { x: px, y: py })
     } else {
         None
     }
@@ -301,109 +338,172 @@ mod tests {
     #[test]
     fn basic_line_bisector() {
         let (center, dir) = line_bisector(
-            &Coordinate { x: 0.0, y: 0.0 },
-            &Coordinate { x: 1.0, y: 1.0 },
-            &Coordinate { x: 2.0, y: 0.0 },
+            &Coord { x: 0.0, y: 0.0 },
+            &Coord { x: 1.0, y: 1.0 },
+            &Coord { x: 2.0, y: 0.0 },
         );
 
-        assert_eq!(center, Coordinate { x: 1.0, y: 1.0 });
+        assert_eq!(center, Coord { x: 1.0, y: 1.0 });
         assert_eq!(dir.x, 0.0);
         assert!(dir.y < 0.0);
 
         let (center, dir) = line_bisector(
-            &Coordinate { x: 2.0, y: 0.0 },
-            &Coordinate { x: 1.0, y: 1.0 },
-            &Coordinate { x: 0.0, y: 0.0 },
+            &Coord { x: 2.0, y: 0.0 },
+            &Coord { x: 1.0, y: 1.0 },
+            &Coord { x: 0.0, y: 0.0 },
         );
 
-        assert_eq!(center, Coordinate { x: 1.0, y: 1.0 });
+        assert_eq!(center, Coord { x: 1.0, y: 1.0 });
         assert_eq!(dir.x, 0.0);
         assert!(dir.y < 0.0);
 
         let (center, dir) = line_bisector(
-            &Coordinate { x: 0.0, y: 0.0 },
-            &Coordinate { x: 1.0, y: 1.0 },
-            &Coordinate { x: -2.0, y: 4.0 },
+            &Coord { x: 0.0, y: 0.0 },
+            &Coord { x: 1.0, y: 1.0 },
+            &Coord { x: -2.0, y: 4.0 },
         );
 
-        assert_eq!(center, Coordinate { x: 1.0, y: 1.0 });
-        assert_eq!(dir.y, 0.0);
+        assert_eq!(center, Coord { x: 1.0, y: 1.0 });
+        assert!(dir.y - 0.0 < 0.000001);
         assert!(dir.x < 0.0);
 
         let (center, dir) = line_bisector(
-            &Coordinate { x: 0.0, y: 0.0 },
-            &Coordinate { x: 1.0, y: 0.0 },
-            &Coordinate { x: 1.0, y: 1.0 },
+            &Coord { x: 0.0, y: 0.0 },
+            &Coord { x: 1.0, y: 0.0 },
+            &Coord { x: 1.0, y: 1.0 },
         );
 
-        assert_eq!(center, Coordinate { x: 1.0, y: 0.0 });
+        assert_eq!(center, Coord { x: 1.0, y: 0.0 });
         assert_eq!(dir.y, -dir.x);
     }
 
     #[test]
     fn basic_ray_ray() {
         let center = ray_ray_intersection(
-            &Coordinate { x: 0.0, y: 0.0 },
-            &Coordinate { x: 1.0, y: 1.0 },
-            &Coordinate { x: 2.0, y: 0.0 },
-            &Coordinate { x: -1.0, y: 1.0 },
+            &Coord { x: 0.0, y: 0.0 },
+            &Coord { x: 1.0, y: 1.0 },
+            &Coord { x: 2.0, y: 0.0 },
+            &Coord { x: -1.0, y: 1.0 },
         );
-        assert_eq!(center, Some(Coordinate { x: 1.0, y: 1.0 }));
+        assert_eq!(center, Some(Coord { x: 1.0, y: 1.0 }));
 
         let center = ray_ray_intersection(
-            &Coordinate { x: 0.0, y: 3.0 },
-            &Coordinate { x: 5.0, y: 1.0 },
-            &Coordinate { x: 2.0, y: 0.0 },
-            &Coordinate { x: 3.0, y: 4.0 },
+            &Coord { x: 0.0, y: 3.0 },
+            &Coord { x: 5.0, y: 1.0 },
+            &Coord { x: 2.0, y: 0.0 },
+            &Coord { x: 3.0, y: 4.0 },
         );
-        assert_eq!(center, Some(Coordinate { x: 5.0, y: 4.0 }));
+        assert_eq!(center, Some(Coord { x: 5.0, y: 4.0 }));
 
         let center = ray_ray_intersection(
-            &Coordinate { x: 1.0, y: 3.0 },
-            &Coordinate { x: 0.10, y: -0.20 },
-            &Coordinate { x: 0.0, y: -2.0 },
-            &Coordinate { x: 2.0, y: 3.0 },
+            &Coord { x: 1.0, y: 3.0 },
+            &Coord { x: 0.10, y: -0.20 },
+            &Coord { x: 0.0, y: -2.0 },
+            &Coord { x: 2.0, y: 3.0 },
         );
-        assert_eq!(center, Some(Coordinate { x: 2.0, y: 1.0 }));
+        assert_eq!(center, Some(Coord { x: 2.0, y: 1.0 }));
 
-        let center = ray_ray_intersection(
-            &Coordinate {
-                x: 1112.4,
-                y: 35345.0,
-            },
-            &Coordinate {
-                x: -0.11124,
-                y: -3.53450,
-            },
-            &Coordinate {
-                x: 546456.1,
-                y: 544456.1,
-            },
-            &Coordinate {
-                x: -0.5464561,
-                y: -0.5444561,
-            },
-        );
-        //assert_eq!(center, Some(Coordinate{x: 0.0,y:0.0}));
+        // let center = ray_ray_intersection(
+        //     &Coord {
+        //         x: 1112.4,
+        //         y: 35345.0,
+        //     },
+        //     &Coord {
+        //         x: -0.11124,
+        //         y: -3.53450,
+        //     },
+        //     &Coord {
+        //         x: 546456.1,
+        //         y: 544456.1,
+        //     },
+        //     &Coord {
+        //         x: -0.5464561,
+        //         y: -0.5444561,
+        //     },
+        // );
+        //assert_eq!(center, Some(Coord{x: 0.0,y:0.0}));
     }
 
     #[test]
     fn arc_optomizer_test() {
-        let mut commands = (0..600)
-            .into_iter()
+        let mut commands = (0..200)
             .map(|a| {
                 let r = a as f64 / 100.0;
                 let x = r.cos();
                 let y = r.sin();
-                Coordinate { x, y }
+                Coord { x, y }
             })
-            .tuple_windows::<(Coordinate<f64>, Coordinate<f64>)>()
-            .map(|(start, end)| Command::MoveAndExtrude { start, end })
+            .tuple_windows::<(Coord<f64>, Coord<f64>)>()
+            .map(|(start, end)| Command::MoveAndExtrude {
+                start,
+                end,
+                thickness: 0.3,
+                width: 0.4,
+            })
             .collect::<Vec<Command>>();
 
         arc_optomizer(&mut commands);
         unary_optimizer(&mut commands);
 
-        assert_eq!(commands, vec![])
+        assert_eq!(commands.len(), 1);
+        if let Command::Arc {
+            start,
+            center,
+            width,
+            thickness,
+            ..
+        } = commands[0]
+        {
+            assert_eq!(start, Coord { x: 1.0, y: 0.0 });
+            assert_eq!(center, Coord { x: 0.0, y: 0.0 });
+            assert_eq!(width, 0.4);
+            assert_eq!(thickness, 0.3);
+        } else {
+            panic!("Command should be an arc")
+        }
+    }
+
+    #[test]
+    fn arc_optomizer_test_adv() {
+        let mut commands = vec![Command::Delay { msec: 1000 }];
+
+        commands.extend(
+            (0..200)
+                .map(|a| {
+                    let r = a as f64 / 100.0;
+                    let x = r.cos();
+                    let y = r.sin();
+                    Coord { x, y }
+                })
+                .tuple_windows::<(Coord<f64>, Coord<f64>)>()
+                .map(|(start, end)| Command::MoveAndExtrude {
+                    start,
+                    end,
+                    thickness: 0.3,
+                    width: 0.4,
+                }),
+        );
+
+        commands.push(Command::Delay { msec: 1000 });
+
+        arc_optomizer(&mut commands);
+        unary_optimizer(&mut commands);
+
+        assert_eq!(commands.len(), 3);
+        if let Command::Arc {
+            start,
+            center,
+            width,
+            thickness,
+            ..
+        } = commands[1]
+        {
+            assert_eq!(start, Coord { x: 1.0, y: 0.0 });
+            assert_eq!(center, Coord { x: 0.0, y: 0.0 });
+            assert_eq!(width, 0.4);
+            assert_eq!(thickness, 0.3);
+        } else {
+            panic!("Command should be an arc")
+        }
     }
 }

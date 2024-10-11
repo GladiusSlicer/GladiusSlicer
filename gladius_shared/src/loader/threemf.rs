@@ -92,7 +92,10 @@ impl Loader for ThreeMFLoader {
         &self,
         filepath: &str,
     ) -> Result<Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, SlicerErrors> {
-        let zipfile = std::fs::File::open(filepath).unwrap();
+        let zipfile =
+            std::fs::File::open(filepath).map_err(|_| SlicerErrors::ObjectFileNotFound {
+                filepath: filepath.to_string(),
+            })?;
 
         let mut archive =
             zip::ZipArchive::new(zipfile).map_err(|_| SlicerErrors::ThreemfUnsupportedType)?;
@@ -104,7 +107,8 @@ impl Loader for ThreeMFLoader {
             }
         };
 
-        let rel: Relationships = serde_xml_rs::de::from_reader(rel_file).unwrap();
+        let rel: Relationships =
+            serde_xml_rs::de::from_reader(rel_file).map_err(|_| SlicerErrors::ThreemfLoadError)?;
 
         let model_path = rel.relationship[0].target.clone();
 
@@ -115,7 +119,8 @@ impl Loader for ThreeMFLoader {
             }
         };
 
-        let model: ThreeMFModel = serde_xml_rs::de::from_reader(model_file).unwrap();
+        let model: ThreeMFModel = serde_xml_rs::de::from_reader(model_file)
+            .map_err(|_| SlicerErrors::ThreemfLoadError)?;
 
         model
             .build
@@ -141,7 +146,11 @@ fn handle_object(
     obj_index: usize,
     comps: &ThreeMFResource,
 ) -> Result<(Vec<Vertex>, Vec<IndexedTriangle>), SlicerErrors> {
-    let object = comps.object.iter().find(|obj| obj.id == obj_index).unwrap();
+    let object = comps
+        .object
+        .iter()
+        .find(|obj| obj.id == obj_index)
+        .ok_or(SlicerErrors::ThreemfLoadError)?;
 
     if let Some(mesh) = &object.mesh {
         Ok(handle_mesh(mesh))

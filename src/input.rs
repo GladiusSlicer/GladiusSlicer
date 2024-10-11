@@ -25,22 +25,25 @@ pub fn files_input(
                 deser_hjson::from_str(value).map_err(|_| SlicerErrors::InputMisformat)?;
             let model_path = Path::new(object.get_model_path());
 
-            // Calling .unwrap() is safe here because "INPUT" is required (if "INPUT" wasn't
-            // required we could have used an 'if let' to conditionally get the value)
             debug!("Using input file: {:?}", model_path);
 
-            let extension = model_path
-                .extension()
-                .and_then(OsStr::to_str)
-                .expect("File Parse Issue");
+            let extension = model_path.extension().and_then(OsStr::to_str).ok_or(
+                SlicerErrors::FileFormatNotSupported {
+                    filepath: model_path.to_string_lossy().to_string(),
+                },
+            )?;
 
-            let loader: &dyn Loader = match extension.to_lowercase().as_str() {
-                "stl" => &STLLoader {},
-                "3mf" => &ThreeMFLoader {},
-                _ => panic!("File Format {} not supported", extension),
+            let loader: Result<&dyn Loader, SlicerErrors> = match extension.to_lowercase().as_str()
+            {
+                "stl" => Ok(&STLLoader {}),
+                "3mf" => Ok(&ThreeMFLoader {}),
+                _ => Err(SlicerErrors::FileFormatNotSupported {
+                    filepath: model_path.to_string_lossy().to_string(),
+                }),
             };
 
-            let models = match loader.load(model_path.to_str().unwrap()) {
+            let models = match loader?.load(model_path.to_str().ok_or(SlicerErrors::InputNotUTF8)?)
+            {
                 Ok(v) => v,
                 Err(err) => {
                     show_error_message(err);
@@ -83,7 +86,8 @@ pub fn files_input(
                 }
             };
 
-            let trans_str = serde_json::to_string(&transform).unwrap();
+            let trans_str =
+                serde_json::to_string(&transform).map_err(|_| SlicerErrors::InputMisformat)?;
 
             debug!("Using Transform {}", trans_str);
 
@@ -109,7 +113,7 @@ fn load_settings(filepath: &str) -> Result<Settings, SlicerErrors> {
         deser_hjson::from_str(&settings_data).map_err(|_| SlicerErrors::SettingsFileMisformat {
             filepath: filepath.to_string(),
         })?;
-    let current_path = std::env::current_dir().unwrap();
+    let current_path = std::env::current_dir().map_err(|_| SlicerErrors::SettingsFilePermission)?;
     let mut path = PathBuf::from_str(filepath).map_err(|_| SlicerErrors::SettingsFileNotFound {
         filepath: filepath.to_string(),
     })?;

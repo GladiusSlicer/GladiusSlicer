@@ -2,6 +2,7 @@
 
 use crate::error::SlicerErrors;
 use crate::types::{CalculatedValues, Command};
+use crate::warning::SlicerWarnings;
 use serde::{Deserialize, Serialize};
 
 ///Messages for communicating between the slicer and another process
@@ -19,6 +20,9 @@ pub enum Message {
     ///Message to share the current state of the slicer
     StateUpdate(String),
 
-    ///Message to share any Errors encountered
+    ///Message to share any errors encountered
     Error(SlicerErrors),
+
+    ///Message to share any warnings encountered
+    Warning(SlicerWarnings),
 }
