@@ -25,14 +25,14 @@ impl ObjectPass for BrimPass {
                 objects
                     .iter()
                     .flat_map(|poly| {
-                        let first_slice = poly.layers.get(0).expect("Object needs a Slice");
+                        let first_slice = poly.layers.first().expect("Object needs a Slice");
 
                         first_slice
                             .main_polygon
                             .0
                             .clone()
                             .into_iter()
-                            .chain(first_slice.main_polygon.clone().into_iter())
+                            .chain(first_slice.main_polygon.clone())
                     })
                     .collect(),
             );
@@ -57,9 +57,9 @@ impl ObjectPass for SupportTowerPass {
             //Add to first object
 
             objects.par_iter_mut().for_each(|obj| {
-                (1..obj.layers.len()).into_iter().rev().for_each(|q| {
+                (1..obj.layers.len()).rev().for_each(|q| {
                     //todo Fix this, it feels hacky
-                    if let [ref mut layer, ref mut above, ..] = &mut obj.layers[(q - 1..=q)] {
+                    if let [ref mut layer, ref mut above, ..] = &mut obj.layers[q - 1..=q] {
                         layer.add_support_polygons(above, support);
                     } else {
                         unreachable!()
@@ -96,8 +96,7 @@ impl ObjectPass for SkirtPass {
                 .layers
                 .iter_mut()
                 .take(skirt.layers)
-                .enumerate()
-                .for_each(|(_layer_num, slice)| slice.generate_skirt(&convex_hull, skirt))
+                .for_each(|slice| slice.generate_skirt(&convex_hull, skirt, settings))
         }
     }
 }
@@ -151,7 +150,7 @@ impl SlicePass for BridgingPass {
         send_messages: bool,
     ) -> Result<(), SlicerErrors> {
         display_state_update("Generating Moves: Bridging", send_messages);
-        (1..slices.len()).into_iter().for_each(|q| {
+        (1..slices.len()).for_each(|q| {
             let below = slices[q - 1].main_polygon.clone();
 
             slices[q].fill_solid_bridge_area(&below);
@@ -168,7 +167,7 @@ impl SlicePass for TopLayerPass {
         send_messages: bool,
     ) -> Result<(), SlicerErrors> {
         display_state_update("Generating Moves: Top Layer", send_messages);
-        (0..slices.len() - 1).into_iter().for_each(|q| {
+        (0..slices.len() - 1).for_each(|q| {
             let above = slices[q + 1].main_polygon.clone();
 
             slices[q].fill_solid_top_layer(&above, q);
@@ -192,54 +191,52 @@ impl SlicePass for TopAndBottomLayersPass {
         if slices.len() > bottom_layers + top_layers {
             display_state_update("Generating Moves: Above and below support", send_messages);
 
-            (bottom_layers..slices.len() - top_layers)
-                .into_iter()
-                .for_each(|q| {
-                    let below = if bottom_layers != 0 {
-                        Some(
-                            slices[(q - bottom_layers + 1)..q]
-                                .iter()
-                                .map(|m| m.main_polygon.clone())
-                                .fold(
-                                    slices
-                                        .get(q - bottom_layers)
-                                        .expect("Bounds Checked above")
-                                        .main_polygon
-                                        .clone(),
-                                    |a, b| a.intersection_with(&b),
-                                ),
-                        )
-                    } else {
-                        None
-                    };
-                    let above = if top_layers != 0 {
-                        Some(
-                            slices[q + 1..q + top_layers + 1]
-                                .iter()
-                                .map(|m| m.main_polygon.clone())
-                                .fold(
-                                    slices
-                                        .get(q + 1)
-                                        .expect("Bounds Checked above")
-                                        .main_polygon
-                                        .clone(),
-                                    |a, b| a.intersection_with(&b),
-                                ),
-                        )
-                    } else {
-                        None
-                    };
-                    if let Some(intersection) = match (above, below) {
-                        (None, None) => None,
-                        (None, Some(poly)) | (Some(poly), None) => Some(poly),
-                        (Some(polya), Some(polyb)) => Some(polya.intersection_with(&polyb)),
-                    } {
-                        slices
-                            .get_mut(q)
-                            .expect("Bounds Checked above")
-                            .fill_solid_subtracted_area(&intersection, q);
-                    }
-                });
+            (bottom_layers..slices.len() - top_layers).for_each(|q| {
+                let below = if bottom_layers != 0 {
+                    Some(
+                        slices[(q - bottom_layers + 1)..q]
+                            .iter()
+                            .map(|m| m.main_polygon.clone())
+                            .fold(
+                                slices
+                                    .get(q - bottom_layers)
+                                    .expect("Bounds Checked above")
+                                    .main_polygon
+                                    .clone(),
+                                |a, b| a.intersection_with(&b),
+                            ),
+                    )
+                } else {
+                    None
+                };
+                let above = if top_layers != 0 {
+                    Some(
+                        slices[q + 1..q + top_layers + 1]
+                            .iter()
+                            .map(|m| m.main_polygon.clone())
+                            .fold(
+                                slices
+                                    .get(q + 1)
+                                    .expect("Bounds Checked above")
+                                    .main_polygon
+                                    .clone(),
+                                |a, b| a.intersection_with(&b),
+                            ),
+                    )
+                } else {
+                    None
+                };
+                if let Some(intersection) = match (above, below) {
+                    (None, None) => None,
+                    (None, Some(poly)) | (Some(poly), None) => Some(poly),
+                    (Some(polya), Some(polyb)) => Some(polya.intersection_with(&polyb)),
+                } {
+                    slices
+                        .get_mut(q)
+                        .expect("Bounds Checked above")
+                        .fill_solid_subtracted_area(&intersection, q);
+                }
+            });
         }
 
         let slice_count = slices.len();

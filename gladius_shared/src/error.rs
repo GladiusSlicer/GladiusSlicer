@@ -39,11 +39,20 @@ pub enum SlicerErrors {
     ///Error during tower generation
     TowerGeneration,
 
-    ///No inout models provided
+    ///No input models provided
     NoInputProvided,
+
+    ///All input must be UTF8
+    InputNotUTF8,
 
     ///Input string is misformated
     InputMisformat,
+
+    ///Model would cause moves outside build area
+    ModelOutsideBuildArea,
+
+    ///Generated move outside build area
+    MovesOutsideBuildArea,
 
     ///settings file could not be loaded
     SettingsRecursiveLoadError {
@@ -54,6 +63,45 @@ pub enum SlicerErrors {
     ///Error during tower generation
     SliceGeneration,
 
+    ///File permission issue will settings file or folder
+    SettingsFilePermission,
+
+    ///Failed to create new file
+    FileCreateError {
+        ///File that was not created
+        filepath: String,
+    },
+
+    ///Failed to write to file
+    FileWriteError {
+        ///File that was no able to write to
+        filepath: String,
+    },
+
+    ///Error because settings less than zero
+    SettingLessThanZero {
+        ///The setting name
+        setting: String,
+
+        ///The current value
+        value: f64,
+    },
+
+    ///Error because settings less than or equal to zero
+    SettingLessThanOrEqualToZero {
+        ///The setting name
+        setting: String,
+
+        ///The current value
+        value: f64,
+    },
+
+    ///The file format is not supported
+    FileFormatNotSupported {
+        /// File with invalid Format
+        filepath: String,
+    },
+
     ///Another error, here for plugins to use
     UnspecifiedError(String),
 }
@@ -62,6 +110,9 @@ impl SlicerErrors {
     ///Return the error code and pretty error message
     pub fn get_code_and_message(&self) -> (u32, String) {
         match self {
+            SlicerErrors::UnspecifiedError(err_string) => {
+                (0xFFFFFFFF,format!("Third Party Error: {}.",err_string))
+            }
             SlicerErrors::ObjectFileNotFound { filepath } => {
                 (0x1000,format!("Could not load object file \"{}\". It was not found in the filesystem. Please check that the file exists and retry.",filepath))
             }
@@ -98,8 +149,32 @@ impl SlicerErrors {
             SlicerErrors::SliceGeneration => {
                 (0x100B,"There was a issue ordering the polygon for slicing. Try repairing your Model.".to_string())
             }
-            SlicerErrors::UnspecifiedError(err_string) => {
-                (0xFFFFFFFF,format!("Third Party Error. {}",err_string))
+            SlicerErrors::SettingLessThanZero { setting, value } => {
+                (0x100C,format!("The setting {} must be greater than or equal to 0. It is currently {}.",setting, value))
+            }
+            SlicerErrors::SettingLessThanOrEqualToZero { setting, value } => {
+                (0x100D,format!("The setting {} must be greater than to 0. It is currently {}.",setting, value))
+            }
+            SlicerErrors::InputNotUTF8 => {
+                (0x100E,"Input String must be UTF8.".to_string())
+            }
+            SlicerErrors::SettingsFilePermission => {
+                (0x100F,"File permission issue will settings file or folder.".to_string())
+            }
+            SlicerErrors::FileCreateError { filepath } => {
+                (0x1010,format!("Could not create file \"{}\".",filepath))
+            }
+            SlicerErrors::FileWriteError { filepath } => {
+                (0x1011,format!("Could not write to file \"{}\".",filepath))
+            }
+            SlicerErrors::FileFormatNotSupported { filepath} => {
+                (0x1012,format!("The file {} has an invalid or unsupported format",filepath))
+            }
+            SlicerErrors::ModelOutsideBuildArea => {
+                (0x1013,"Model is outside printers build area.".to_string())
+            }
+            SlicerErrors::MovesOutsideBuildArea => {
+                (0x1014,"Slicer generated move outside build area.".to_string())
             }
         }
     }

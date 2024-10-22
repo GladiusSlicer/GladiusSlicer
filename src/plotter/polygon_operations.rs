@@ -1,7 +1,8 @@
 use geo::*;
 
+use geo_offset::*;
+
 //todo remove dependency on geo clipper and by extension bindgen
-use geo_clipper::*;
 
 pub trait PolygonOperations {
     fn offset_from(&self, delta: f64) -> MultiPolygon<f64>;
@@ -17,44 +18,56 @@ pub trait PolygonOperations {
 
 impl PolygonOperations for MultiPolygon<f64> {
     fn offset_from(&self, delta: f64) -> MultiPolygon<f64> {
-        self.offset(delta, JoinType::Square, EndType::ClosedPolygon, 100000.0)
+        geo_clipper::Clipper::offset(
+            self,
+            delta,
+            geo_clipper::JoinType::Square,
+            geo_clipper::EndType::ClosedPolygon,
+            1000000.0,
+        )
     }
 
     fn difference_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.difference(other, 100000.0)
+        geo_clipper::Clipper::difference(self, other, 1000000.0)
     }
 
     fn intersection_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.intersection(other, 100000.0)
+        geo_clipper::Clipper::intersection(self, other, 1000000.0)
     }
 
     fn union_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.union(other, 100000.0)
+        geo_clipper::Clipper::union(self, other, 1000000.0)
     }
 
     fn xor_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.union(other, 100000.0)
+        geo_clipper::Clipper::xor(self, other, 1000000.0)
     }
 }
 
 impl PolygonOperations for Polygon<f64> {
     fn offset_from(&self, delta: f64) -> MultiPolygon<f64> {
-        self.offset(delta, JoinType::Square, EndType::ClosedPolygon, 100000.0)
+        geo_clipper::Clipper::offset(
+            self,
+            delta,
+            geo_clipper::JoinType::Square,
+            geo_clipper::EndType::ClosedPolygon,
+            1000000.0,
+        )
     }
 
     fn difference_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.difference(other, 100000.0)
+        geo_clipper::Clipper::difference(self, other, 1000000.0)
     }
 
     fn intersection_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.intersection(other, 100000.0)
+        geo_clipper::Clipper::intersection(self, other, 1000000.0)
     }
 
     fn union_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.union(other, 100000.0)
+        geo_clipper::Clipper::union(self, other, 1000000.0)
     }
 
     fn xor_with(&self, other: &MultiPolygon<f64>) -> MultiPolygon<f64> {
-        self.union(other, 100000.0)
+        geo_clipper::Clipper::xor(self, other, 1000000.0)
     }
 }

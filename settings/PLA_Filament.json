@@ -1,4 +1,10 @@
 {
+  "fan":{
+    "fan_speed": 100.0,
+    "disable_fan_for_layers": 1,
+    "slow_down_threshold": 15,
+    "min_print_speed": 15.0
+  },
   "filament":{
     "diameter":1.75,
     "density":1.24,

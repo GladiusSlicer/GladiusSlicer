@@ -8,13 +8,13 @@ pub(crate) mod support;
 pub use crate::plotter::infill::*;
 use crate::plotter::perimeter::*;
 use crate::plotter::polygon_operations::PolygonOperations;
+use crate::utils::point_lerp;
 use crate::{Object, Settings, StateChange};
-use geo::coordinate_position::CoordPos;
-use geo::coordinate_position::CoordinatePosition;
+use coordinate_position::CoordPos;
 use geo::prelude::*;
 use geo::*;
 use gladius_shared::settings::SkirtSettings;
-use gladius_shared::types::{Command, Move, MoveChain, MoveType, Slice};
+use gladius_shared::types::{Command, Move, MoveChain, MoveType, RetractionType, Slice};
 use itertools::Itertools;
 use log::info;
 use ordered_float::OrderedFloat;
@@ -26,7 +26,12 @@ pub trait Plotter {
     fn fill_solid_subtracted_area(&mut self, other: &MultiPolygon<f64>, layer_count: usize);
     fn fill_solid_bridge_area(&mut self, layer_below: &MultiPolygon<f64>);
     fn fill_solid_top_layer(&mut self, layer_above: &MultiPolygon<f64>, layer_count: usize);
-    fn generate_skirt(&mut self, convex_polygon: &Polygon<f64>, skirt_settings: &SkirtSettings);
+    fn generate_skirt(
+        &mut self,
+        convex_polygon: &Polygon<f64>,
+        skirt_settings: &SkirtSettings,
+        settings: &Settings,
+    );
     fn generate_brim(&mut self, entire_first_layer: MultiPolygon<f64>, brim_width: f64);
     fn order_chains(&mut self);
     fn slice_into_commands(&mut self, commands: &mut Vec<Command>, layer_thickness: f64);
@@ -34,18 +39,37 @@ pub trait Plotter {
 
 impl Plotter for Slice {
     fn slice_perimeters_into_chains(&mut self, number_of_perimeters: usize) {
-        if let Some(mc) = inset_polygon_recursive(
-            &self.remaining_area,
-            &self.layer_settings,
-            true,
-            number_of_perimeters - 1,
-        ) {
-            self.fixed_chains.push(mc);
-        }
-
-        self.remaining_area = self
+        let mut new_chains = self
             .remaining_area
-            .offset_from(-self.layer_settings.layer_width * number_of_perimeters as f64);
+            .iter()
+            .map(|poly| MultiPolygon(vec![poly.clone()]))
+            .filter_map(|multi| {
+                inset_polygon_recursive(
+                    &multi,
+                    &self.layer_settings,
+                    true,
+                    number_of_perimeters - 1,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        self.fixed_chains.append(&mut new_chains);
+
+        let perimeter_inset = if number_of_perimeters == 0 {
+            0.0
+        } else if number_of_perimeters == 1 {
+            self.layer_settings
+                .extrusion_width
+                .exterior_surface_perimeter
+        } else {
+            self.layer_settings
+                .extrusion_width
+                .exterior_surface_perimeter
+                + ((number_of_perimeters - 1) as f64
+                    * self.layer_settings.extrusion_width.exterior_inner_perimeter)
+        };
+
+        self.remaining_area = self.remaining_area.offset_from(-perimeter_inset);
     }
 
     fn shrink_layer(&mut self) {
@@ -101,7 +125,7 @@ impl Plotter for Slice {
         let solid_area = self
             .remaining_area
             .difference_with(other)
-            .offset_from(self.layer_settings.layer_width * 4.0)
+            .offset_from(self.layer_settings.extrusion_width.solid_infill * 4.0)
             .intersection_with(&self.remaining_area);
 
         let angle = 45.0 + (120_f64) * layer_count as f64;
@@ -121,7 +145,7 @@ impl Plotter for Slice {
         let solid_area = self
             .remaining_area
             .difference_with(layer_below)
-            .offset_from(self.layer_settings.layer_width * 4.0)
+            .offset_from(self.layer_settings.extrusion_width.bridge * 4.0)
             .intersection_with(&self.remaining_area);
 
         let layer_settings = &self.layer_settings;
@@ -146,7 +170,7 @@ impl Plotter for Slice {
         let solid_area = self
             .remaining_area
             .difference_with(layer_above)
-            .offset_from(self.layer_settings.layer_width * 4.0)
+            .offset_from(self.layer_settings.extrusion_width.solid_top_infill * 4.0)
             .intersection_with(&self.remaining_area);
 
         for poly in &solid_area {
@@ -163,7 +187,12 @@ impl Plotter for Slice {
         self.remaining_area = self.remaining_area.difference_with(&solid_area)
     }
 
-    fn generate_skirt(&mut self, convex_polygon: &Polygon<f64>, skirt_settings: &SkirtSettings) {
+    fn generate_skirt(
+        &mut self,
+        convex_polygon: &Polygon<f64>,
+        skirt_settings: &SkirtSettings,
+        settings: &Settings,
+    ) {
         let offset_hull_multi = convex_polygon.offset_from(skirt_settings.distance);
 
         assert_eq!(offset_hull_multi.0.len(), 1);
@@ -173,26 +202,54 @@ impl Plotter for Slice {
             .0
             .iter()
             .circular_tuple_windows::<(_, _)>()
-            .map(|(&_start, &end)| Move {
-                end,
-                move_type: MoveType::OuterPerimeter,
-                width: self.layer_settings.layer_width,
+            .map(|(&_start, &end)| {
+                let bounded_endpoint = Coord {
+                    x: end.x.max(0.0).min(settings.print_x),
+                    y: end.y.max(0.0).min(settings.print_y),
+                };
+
+                Move {
+                    end: bounded_endpoint,
+                    move_type: MoveType::ExteriorSurfacePerimeter,
+                    width: self
+                        .layer_settings
+                        .extrusion_width
+                        .exterior_surface_perimeter,
+                }
             })
             .collect();
 
+        let start_point = Coord {
+            x: offset_hull_multi.0[0].exterior()[0]
+                .x
+                .max(0.0)
+                .min(settings.print_x),
+            y: offset_hull_multi.0[0].exterior()[0]
+                .y
+                .max(0.0)
+                .min(settings.print_y),
+        };
+
         self.fixed_chains.push(MoveChain {
-            start_point: offset_hull_multi.0[0].exterior()[0],
+            start_point,
             moves,
+            is_loop: true,
         });
     }
 
     fn generate_brim(&mut self, entire_first_layer: MultiPolygon<f64>, brim_width: f64) {
         let layer_settings = &self.layer_settings;
         self.fixed_chains.extend(
-            (0..((brim_width / self.layer_settings.layer_width).floor() as usize))
+            (0..((brim_width
+                / self
+                    .layer_settings
+                    .extrusion_width
+                    .exterior_surface_perimeter)
+                .floor() as usize))
                 .rev()
                 .map(|i| {
-                    (i as f64 * layer_settings.layer_width) + (layer_settings.layer_width / 2.0)
+                    (i as f64 * layer_settings.extrusion_width.exterior_surface_perimeter)
+                        + (layer_settings.extrusion_width.exterior_surface_perimeter / 2.0)
                 })
                 .map(|distance| entire_first_layer.offset_from(distance))
                 .flat_map(|multi| {
@@ -204,14 +261,15 @@ impl Plotter for Slice {
                             .circular_tuple_windows::<(_, _)>()
                             .map(|(&_start, &end)| Move {
                                 end,
-                                move_type: MoveType::OuterPerimeter,
-                                width: layer_settings.layer_width,
+                                move_type: MoveType::ExteriorSurfacePerimeter,
+                                width: layer_settings.extrusion_width.exterior_surface_perimeter,
                             })
                             .collect();
 
                         MoveChain {
                             start_point: poly.exterior()[0],
                             moves,
+                            is_loop: true,
                         }
                     })
                 }),
@@ -231,15 +289,15 @@ impl Plotter for Slice {
                         OrderedFloat(
                             ordered_chains
                                 .last()
-                                .unwrap()
+                                .expect("Chains is tests not to be empty")
                                 .moves
                                 .last()
-                                .unwrap()
+                                .expect("chain should contain moves")
                                 .end
                                 .euclidean_distance(&a.start_point),
                         )
                     })
-                    .unwrap();
+                    .expect("Chains is tests not to be empty");
                 let closest_chain = self.chains.remove(index);
                 ordered_chains.push(closest_chain);
             }
@@ -254,24 +312,127 @@ impl Plotter for Slice {
 
     fn slice_into_commands(&mut self, commands: &mut Vec<Command>, layer_thickness: f64) {
         if !self.fixed_chains.is_empty() {
-            let mut full_moves = vec![];
-            let starting_point = self.fixed_chains[0].start_point;
-            for chain in self.fixed_chains.iter_mut().chain(self.chains.iter_mut()) {
-                full_moves.push(Move {
-                    end: chain.start_point,
-                    move_type: MoveType::Travel,
-                    width: 0.0,
-                });
-                full_moves.append(&mut chain.moves)
-            }
+            commands.push(Command::SetState {
+                new_state: StateChange {
+                    extruder_temp: None,
+                    bed_temp: None,
+                    fan_speed: None,
+                    movement_speed: None,
+                    acceleration: None,
+                    retract: RetractionType::Retract,
+                },
+            });
 
-            commands.append(
-                &mut MoveChain {
-                    moves: full_moves,
-                    start_point: starting_point,
-                }
-                .create_commands(&self.layer_settings, layer_thickness),
-            );
+            for chain in self.fixed_chains.drain(..).chain(self.chains.drain(..)) {
+                let retraction_length = self.layer_settings.retraction_length;
+                let retract_command =
+                    if let Some(retraction_wipe) = self.layer_settings.retraction_wipe.as_ref() {
+                        let ordered: Vec<Coord<f64>> = if chain.is_loop {
+                            //fixme this is bad
+                            chain
+                                .moves
+                                .iter()
+                                .rev()
+                                .take_while(|m| m.move_type != MoveType::Travel)
+                                .map(|m| m.end)
+                                .collect::<Vec<_>>()
+                                .into_iter()
+                                .rev()
+                                .collect_vec()
+                        } else {
+                            chain.moves.iter().rev().map(|m| m.end).collect_vec()
+                        };
+
+                        let mut remaining_distance = retraction_wipe.distance;
+                        let mut wipe_moves = ordered
+                            .iter()
+                            .tuple_windows::<(_, _)>()
+                            .map(|(cur_point, next_point)| {
+                                let len: f64 = cur_point.euclidean_distance(next_point);
+
+                                (len, cur_point, next_point)
+                            })
+                            .filter_map(|(len, cur_point, next_point)| {
+                                if remaining_distance - len > 0.0 {
+                                    remaining_distance -= len;
+                                    Some((len, *next_point))
+                                } else if remaining_distance > 0.0 {
+                                    let ret = (
+                                        remaining_distance,
+                                        point_lerp(cur_point, next_point, remaining_distance / len),
+                                    );
+                                    remaining_distance -= len;
+                                    Some(ret)
+                                } else {
+                                    None
+                                }
+                            })
+                            .map(|(len, next_point)| {
+                                let retaction_distance =
+                                    len / retraction_wipe.distance * retraction_length;
+
+                                (retaction_distance, next_point)
+                            })
+                            .collect::<Vec<_>>();
+                        /*
+                        if chain.is_loop && chain.moves.len() > 3{
+                            if let [m2,m1,..] = ordered[ordered.len()-3..ordered.len()]{
+                                if let Some(m0) = ordered.first() {
+                                    //let m1 = chain.start_point ;
+                                    //inset the first move
+                                    let bisector = directional_unit_bisector_left(&m0, &m1, &m2);
+
+                                    let scaled_bisector = bisector.scale(self.layer_settings.extrusion_width.exterior_surface_perimeter);
+
+                                    let inset_point = Coord::from((m1.x - scaled_bisector.x,m1.y - scaled_bisector.y));
+
+                                    println!("{:?} {:?} {:?} ",m0,m1,m2);
+                                    println!("{:?} {:?} {:?} ",bisector,scaled_bisector,inset_point);
+
+                                    wipe_moves.insert(0,(0.0,inset_point))
+
+
+                                }
+                            }
+                        }*/
+
+                        if remaining_distance > 0.0 {
+                            if let Some((distance, _)) = wipe_moves.last_mut() {
+                                *distance += remaining_distance / retraction_wipe.distance
+                                    * retraction_length
+                            }
+                        }
+
+                        Command::SetState {
+                            new_state: StateChange {
+                                extruder_temp: None,
+                                bed_temp: None,
+                                fan_speed: None,
+                                movement_speed: Some(retraction_wipe.speed),
+                                acceleration: Some(retraction_wipe.acceleration),
+                                retract: RetractionType::MoveRetract(wipe_moves),
+                            },
+                        }
+                    } else {
+                        Command::SetState {
+                            new_state: StateChange {
+                                bed_temp: None,
+                                extruder_temp: None,
+                                fan_speed: None,
+                                movement_speed: Some(self.layer_settings.speed.travel),
+                                acceleration: Some(self.layer_settings.acceleration.travel),
+                                retract: RetractionType::Retract,
+                            },
+                        }
+                    };
+
+                commands.push(Command::MoveTo {
+                    end: chain.start_point,
+                });
+                commands.append(&mut chain.create_commands(&self.layer_settings, layer_thickness));
+
+                commands.push(retract_command);
+            }
         }
     }
 }
@@ -284,7 +445,7 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
             line_string
                 .0
                 .iter()
-                .circular_tuple_windows::<(&Coordinate<f64>, &Coordinate<f64>)>()
+                .circular_tuple_windows::<(&Coord<f64>, &Coord<f64>)>()
         })
         .filter(|(&s, &f)| {
             //test the midpoint if it supported
@@ -327,7 +488,11 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
             }
             .map(|projection_sum: f64| (per_vec, projection_sum))
         })
-        .min_by(|(_, l_sum), (_, r_sum)| l_sum.partial_cmp(r_sum).unwrap())
+        .min_by(|(_, l_sum), (_, r_sum)| {
+            l_sum
+                .partial_cmp(r_sum)
+                .expect("Sum should not contain NAN")
+        })
         .map(|((x, y), _)| -90.0 - (y).atan2(x).to_degrees())
         .unwrap_or(0.0)
 }
@@ -350,6 +515,7 @@ pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> 
                     moves.push(Command::ChangeObject { object: object_num });
                     moves.push(Command::LayerChange {
                         z: slice.top_height,
+                        index: layer_num,
                     });
                     moves.push(Command::SetState {
                         new_state: StateChange {
@@ -362,7 +528,7 @@ pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> 
                             }),
                             movement_speed: None,
                             acceleration: None,
-                            retract: None,
+                            retract: RetractionType::NoRetract,
                         },
                     });
                     slice.slice_into_commands(&mut moves, slice.top_height - last_layer);
