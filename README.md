@@ -19,7 +19,7 @@ USAGE:
     gladius_slicer.exe [FLAGS] [OPTIONS] <INPUT>...
 
 FLAGS:
-    -m               Use the Message System ( useful for interprocess communication)
+    -m               Use the Message System (useful for interprocess communication)
     -v               Sets the level of verbosity
     -h, --help       Prints help information
     -V, --version    Prints version information

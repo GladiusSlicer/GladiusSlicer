@@ -1,6 +1,5 @@
 use crate::SlicerErrors;
 use gladius_shared::types::*;
-use log::trace;
 use rayon::prelude::*;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
