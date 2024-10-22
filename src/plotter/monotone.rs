@@ -55,11 +55,11 @@ enum PointType {
 }
 
 /// Divides a Polygon into Y-Monotone sections.
-///
+/// 
 /// The sections will only intersect any line perpendicular to the y-axis in two places.
-///
+/// 
 /// # Arguments
-///
+/// 
 /// * `poly` - the polygon to divide
 pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
     //Convert polygon to Monotone points

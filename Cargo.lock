@@ -475,8 +475,8 @@ dependencies = [
 
 [[package]]
 name = "geo-offset"
-version = "0.3.1-alpha.0"
-source = "git+https://github.com/lelongg/geo-offset.git#e0ed82f849b9a84fde84a752d71a036be18f79a3"
+version = "0.3.2"
+source = "git+https://github.com/TimTheBig/geo-offset.git#ef592b7f70ce02bdd153e8c90901f91f679750e1"
 dependencies = [
  "geo-clipper",
  "geo-types",
@@ -553,7 +553,7 @@ dependencies = [
 
 [[package]]
 name = "gladius_slicer"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "bincode",
  "clap",

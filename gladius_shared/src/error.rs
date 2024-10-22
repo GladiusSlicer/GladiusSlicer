@@ -1,113 +1,113 @@
 use serde::{Deserialize, Serialize};
 
-///Errors that can be generated during the slicing process
+/// Errors that can be generated during the slicing process
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SlicerErrors {
-    ///Thefile for the object/Model can not be found in the file system
+    /// Thefile for the object/Model can not be found in the file system
     ObjectFileNotFound {
-        ///File that was not found
+        /// File that was not found
         filepath: String,
     },
 
-    ///The file for the settings can not be found in the file system
+    /// The file for the settings can not be found in the file system
     SettingsFileNotFound {
-        ///File that was not found
+        /// File that was not found
         filepath: String,
     },
 
-    ///The settings file can't be parsed
+    /// The settings file can't be parsed
     SettingsFileMisformat {
-        ///File that was misformatted
+        /// File that was misformatted
         filepath: String,
     },
 
-    ///A setting is missing from the settings file
+    /// A setting is missing from the settings file
     SettingsFileMissingSettings {
-        ///Setting that was missing
+        /// Setting that was missing
         missing_setting: String,
     },
 
-    ///Error loading the STL
+    /// Error loading the STL
     StlLoadError,
 
-    ///Error Loading the 3MF file
+    /// Error Loading the 3MF file
     ThreemfLoadError,
 
     /// Error loading the 3MF file, usally a compatiblity error
     ThreemfUnsupportedType,
 
-    ///Error during tower generation
+    /// Error during tower generation
     TowerGeneration,
 
-    ///No input models provided
+    /// No input models provided
     NoInputProvided,
 
-    ///All input must be UTF8
+    /// All input must be UTF8
     InputNotUTF8,
 
-    ///Input string is misformated
+    /// Input string is misformated
     InputMisformat,
 
-    ///Model would cause moves outside build area
+    /// Model would cause moves outside build area
     ModelOutsideBuildArea,
 
-    ///Generated move outside build area
+    /// Generated move outside build area
     MovesOutsideBuildArea,
 
-    ///settings file could not be loaded
+    /// settings file could not be loaded
     SettingsRecursiveLoadError {
-        ///File that was not found
+        /// File that was not found
         filepath: String,
     },
 
-    ///Error during tower generation
+    /// Error during tower generation
     SliceGeneration,
 
-    ///File permission issue will settings file or folder
+    /// File permission issue will settings file or folder
     SettingsFilePermission,
 
-    ///Failed to create new file
+    /// Failed to create new file
     FileCreateError {
-        ///File that was not created
+        /// File that was not created
         filepath: String,
     },
 
-    ///Failed to write to file
+    /// Failed to write to file
     FileWriteError {
-        ///File that was no able to write to
+        /// File that was no able to write to
         filepath: String,
     },
 
-    ///Error because settings less than zero
+    /// Error because settings less than zero
     SettingLessThanZero {
-        ///The setting name
+        /// The setting name
         setting: String,
 
-        ///The current value
+        /// The current value
         value: f64,
     },
 
-    ///Error because settings less than or equal to zero
+    /// Error because settings less than or equal to zero
     SettingLessThanOrEqualToZero {
-        ///The setting name
+        /// The setting name
         setting: String,
 
-        ///The current value
+        /// The current value
         value: f64,
     },
 
-    ///The file format is not supported
+    /// The file format is not supported
     FileFormatNotSupported {
         /// File with invalid Format
         filepath: String,
     },
 
-    ///Another error, here for plugins to use
+    /// Another error, here for plugins to use
     UnspecifiedError(String),
 }
 
 impl SlicerErrors {
-    ///Return the error code and pretty error message
+    /// Return the error code and pretty error message
     pub fn get_code_and_message(&self) -> (u32, String) {
         match self {
             SlicerErrors::UnspecifiedError(err_string) => {

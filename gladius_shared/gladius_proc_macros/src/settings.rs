@@ -26,7 +26,7 @@ pub fn derive_proc_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
         // if labled optional or merge use ( must be an option if optinal already)
         // field : Type
         #[derive(Serialize, Deserialize, Debug,Clone,Default)]
-        ///Partial Version of the struct #struct_name_ident
+        /// Partial Version of the struct #struct_name_ident
         pub struct #partial_settings_struct_name{
 
             #partial_settings_struct_content

@@ -84,7 +84,7 @@ struct ThreeMFTriangles {
     list: Vec<ThreeMFTriangle>,
 }
 
-///Loader for 3MF files
+/// Loader for 3MF files
 pub struct ThreeMFLoader {}
 
 impl Loader for ThreeMFLoader {

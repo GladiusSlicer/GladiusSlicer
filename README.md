@@ -44,7 +44,7 @@ Settings files are hJSON, a human readable json that supports comments. Examples
 
 # Current Status
 
- Generated GCode has been used for multiple prints (Benchy, xyz calibration cube,marvin) with a Prusa Mk3 and gives similar results to other slicers. 
+ Generated GCode has been used for multiple prints (Benchy, xyz calibration cube, marvin) with a Prusa Mk3 and gives similar results to other slicers. 
 
 ### Finished
 * Perimeters

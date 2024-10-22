@@ -22,9 +22,9 @@ use std::hash::{Hash, Hasher};
 
 /// Calculate the vertex the Line from v_start to v_end where
 /// it intersects with the plane z
-///
+/// 
 /// <div class="warning">If v_start.z == v_end.z then divide by 0</div>
-///
+/// 
 /// # Arguments
 /// * `z` - z height of the resulting point
 /// * `v_start` - Starting point of the line
