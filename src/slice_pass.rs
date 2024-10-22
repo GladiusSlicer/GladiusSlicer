@@ -4,7 +4,7 @@ use crate::plotter::Plotter;
 use crate::utils::display_state_update;
 use crate::{Object, PolygonOperations, Settings, Slice};
 use geo::prelude::*;
-use geo::*;
+use geo::MultiPolygon;
 use gladius_shared::error::SlicerErrors;
 use gladius_shared::types::PartialInfillTypes;
 use rayon::prelude::*;
@@ -96,7 +96,7 @@ impl ObjectPass for SkirtPass {
                 .layers
                 .iter_mut()
                 .take(skirt.layers)
-                .for_each(|slice| slice.generate_skirt(&convex_hull, skirt, settings))
+                .for_each(|slice| slice.generate_skirt(&convex_hull, skirt, settings));
         }
     }
 }

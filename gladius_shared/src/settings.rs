@@ -298,9 +298,9 @@ impl Default for Settings {
                                 M84 ; disable motors\n\
                                 M107 ; disable fan\n"
                 .to_string(),
-            before_layer_change_instructions: "".to_string(),
-            after_layer_change_instructions: "".to_string(),
-            object_change_instructions: "".to_string(),
+            before_layer_change_instructions: String::new(),
+            after_layer_change_instructions: String::new(),
+            object_change_instructions: String::new(),
             max_acceleration_x: 1000.0,
             max_acceleration_y: 1000.0,
             max_acceleration_z: 1000.0,

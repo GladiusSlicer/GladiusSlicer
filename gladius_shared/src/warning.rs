@@ -69,6 +69,7 @@ pub enum SlicerWarnings {
 
 impl SlicerWarnings {
     /// Return the error code and pretty error message
+    #[must_use]
     pub fn get_code_and_message(&self) -> (u32, String) {
         match self {
             SlicerWarnings::LayerSizeTooLow { nozzle_diameter, layer_height } => {

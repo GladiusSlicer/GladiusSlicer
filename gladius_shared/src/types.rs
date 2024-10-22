@@ -50,7 +50,7 @@ impl Slice {
     where
         I: Iterator<Item = (f64, f64)>,
     {
-        let polygon = Polygon::new(LineString::from_iter(line), vec![]);
+        let polygon = Polygon::new(LineString::from_iter(line), Vec::new());
 
         let layer_settings =
             settings.get_layer_settings(layer_count, (bottom_height + top_height) / 2.0);
@@ -260,8 +260,7 @@ impl InputObject {
     /// Helper function to get the model path from the input
     pub fn get_model_path(&self) -> &str {
         match self {
-            InputObject::Raw(str, _) => str,
-            InputObject::Auto(str) => str,
+            InputObject::Raw(str, _) | InputObject::Auto(str) => str,
             InputObject::AutoTranslate(str, _, _) => str,
         }
     }
@@ -342,7 +341,8 @@ pub enum MoveType {
     Travel,
 }
 
-/// The intermediate representation of the commands to send to the printer. The commands will be optimized organized and converted into the output expected ( for example GCode)
+/// The intermediate representation of the commands to send to the printer.
+/// The commands will be optimized organized and converted into the output expected ( for example `GCode`)
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum Command {
     /// Move to a specific location without extrusion
@@ -707,7 +707,7 @@ impl MoveChain {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
 
-        for m in self.moves.iter_mut() {
+        for m in &mut self.moves {
             let nx = m.end.x * cos_a - m.end.y * sin_a;
             let ny = m.end.x * sin_a + m.end.y * cos_a;
             m.end.x = nx;
@@ -739,6 +739,7 @@ pub struct CalculatedValues {
 
 impl CalculatedValues {
     /// Returns total time converted to hours, minutes, seconds, and remaining fractional seconds
+    #[must_use]
     pub fn get_hours_minutes_seconds_fract_time(&self) -> (usize, usize, usize, f64) {
         let total_time = self.total_time.floor() as usize;
 

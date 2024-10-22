@@ -3,10 +3,13 @@ use crate::*;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+/// The output of a file and a settings file
+type FileOutput = Result<(Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, Settings), SlicerErrors>;
+
 pub fn files_input(
     settings_path: Option<&str>,
     input: Option<Vec<String>>,
-) -> Result<(Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, Settings), SlicerErrors> {
+) -> FileOutput {
     let settings: Settings = {
         if let Some(str) = settings_path {
             load_settings(str)
@@ -92,7 +95,7 @@ pub fn files_input(
             debug!("Using Transform {}", trans_str);
 
             vec.extend(models.into_iter().map(move |(mut v, t)| {
-                for vert in v.iter_mut() {
+                for vert in &mut v {
                     *vert = &transform * *vert;
                 }
 

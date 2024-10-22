@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Messages for communicating between the slicer and another process
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Message {
-    /// Message to share CalculatedValues struct
+    /// Message to share `CalculatedValues`` struct
     CalculatedValues(CalculatedValues),
 
     /// Message to share the list of all commands

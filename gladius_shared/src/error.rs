@@ -111,7 +111,7 @@ impl SlicerErrors {
     pub fn get_code_and_message(&self) -> (u32, String) {
         match self {
             SlicerErrors::UnspecifiedError(err_string) => {
-                (0xFFFFFFFF,format!("Third Party Error: {}.",err_string))
+                (0xFFFF_FFFF,format!("Third Party Error: {}.",err_string))
             }
             SlicerErrors::ObjectFileNotFound { filepath } => {
                 (0x1000,format!("Could not load object file \"{}\". It was not found in the filesystem. Please check that the file exists and retry.",filepath))

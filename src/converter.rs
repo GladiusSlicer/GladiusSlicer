@@ -273,7 +273,7 @@ pub fn convert(
         settings,
     );
 
-    writeln!(write_buf, "{}", end)?;
+    writeln!(write_buf, "{end}")?;
 
     write_buf
         .flush()

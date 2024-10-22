@@ -2,7 +2,7 @@ use crate::*;
 use coordinate_position::CoordPos;
 use geo::euclidean_distance::EuclideanDistance;
 use geo::line_intersection::{line_intersection, LineIntersection};
-use gladius_shared::settings::*;
+use gladius_shared::settings::LayerSettings;
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -81,8 +81,8 @@ pub fn lightning_layer(
 
     let fragments = lightning_forest.reconnect_to_polygon_and_trim(&infill_area);
 
-    let mut points: Vec<_> = ((min_x / h_spacing) as usize..=(max_x / h_spacing) as usize + 1)
-        .cartesian_product((min_y / v_spacing) as usize..=(max_y / v_spacing) as usize + 1)
+    let mut points: Vec<_> = ((min_x / h_spacing) as usize..= (max_x / h_spacing) as usize + 1)
+        .cartesian_product((min_y / v_spacing) as usize..= (max_y / v_spacing) as usize + 1)
         .map(|(x, y)| {
             if y % 2 == 0 {
                 Coord::from((x as f64 * h_spacing, y as f64 * v_spacing))
@@ -119,7 +119,7 @@ pub fn lightning_layer(
         });
 
         for (node, _distance, closet) in points {
-            lightning_forest.add_node_to_tree(node, &closet, inset_amount)
+            lightning_forest.add_node_to_tree(node, &closet, inset_amount);
         }
     }
 
@@ -131,7 +131,7 @@ pub fn lightning_layer(
             .trees
             .iter()
             .flat_map(|tree| tree.get_move_chains(width).into_iter()),
-    )
+    );
 }
 
 pub enum StraightenResponse {
@@ -297,7 +297,7 @@ impl LightningNode {
                         }],
                         start_point: child.location,
                         is_loop: false,
-                    })
+                    });
                 }
                 chains.into_iter()
             })
@@ -424,7 +424,7 @@ impl LightningForest {
             match polygon.coordinate_position(&tree.location) {
                 CoordPos::OnBoundary => {
                     new_trees.extend(tree.trim_for_polygon_inside(polygon));
-                    new_trees.push(tree)
+                    new_trees.push(tree);
                 }
                 CoordPos::Outside => {
                     //new_trees.extend(tree.children.into_iter().map(|child| child.trim_for_polygon_outside_to_inside(l,polygon).into_iter()).flatten())

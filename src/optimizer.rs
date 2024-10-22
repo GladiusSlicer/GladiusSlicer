@@ -10,8 +10,7 @@ pub fn unary_optimizer(cmds: &mut Vec<Command>) {
     cmds.retain(|cmd| match cmd {
         Command::MoveTo { .. } => true,
         Command::MoveAndExtrude { start, end, .. } => start != end,
-        Command::LayerChange { .. } => true,
-        Command::ChangeObject { .. } => true,
+        Command::LayerChange { .. } | Command::ChangeObject { .. } => true,
         Command::SetState { new_state } => {
             !(new_state.acceleration.is_none()
                 && new_state.movement_speed.is_none()
@@ -57,8 +56,7 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                             .abs();
 
                         if det < 0.00001 {
-                            //Colinear
-
+                            // Colinear
                             return Ok(Command::MoveAndExtrude {
                                 start: f_start,
                                 end: s_end,
@@ -73,10 +71,9 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                     return Ok(Command::MoveTo { end: s_end });
                 }
                 (Command::Delay { msec: t1 }, Command::Delay { msec: t2 }) => {
-                    //merge back to back delays
+                    // merge back to back delays
                     return Ok(Command::Delay { msec: t1 + t2 });
                 }
-
                 (Command::ChangeObject { .. }, Command::ChangeObject { object }) => {
                     // skip an object change followed by another change
                     return Ok(Command::ChangeObject { object });
@@ -102,7 +99,7 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                     {
                         current_pos = end;
 
-                        //remove retract command
+                        // remove retract command
                         f_state.retract = RetractionType::NoRetract;
 
                         return Err((
@@ -115,7 +112,7 @@ pub fn binary_optimizer(cmds: &mut Vec<Command>, settings: &Settings) {
                         {
                             current_pos = end;
 
-                            //remove retract command
+                            // remove retract command
                             f_state.retract = RetractionType::NoRetract;
 
                             return Err((
@@ -158,13 +155,13 @@ pub fn state_optomizer(cmds: &mut Vec<Command>) {
     }
 }
 
-pub fn arc_optomizer(cmds: &mut Vec<Command>) {
+pub fn arc_optomizer(cmds: &mut [Command]) {
     let mut ranges = vec![];
 
-    //println!("{}",cmds.len());
+    // println!("{}",cmds.len());
 
-    for (wt, group) in &cmds.iter().enumerate().group_by(|cmd| {
-        //println!("{}",cmd.0);
+    for (wt, group) in &cmds.iter().enumerate().chunk_by(|cmd| {
+        // println!("{}",cmd.0);
         if let Command::MoveAndExtrude {
             thickness, width, ..
         } = cmd.1
@@ -184,7 +181,7 @@ pub fn arc_optomizer(cmds: &mut Vec<Command>) {
             let mut start_pos = group_peek.peek().expect("validated aboive").0;
 
             for (pos, center, radius) in group_peek
-                //commands -> lines
+                // commands -> lines
                 .map(|(pos, cmd)| {
                     if let Command::MoveAndExtrude { start, end, .. } = cmd {
                         (pos, (start, end))
@@ -192,22 +189,22 @@ pub fn arc_optomizer(cmds: &mut Vec<Command>) {
                         unreachable!()
                     }
                 })
-                //lines -> bisector
+                // lines -> bisector
                 .tuple_windows::<(
                     (usize, (&Coord<f64>, &Coord<f64>)),
                     (usize, (&Coord<f64>, &Coord<f64>)),
                 )>()
                 .map(|((pos, l1), (_, l2))| {
-                    //println!("({},{}) ({},{}) ", l1.0.x,l1.0.y,l1.1.x,l1.1.y );
+                    // println!("({},{}) ({},{}) ", l1.0.x,l1.0.y,l1.1.x,l1.1.y );
                     (pos, line_bisector(l1.0, l1.1, l2.1))
                 })
-                //bisector -> center, radius
+                // bisector -> center, radius
                 .tuple_windows::<(
                     (usize, (Coord<f64>, Coord<f64>)),
                     (usize, (Coord<f64>, Coord<f64>)),
                 )>()
                 .filter_map(|((pos, (p1, n1)), (_, (p2, n2)))| {
-                    //println!("({:?},{:?}) ",p1,n1 );
+                    // println!("({:?},{:?}) ",p1,n1 );
 
                     ray_ray_intersection(&p1, &n1, &p2, &n2)
                         .map(|center| (pos, center.x_y(), center.euclidean_distance(&p1)))
@@ -215,7 +212,7 @@ pub fn arc_optomizer(cmds: &mut Vec<Command>) {
             {
                 last_pos = pos;
 
-                //println!("{} ({},{}) ", radius,center.0,center.1);
+                // println!("{} ({},{}) ", radius,center.0,center.1);
                 if (radius - current_radius).abs() < 1.1
                     && (center.0 - current_center.0).abs() < 1.1
                     && (center.1 - current_center.1).abs() < 1.1
@@ -227,7 +224,7 @@ pub fn arc_optomizer(cmds: &mut Vec<Command>) {
                 if current_chain > 5 {
                     ranges.push((center, (start_pos..=pos), *thickness, *width));
 
-                    //println!("arc found {}..{}", start_pos , pos);
+                    // println!("arc found {}..{}", start_pos , pos);
                 }
 
                 current_center = center;
@@ -237,7 +234,7 @@ pub fn arc_optomizer(cmds: &mut Vec<Command>) {
             }
 
             if current_chain > 5 {
-                //println!("{}..{}",start_pos,last_pos+2);
+                // println!("{}..{}",start_pos,last_pos+2);
                 ranges.push((
                     current_center,
                     (start_pos..=last_pos + 2),
@@ -245,20 +242,16 @@ pub fn arc_optomizer(cmds: &mut Vec<Command>) {
                     *width,
                 ));
 
-                //println!("arc found {}..{}", last_pos- current_chain , last_pos);
+                // println!("arc found {}..{}", last_pos- current_chain , last_pos);
             }
         }
     }
 
     for (center, range, thickness, width) in ranges {
-        let start = if let Command::MoveAndExtrude { start, .. } = cmds[*range.start()] {
-            start
-        } else {
+        let Command::MoveAndExtrude { start, .. } = cmds[*range.start()] else {
             unreachable!()
         };
-        let end = if let Command::MoveAndExtrude { end, .. } = cmds[*range.end()] {
-            end
-        } else {
+        let Command::MoveAndExtrude { end, .. } = cmds[*range.end()] else {
             unreachable!()
         };
 
@@ -279,9 +272,9 @@ pub fn arc_optomizer(cmds: &mut Vec<Command>) {
         };
 
         // println!("center = ({},{})",center.0,center.1);
-        //println!("ra = [{} {}]",range.start(),range.end());
-        //println!("s{:?}",start);
-        //println!("end{:?}",start);
+        // println!("ra = [{} {}]",range.start(),range.end());
+        // println!("s{:?}",start);
+        // println!("end{:?}",start);
     }
 }
 
@@ -312,7 +305,7 @@ fn ray_ray_intersection(
     let u = (dy * d1.x - dx * d1.y) / det;
     let v = (dy * d0.x - dx * d0.y) / det;
     if (u > 0.0) && (v > 0.0) {
-        //println!("({},{}) ", p1.x,p1.y, );
+        // println!("({},{}) ", p1.x,p1.y, );
         let p1_end = *s0 + *d0; // another point in line p1->n1
         let p2_end = *s1 + *d1; // another point in line p2->n2
 
@@ -421,7 +414,7 @@ mod tests {
         //         y: -0.5444561,
         //     },
         // );
-        //assert_eq!(center, Some(Coord{x: 0.0,y:0.0}));
+        // assert_eq!(center, Some(Coord{x: 0.0,y:0.0}));
     }
 
     #[test]

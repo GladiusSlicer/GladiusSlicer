@@ -13,7 +13,7 @@ pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Result<Vec<Object
             let res_points: Result<Vec<(f64, f64, Vec<Vec<Vertex>>)>, SlicerErrors> =
                 std::iter::repeat(())
                     .enumerate()
-                    .map(|(layer_count, _)| {
+                    .map(|(layer_count, ())| {
                         //Advance to the correct height
                         let layer_height =
                             settings.get_layer_settings(layer_count, layer).layer_height;

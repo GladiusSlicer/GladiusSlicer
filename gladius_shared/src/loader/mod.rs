@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 
-use crate::error::*;
-use crate::types::*;
+use crate::error::SlicerErrors;
+use crate::types::{IndexedTriangle, Transform, Vertex};
 
 mod stl;
 mod threemf;
