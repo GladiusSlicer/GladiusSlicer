@@ -59,7 +59,7 @@ macro_rules! option_setting_less_than_zero {
 }
 
 ///A complete settings file for the entire slicer.
-#[derive(Settings,Serialize, Deserialize, Debug)]
+#[derive(Settings, Serialize, Deserialize, Debug)]
 pub struct Settings {
     ///The height of the layers
     pub layer_height: f64,
@@ -146,8 +146,6 @@ pub struct Settings {
     ///Overlap between infill and interior perimeters
     pub infill_perimeter_overlap_percentage: f64,
 
-
-    
     ///Solid Infill type
     pub solid_infill_type: SolidInfillTypes,
 
@@ -601,7 +599,7 @@ pub struct LayerSettings {
 }
 
 ///A set of values for different movement types
-#[derive(Settings,Serialize, Deserialize, Debug, Clone)]
+#[derive(Settings, Serialize, Deserialize, Debug, Clone)]
 pub struct MovementParameter {
     ///Value for interior (perimeters that are inside the model
     pub interior_inner_perimeter: f64,
@@ -652,7 +650,7 @@ impl MovementParameter {
     }
 }
 ///Settings for a filament
-#[derive(Settings,Serialize, Deserialize, Debug, Clone)]
+#[derive(Settings, Serialize, Deserialize, Debug, Clone)]
 pub struct FilamentSettings {
     ///Diameter of this filament in mm
     pub diameter: f64,
@@ -671,7 +669,7 @@ pub struct FilamentSettings {
 }
 
 ///Settigns for the fans
-#[derive(Settings,Serialize, Deserialize, Debug, Clone)]
+#[derive(Settings, Serialize, Deserialize, Debug, Clone)]
 pub struct FanSettings {
     ///The default fan speed
     pub fan_speed: f64,
@@ -744,17 +742,15 @@ pub struct RetractionWipeSettings {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 ///A partial complete settings file
-pub struct PartialSettingsFile{
+pub struct PartialSettingsFile {
     ///Other files to load
     pub other_files: Option<Vec<String>>,
 
     #[serde(flatten)]
     partial_settings: PartialSettings,
-
 }
 
-impl PartialSettingsFile{
-
+impl PartialSettingsFile {
     ///Convert a partial settings file into a complete settings file
     /// returns an error if a settings is not present in this or any sub file
     pub fn get_settings(mut self) -> Result<Settings, SlicerErrors> {
@@ -782,7 +778,7 @@ impl PartialSettingsFile{
                     }
                 })?)
                 .map_err(|_| SlicerErrors::SettingsFileMisformat {
-                     filepath: file.to_string(),
+                    filepath: file.to_string(),
                 })?;
 
             ps.combine_with_other_files()?;
@@ -793,7 +789,6 @@ impl PartialSettingsFile{
         Ok(())
     }
 }
-
 
 /// The different types of layer ranges supported
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -819,8 +814,6 @@ pub enum LayerRange {
         end: f64,
     },
 }
-
-
 
 fn check_extrusions(
     extrusion_width: &MovementParameter,
@@ -1051,19 +1044,19 @@ fn check_accelerations(
     SettingsValidationResult::NoIssue
 }
 
-trait Combine{
+trait Combine {
     fn combine(&mut self, other: Self);
 }
 
-impl<T> Combine for Vec<T>{
-    fn combine(&mut self, mut other: Self)  {
+impl<T> Combine for Vec<T> {
+    fn combine(&mut self, mut other: Self) {
         self.append(&mut other);
     }
 }
 
-impl<T> Combine for Option<T>{
+impl<T> Combine for Option<T> {
     fn combine(&mut self, other: Self) {
-        if self.is_none(){
+        if self.is_none() {
             *self = other;
         }
     }

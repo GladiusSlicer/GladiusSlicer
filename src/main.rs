@@ -65,13 +65,13 @@ struct Args {
     #[arg(short = 'j', help = "Sets the number of threads to use in the thread pool (defaults to number of CPUs)")]
     thread_count: Option<usize>,
 }
+
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
-    let args : Args = Args::parse();
+    let args: Args = Args::parse();
 
     //set number of cores for rayon
-    if let Some(number_of_threads) = args.thread_count
-    {
+    if let Some(number_of_threads) = args.thread_count {
         rayon::ThreadPoolBuilder::new()
             .num_threads(number_of_threads)
             .build_global()
