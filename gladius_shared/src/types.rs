@@ -166,13 +166,13 @@ pub enum PartialInfillTypes {
 #[derive(Default, Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename = "vertex")]
 pub struct Vertex {
-    /// X Coordinate
+    /// X Coord
     pub x: f64,
 
-    /// Y Coordinate
+    /// Y Coord
     pub y: f64,
 
-    /// Z Coordinate
+    /// Z Coord
     pub z: f64,
 }
 
@@ -287,7 +287,7 @@ pub struct IndexedLine {
 /// A move of the plotter
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Move {
-    /// The end Coordinate of the Move. The start of the move is the previous moves end point.
+    /// The end Coord of the Move. The start of the move is the previous moves end point.
     pub end: Coord<f64>,
     /// The width of plastic to extrude for this move
     pub width: f64,
@@ -394,7 +394,7 @@ pub enum Command {
         /// End point of the arc
         end: Coord<f64>,
 
-        /// The center point that the arc keeps equidistant from
+        ///The center point that the arc keeps equidistant from
         center: Coord<f64>,
 
         /// Whether the arc is clockwise or anticlockwise
