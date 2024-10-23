@@ -39,7 +39,7 @@ pub struct Slice {
     pub layer_settings: LayerSettings,
 }
 impl Slice {
-    /// Creates a slice from a spefic iterator of points
+    /// Creates a slice from a specific iterator of points
     pub fn from_single_point_loop<I>(
         line: I,
         bottom_height: f64,

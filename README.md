@@ -68,7 +68,7 @@ Settings files are hJSON, a human readable json that supports comments. Examples
   * This work should ideally be moved into its own repo/crate so other projects can use the code 
 * Time Calculations
   * They are not very accurate, underestimates the time currently
-  * Acceleration settings, Command processs time, etc are not current accounted for
+  * Acceleration settings, Command processes time, etc are not current accounted for
 * Plugins/Mods
   * Traits have been started but no loading yet.
   * The type definitions are currently part of the shared crate.

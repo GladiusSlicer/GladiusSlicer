@@ -33,7 +33,7 @@ pub enum SlicerErrors {
     /// Error Loading the 3MF file
     ThreemfLoadError,
 
-    /// Error loading the 3MF file, usally a compatiblity error
+    /// Error loading the 3MF file, usually a compatibility error
     ThreemfUnsupportedType,
 
     /// Error during tower generation
@@ -144,7 +144,7 @@ impl SlicerErrors {
                 (0x1009,"Input Incorrectly Formatted".to_string())
             }
             SlicerErrors::SettingsRecursiveLoadError { filepath } => {
-                (0x100A,format!("Failed to load addional settings file {}",filepath))
+                (0x100A,format!("Failed to load additional settings file {}",filepath))
             }
             SlicerErrors::SliceGeneration => {
                 (0x100B,"There was a issue ordering the polygon for slicing. Try repairing your Model.".to_string())

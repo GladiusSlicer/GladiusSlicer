@@ -668,7 +668,7 @@ pub struct FilamentSettings {
     pub bed_temp: f64,
 }
 
-/// Settigns for the fans
+/// Settings for the fans
 #[derive(Settings, Serialize, Deserialize, Debug, Clone)]
 pub struct FanSettings {
     /// The default fan speed
@@ -1062,6 +1062,6 @@ impl<T> Combine for Option<T> {
     }
 }
 
-/// Error for Partial Convertion to Full Type
+/// Error for Partial Conversion to Full Type
 /// String contains missing path
 pub struct PartialConvertError(String);

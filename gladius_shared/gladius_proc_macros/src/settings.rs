@@ -23,7 +23,7 @@ pub fn derive_proc_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
         // Make PartialSettings struct
         // each field  gets an entry
         // field : Option<Type> 
-        // if labled optional or merge use ( must be an option if optinal already)
+        // if labeled optional or merge use ( must be an option if optional already)
         // field : Type
         #[derive(Serialize, Deserialize, Debug,Clone,Default)]
         /// Partial Version of the struct #struct_name_ident
@@ -33,11 +33,11 @@ pub fn derive_proc_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
 
         }
 
-        //create the combine fuction
+        // create the combine function
         // each field  gets an entry
-        //field: self.field.or(other.field),
-        //if labled merge ( merge is a trait that allows for custom merging)
-        //field: self.field.merge(other.field),
+        // field: self.field.or(other.field),
+        // if labeled merge ( merge is a trait that allows for custom merging)
+        // field: self.field.merge(other.field),
 
         impl Combine for #partial_settings_struct_name{
             #combine_function
@@ -68,7 +68,7 @@ pub fn derive_proc_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
 // Make PartialSettings struct
 // each field  gets an entry
 // field : Option<Type>
-// if labled optional or merge use ( must be an option if optinal already)
+// if labeled optional or merge use ( must be an option if optional already)
 // field : Type
 
 fn transform_fields_into_partial_struct_fields(
@@ -115,11 +115,11 @@ fn transform_fields_into_partial_struct_fields(
     }
 }
 
-//create the combine fuction
+// create the combine function
 // each field  gets an entry
-//field: self.field.or(other.field),
-//if labled combine ( combine is a trait that allows for custom combining)
-//field: self.field.merge(other.field),
+// field: self.field.or(other.field),
+// if labeled combine ( combine is a trait that allows for custom combining)
+// field: self.field.merge(other.field),
 fn transform_fields_into_combine_function(data_struct: &DataStruct) -> proc_macro2::TokenStream {
     match data_struct.fields {
         syn::Fields::Named(ref fields) => {
