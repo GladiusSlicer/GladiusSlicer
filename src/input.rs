@@ -10,6 +10,7 @@ pub fn files_input(
     settings_path: Option<&str>,
     input: Option<Vec<String>>,
 ) -> FileOutput {
+    info!("Loading Settings");
     let settings: Settings = {
         if let Some(str) = settings_path {
             load_settings(str)
@@ -22,11 +23,9 @@ pub fn files_input(
 
     let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>)> = input
         .ok_or(SlicerErrors::NoInputProvided)?
-        .iter()
+        .into_iter()
         .try_fold(vec![], |mut vec, value| {
-            let object: InputObject =
-                deser_hjson::from_str(value).map_err(|_| SlicerErrors::InputMisformat)?;
-            let model_path = Path::new(object.get_model_path());
+            let model_path = Path::new(&value);
 
             debug!("Using input file: {:?}", model_path);
 
@@ -45,6 +44,8 @@ pub fn files_input(
                 }),
             };
 
+            info!("Loading model from: {}", &value);
+
             let models = match loader?.load(model_path.to_str().ok_or(SlicerErrors::InputNotUTF8)?)
             {
                 Ok(v) => v,
@@ -53,6 +54,9 @@ pub fn files_input(
                     std::process::exit(-1);
                 }
             };
+
+            info!("Loading objects");
+            let object = InputObject::Auto(value);
 
             let (x, y) = match object {
                 InputObject::AutoTranslate(_, x, y) => (x, y),
