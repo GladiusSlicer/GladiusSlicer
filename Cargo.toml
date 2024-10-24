@@ -5,7 +5,6 @@ authors = ["mrhatman <lucasince@gmail.com>"]
 edition = "2021"
 
 
-
 [workspace]
 members = [ 
     "gladius_shared"
@@ -14,7 +13,7 @@ members = [
 [dependencies]
 clap = { version = "4", features = ["derive"]}
 simple_logger = "5.0.0"
-log = "0.4.14"
+log = "0.4.22"
 
 nalgebra = "0.33"
 itertools = "0.13"
@@ -25,11 +24,11 @@ geo-offset = { version = "0.3.2", git = "https://github.com/TimTheBig/geo-offset
 
 serde = { version = "1.0", features = ["derive"] }
 deser-hjson = "2.2"
-serde_json = "1.0.85"
+serde_json = "^1.0.85"
 bincode = "1.3.3"
 ordered-float = "4.3"
 rayon = "1.5.1"
 
-rand = "0.8.4"
+rand = "0.8.5"
 
 gladius_shared = { path = "gladius_shared", version = "0.5.0" }
