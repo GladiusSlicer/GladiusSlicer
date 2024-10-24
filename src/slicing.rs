@@ -14,7 +14,7 @@ pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Result<Vec<Object
                 std::iter::repeat(())
                     .enumerate()
                     .map(|(layer_count, ())| {
-                        //Advance to the correct height
+                        // Advance to the correct height
                         let layer_height =
                             settings.get_layer_settings(layer_count, layer).layer_height;
 
@@ -27,7 +27,7 @@ pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Result<Vec<Object
 
                         first_layer = false;
 
-                        //Get the ordered lists of points
+                        // Get the ordered lists of points
                         Ok((bottom_height, top_height, tower_iter.get_points()))
                     })
                     .take_while(|r| {
@@ -45,7 +45,7 @@ pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Result<Vec<Object
                 .par_iter()
                 .enumerate()
                 .map(|(count, (bot, top, layer_loops))| {
-                    //Add this slice to the
+                    // Add this slice to the
                     let slice = Slice::from_multiple_point_loop(
                         layer_loops
                             .iter()

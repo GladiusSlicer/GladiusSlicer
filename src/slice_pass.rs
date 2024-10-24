@@ -187,7 +187,7 @@ impl SlicePass for TopAndBottomLayersPass {
         let top_layers = settings.top_layers;
         let bottom_layers = settings.bottom_layers;
 
-        //Make sure at least 1 layer will not be solid
+        // Make sure at least 1 layer will not be solid
         if slices.len() > bottom_layers + top_layers {
             display_state_update("Generating Moves: Above and below support", send_messages);
 

@@ -3,6 +3,7 @@
 use crate::error::SlicerErrors;
 use crate::types::{MoveType, PartialInfillTypes, SolidInfillTypes};
 use crate::warning::SlicerWarnings;
+use geo::MultiPolygon;
 use gladius_proc_macros::Settings;
 use serde::{Deserialize, Serialize};
 
@@ -209,6 +210,10 @@ pub struct Settings {
     #[AllowDefault]
     /// Settings for specific layers
     pub layer_settings: Vec<(LayerRange, PartialLayerSettings)>,
+
+    #[Optional]
+    /// Areas of the bed that can't have parts on it
+    pub bed_exclude_areas: Option<MultiPolygon>,
 }
 
 impl Default for Settings {
@@ -343,6 +348,7 @@ impl Default for Settings {
             maximum_feedrate_z: 12.0,
             maximum_feedrate_e: 120.0,
             retraction_wipe: None,
+            bed_exclude_areas: None,
         }
     }
 }

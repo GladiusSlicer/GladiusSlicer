@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
 
 /*
 
-    Rough algortim
+    Rough algoritim
 
     build tower
         For each point store all edges and face connected to but above it
@@ -42,6 +42,7 @@ fn lerp(a: f64, b: f64, f: f64) -> f64 {
     a + f * (b - a)
 }
 
+/// A set of triangles and their associated vertices
 pub struct TriangleTower {
     vertices: Vec<Vertex>,
     tower_vertices: Vec<TowerVertex>,
@@ -55,10 +56,10 @@ impl TriangleTower {
         let mut future_tower_vert: Vec<Vec<TriangleEvent>> =
             (0..vertices.len()).map(|_| vec![]).collect();
 
-        //for each triangle add it to the tower
+        // for each triangle add it to the tower
 
         for (triangle_index, index_tri) in triangles.iter().enumerate() {
-            //index 0 is always lowest
+            // index 0 is always lowest
             future_tower_vert[index_tri.verts[0]].push(TriangleEvent::MiddleVertex {
                 trailing_edge: index_tri.verts[1],
                 leading_edge: index_tri.verts[2],
@@ -79,8 +80,8 @@ impl TriangleTower {
             }
         }
 
-        //for each triangle event, add it to the lowest vertex and
-        //create a list of all vertices and there above edges
+        // for each triangle event, add it to the lowest vertex and
+        // create a list of all vertices and there above edges
 
         let res_tower_vertices: Vec<TowerVertex> = future_tower_vert
             .into_par_iter()
@@ -94,10 +95,10 @@ impl TriangleTower {
             })
             .collect();
 
-        //propagate errors
+        // propagate errors
         let mut tower_vertices = res_tower_vertices;
 
-        //sort lowest to highest
+        // sort lowest to highest
         tower_vertices.sort_by(|a, b| {
             vertices[a.start_index]
                 .partial_cmp(&vertices[b.start_index])
@@ -166,7 +167,7 @@ impl TowerRing {
             //add in the fragment
             frags.push(TowerRing { elements: new_ring });
         } else {
-            //append to the begining to prevent ophaned segments
+            //append to the beginning to prevent ophaned segments
             if frags[0].elements.is_empty() {
                 frags[0].elements = new_ring;
             } else {
@@ -848,7 +849,7 @@ mod tests {
             return;
         }
         if lhs.len() != rhs.len() {
-            panic!("ASSERT rings count are differnt lengths");
+            panic!("ASSERT rings count are different lengths");
         }
 
         for q in 0..lhs.len() {
@@ -861,7 +862,7 @@ mod tests {
             return;
         }
         if lhs.elements.len() != rhs.elements.len() {
-            panic!("ASSERT ring {} and {} are differnt lengths", lhs, rhs);
+            panic!("ASSERT ring {} and {} are different lengths", lhs, rhs);
         }
 
         for q in 0..lhs.elements.len() - 1 {
@@ -875,7 +876,7 @@ mod tests {
             }
 
             if lhs.elements.len() != rhs.elements.len() {
-                panic!("ASSERT ring {} and {} are differnt", lhs, rhs);
+                panic!("ASSERT ring {} and {} are different", lhs, rhs);
             }
         }
     }
