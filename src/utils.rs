@@ -76,7 +76,7 @@ pub fn lerp(a: f64, b: f64, f: f64) -> f64 {
     a + f * (b - a)
 }
 
-///Function to generate a unit bisector of the angle p0,p1,p2 that will always be inside the angle to the left
+/// Function to generate a unit bisector of the angle p0, p1, p2 that will always be inside the angle to the left
 pub fn directional_unit_bisector_left(
     p0: &Coord<f64>,
     p1: &Coord<f64>,

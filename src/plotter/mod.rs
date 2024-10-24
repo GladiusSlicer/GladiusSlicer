@@ -6,13 +6,13 @@ pub mod polygon_operations;
 pub(crate) mod support;
 
 pub use crate::plotter::infill::*;
-use crate::plotter::perimeter::*;
+use crate::plotter::perimeter::inset_polygon_recursive;
 use crate::plotter::polygon_operations::PolygonOperations;
 use crate::utils::point_lerp;
 use crate::{Object, Settings, StateChange};
 use coordinate_position::CoordPos;
 use geo::prelude::*;
-use geo::*;
+use geo::{Coord, MultiPolygon, Polygon};
 use gladius_shared::settings::SkirtSettings;
 use gladius_shared::types::{Command, Move, MoveChain, MoveType, RetractionType, Slice};
 use itertools::Itertools;
@@ -116,7 +116,7 @@ impl Plotter for Slice {
             }
         }
 
-        self.remaining_area = MultiPolygon(vec![])
+        self.remaining_area = MultiPolygon(vec![]);
     }
 
     fn fill_solid_subtracted_area(&mut self, other: &MultiPolygon<f64>, layer_count: usize) {
@@ -136,7 +136,7 @@ impl Plotter for Slice {
                 linear_fill_polygon(poly, layer_settings, MoveType::SolidInfill, angle).into_iter()
             }));
 
-        self.remaining_area = self.remaining_area.difference_with(&solid_area)
+        self.remaining_area = self.remaining_area.difference_with(&solid_area);
     }
 
     fn fill_solid_bridge_area(&mut self, layer_below: &MultiPolygon<f64>) {
@@ -161,7 +161,7 @@ impl Plotter for Slice {
                 linear_fill_polygon(poly, layer_settings, MoveType::Bridging, angle).into_iter()
             }));
 
-        self.remaining_area = self.remaining_area.difference_with(&solid_area)
+        self.remaining_area = self.remaining_area.difference_with(&solid_area);
     }
 
     fn fill_solid_top_layer(&mut self, layer_above: &MultiPolygon<f64>, layer_count: usize) {
@@ -184,7 +184,7 @@ impl Plotter for Slice {
             }
         }
 
-        self.remaining_area = self.remaining_area.difference_with(&solid_area)
+        self.remaining_area = self.remaining_area.difference_with(&solid_area);
     }
 
     fn generate_skirt(
@@ -304,7 +304,7 @@ impl Plotter for Slice {
 
             ordered_chains
         } else {
-            vec![]
+            Vec::new()
         };
 
         self.chains = ordered_chains;
@@ -399,7 +399,7 @@ impl Plotter for Slice {
                         if remaining_distance > 0.0 {
                             if let Some((distance, _)) = wipe_moves.last_mut() {
                                 *distance += remaining_distance / retraction_wipe.distance
-                                    * retraction_length
+                                    * retraction_length;
                             }
                         }
 
@@ -493,8 +493,7 @@ fn get_optimal_bridge_angle(fill_area: &Polygon<f64>, unsupported_area: &MultiPo
                 .partial_cmp(r_sum)
                 .expect("Sum should not contain NAN")
         })
-        .map(|((x, y), _)| -90.0 - (y).atan2(x).to_degrees())
-        .unwrap_or(0.0)
+        .map_or(0.0, |((x, y), _)| -90.0 - (y).atan2(x).to_degrees())
 }
 
 pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> Vec<Command> {

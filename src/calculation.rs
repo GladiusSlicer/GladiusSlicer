@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{CalculatedValues, Command, Coord, RetractionType, Settings};
 
 pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedValues {
     let mut values = CalculatedValues {
@@ -38,7 +38,7 @@ pub fn calculate_values(moves: &[Command], settings: &Settings) -> CalculatedVal
             }
             Command::SetState { new_state } => {
                 if let Some(speed) = new_state.movement_speed {
-                    current_speed = speed
+                    current_speed = speed;
                 }
                 if new_state.retract != RetractionType::NoRetract {
                     values.total_time += settings.retract_length / settings.retract_speed;

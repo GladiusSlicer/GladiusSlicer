@@ -1,6 +1,5 @@
 use crate::SlicerErrors;
-use gladius_shared::types::*;
-use log::trace;
+use gladius_shared::types::{IndexedTriangle, Vertex};
 use rayon::prelude::*;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -21,7 +20,7 @@ use std::hash::{Hash, Hasher};
 
 */
 
-/// Calculate the vertex the Line from v_start to v_end where
+/// Calculate the vertex the Line from `v_start` to `v_end` where
 /// it intersects with the plane z
 ///
 /// <div class="warning">If v_start.z == v_end.z then divide by 0</div>
@@ -71,12 +70,12 @@ impl TriangleTower {
                 future_tower_vert[index_tri.verts[1]].push(TriangleEvent::TrailingEdge {
                     trailing_edge: index_tri.verts[2],
                     triangle: triangle_index,
-                })
+                });
             } else {
                 future_tower_vert[index_tri.verts[2]].push(TriangleEvent::LeadingEdge {
                     leading_edge: index_tri.verts[1],
                     triangle: triangle_index,
-                })
+                });
             }
         }
 
@@ -87,7 +86,7 @@ impl TriangleTower {
             .into_par_iter()
             .enumerate()
             .map(|(index, events)| {
-                let fragments = join_triangle_event(events, index);
+                let fragments = join_triangle_event(&events, index);
                 TowerVertex {
                     start_index: index,
                     next_ring_fragments: fragments,
@@ -150,13 +149,13 @@ impl TowerRing {
         let mut new_ring = vec![];
         let mut frags = vec![];
 
-        for e in self.elements.into_iter() {
+        for e in self.elements {
             if let TowerRingElement::Edge { end_index, .. } = e {
                 if end_index == edge {
                     frags.push(TowerRing { elements: new_ring });
                     new_ring = vec![];
                 } else {
-                    new_ring.push(e)
+                    new_ring.push(e);
                 }
             } else {
                 new_ring.push(e);
@@ -186,8 +185,8 @@ impl TowerRing {
 
 impl Display for TowerRing {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for e in self.elements.iter() {
-            write!(f, "{} ", e)?;
+        for e in &self.elements {
+            write!(f, "{e} ")?;
         }
 
         Ok(())
@@ -209,10 +208,10 @@ impl Display for TowerRingElement {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match *self {
             TowerRingElement::Face { triangle_index, .. } => {
-                write!(f, "F{} ", triangle_index)
+                write!(f, "F{triangle_index} ")
             }
             TowerRingElement::Edge { end_index, .. } => {
-                write!(f, "E{} ", end_index)
+                write!(f, "E{end_index} ")
             }
         }
     }
@@ -231,14 +230,14 @@ impl PartialEq for TowerRingElement {
                     start_index: osi,
                     ..
                 } => end_index == oei && start_index == osi,
-                _ => false,
+                TowerRingElement::Face { .. } => false,
             },
             TowerRingElement::Face { triangle_index, .. } => match other {
                 TowerRingElement::Face {
                     triangle_index: oti,
                     ..
                 } => oti == triangle_index,
-                _ => false,
+                TowerRingElement::Edge { .. } => false,
             },
         }
     }
@@ -279,8 +278,8 @@ pub enum TriangleEvent {
     },
 }
 
-fn join_triangle_event(events: Vec<TriangleEvent>, starting_point: usize) -> Vec<TowerRing> {
-    //debug!("Tri events = {:?}",events);
+fn join_triangle_event(events: &[TriangleEvent], starting_point: usize) -> Vec<TowerRing> {
+    // debug!("Tri events = {:?}",events);
     let mut element_list: Vec<TowerRing> = events
         .iter()
         .map(|event| match event {
@@ -366,8 +365,8 @@ fn join_fragments(fragments: &mut Vec<TowerRing>) {
                     .get(second_pos)
                     .expect("Index is validated by loop");
 
-                swap = second.elements.last() == first.elements.get(0);
-                first.elements.last() == second.elements.get(0) || swap
+                swap = second.elements.last() == first.elements.first();
+                first.elements.last() == second.elements.first() || swap
             } {
                 if swap {
                     fragments.swap(second_pos, first_pos);

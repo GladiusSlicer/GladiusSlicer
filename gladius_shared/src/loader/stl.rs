@@ -1,7 +1,7 @@
-use crate::loader::*;
+use crate::loader::{IndexedTriangle, Loader, SlicerErrors, Vertex};
 use std::io::BufReader;
 
-///Loader for STL files
+/// Loader for STL files
 pub struct STLLoader {}
 
 impl Loader for STLLoader {

@@ -2,11 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use clap::Parser;
-use gladius_shared::loader::*;
+use gladius_shared::loader::{Loader, STLLoader, ThreeMFLoader};
 use gladius_shared::types::*;
 
 use crate::plotter::convert_objects_into_moves;
-use crate::tower::*;
+use crate::tower::{TriangleTower, TriangleTowerIterator, create_towers};
 use geo::*;
 use gladius_shared::settings::{PartialSettingsFile, Settings, SettingsValidationResult};
 use std::fs::File;
@@ -17,11 +17,11 @@ use std::path::Path;
 use crate::bounds_checking::{check_model_bounds, check_moves_bounds};
 use crate::calculation::calculate_values;
 use crate::command_pass::{CommandPass, OptimizePass, SlowDownLayerPass};
-use crate::converter::*;
+use crate::converter::convert;
 use crate::input::files_input;
 use crate::plotter::polygon_operations::PolygonOperations;
 use crate::slice_pass::*;
-use crate::slicing::*;
+use crate::slicing::slice;
 use crate::utils::{
     display_state_update, send_error_message, send_warning_message, show_error_message,
     show_warning_message,
@@ -54,24 +54,24 @@ mod utils;
 struct Args {
     #[arg(required = true)]
     input: Vec<String>,
-    #[arg(short = 'o')]
+    #[arg(short = 'o', help = "Sets the output dir")]
     output: Option<String>,
-    #[arg(short = 'v',action = clap::ArgAction::Count,conflicts_with = "message")]
+    #[arg(short = 'v', action = clap::ArgAction::Count, conflicts_with = "message", help = "Sets the level of verbosity")]
     verbose: u8,
-    #[arg(short = 's')]
+    #[arg(short = 's', help = "Sets the settings file to use")]
     settings: Option<String>,
-    #[arg(short = 'm')]
+    #[arg(short = 'm', help = "Use the Message System (useful for interprocess communication)")]
     message: bool,
-    #[arg(short = 'j')]
+    #[arg(short = 'j', help = "Sets the number of threads to use in the thread pool (defaults to number of CPUs)")]
     thread_count: Option<usize>,
 }
+
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
-    let args : Args = Args::parse();
+    let args: Args = Args::parse();
 
-    //set number of cores for rayon
-    if let Some(number_of_threads) = args.thread_count
-    {
+    // set number of cores for rayon
+    if let Some(number_of_threads) = args.thread_count {
         rayon::ThreadPoolBuilder::new()
             .num_threads(number_of_threads)
             .build_global()
@@ -99,7 +99,7 @@ fn main() {
     display_state_update("Loading Inputs", send_messages);
     let (models, settings) = handle_err_or_return(
         files_input(
-            args.settings.as_ref().map(|x| x.as_str()),
+            args.settings.as_deref(),
             Some(args.input)
         ),
         send_messages,
@@ -168,9 +168,10 @@ fn main() {
     }
 
     display_state_update("Outputting G-code", send_messages);
-    //Output the GCode
+
+    // Output the GCode
     if let Some(file_path) = &args.output {
-        //Output to file
+        // Output to file
         debug!("Converting {} Moves", moves.len());
         handle_err_or_return(
             convert(
@@ -189,7 +190,7 @@ fn main() {
             send_messages,
         );
     } else if send_messages {
-        //Output as message
+        // Output as message
         let mut gcode: Vec<u8> = Vec::new();
         convert(&moves, &settings, &mut gcode).expect("Writing to Vec shouldn't fail");
         let message = Message::GCode(
@@ -198,7 +199,7 @@ fn main() {
         bincode::serialize_into(BufWriter::new(std::io::stdout()), &message)
             .expect("Write Limit should not be hit");
     } else {
-        //Output to stdout
+        // Output to stdout
         let stdout = std::io::stdout();
         let mut stdio_lock = stdout.lock();
         debug!("Converting {} Moves", moves.len());
@@ -211,13 +212,13 @@ fn generate_moves(
     settings: &Settings,
     send_messages: bool,
 ) -> Result<Vec<Command>, SlicerErrors> {
-    //Creates Support Towers
+    // Creates Support Towers
     SupportTowerPass::pass(&mut objects, settings, send_messages);
 
-    //Adds a skirt
+    // Adds a skirt
     SkirtPass::pass(&mut objects, settings, send_messages);
 
-    //Adds a brim
+    // Adds a brim
     BrimPass::pass(&mut objects, settings, send_messages);
 
     let v: Result<Vec<()>, SlicerErrors> = objects
@@ -225,31 +226,31 @@ fn generate_moves(
         .map(|object| {
             let slices = &mut object.layers;
 
-            //Shrink layer
+            // Shrink layer
             ShrinkPass::pass(slices, settings, send_messages)?;
 
-            //Handle Perimeters
+            // Handle Perimeters
             PerimeterPass::pass(slices, settings, send_messages)?;
 
-            //Handle Bridging
+            // Handle Bridging
             BridgingPass::pass(slices, settings, send_messages)?;
 
-            //Handle Top Layer
+            // Handle Top Layer
             TopLayerPass::pass(slices, settings, send_messages)?;
 
-            //Handle Top And Bottom Layers
+            // Handle Top And Bottom Layers
             TopAndBottomLayersPass::pass(slices, settings, send_messages)?;
 
-            //Handle Support
+            // Handle Support
             SupportPass::pass(slices, settings, send_messages)?;
 
-            //Lightning Infill
+            // Lightning Infill
             LightningFillPass::pass(slices, settings, send_messages)?;
 
-            //Fill Remaining areas
+            // Fill Remaining areas
             FillAreaPass::pass(slices, settings, send_messages)?;
 
-            //Order the move chains
+            // Order the move chains
             OrderPass::pass(slices, settings, send_messages)
         })
         .collect();
@@ -264,30 +265,31 @@ fn handle_err_or_return<T>(res: Result<T, SlicerErrors>, send_message: bool) -> 
         Ok(data) => data,
         Err(slicer_error) => {
             if send_message {
-                send_error_message(slicer_error)
+                send_error_message(slicer_error);
             } else {
-                show_error_message(slicer_error)
+                show_error_message(slicer_error);
             }
             std::process::exit(-1);
         }
     }
 }
 
+/// Sends an apropreate error/warning message for a `SettingsValidationResult`
 fn handle_setting_validation(res: SettingsValidationResult, send_message: bool) {
     match res {
         SettingsValidationResult::NoIssue => {}
         SettingsValidationResult::Warning(slicer_warning) => {
             if send_message {
-                send_warning_message(slicer_warning)
+                send_warning_message(slicer_warning);
             } else {
-                show_warning_message(slicer_warning)
+                show_warning_message(slicer_warning);
             }
         }
         SettingsValidationResult::Error(slicer_error) => {
             if send_message {
-                send_error_message(slicer_error)
+                send_error_message(slicer_error);
             } else {
-                show_error_message(slicer_error)
+                show_error_message(slicer_error);
             }
             std::process::exit(-1);
         }

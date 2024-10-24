@@ -1,74 +1,75 @@
 use serde::{Deserialize, Serialize};
 
-///Warnings that can be generated during the slicing process
+/// Warnings that can be generated during the slicing process
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SlicerWarnings {
-    ///Layer size too low for the nozzle size
+    /// Layer size too low for the nozzle size
     LayerSizeTooLow {
-        ///The nozzles Diameter
+        /// The nozzles Diameter
         nozzle_diameter: f64,
-        ///The layer height
+        /// The layer height
         layer_height: f64,
     },
 
-    ///Layer size too low for the nozzle size
+    /// Layer size too low for the nozzle size
     LayerSizeTooHigh {
-        ///The nozzles Diameter
+        /// The nozzles Diameter
         nozzle_diameter: f64,
-        ///The layer height
+        /// The layer height
         layer_height: f64,
     },
 
-    ///The acceleration is too low
+    /// The acceleration is too low
     AccelerationTooLow {
-        ///The acceleration
+        /// The acceleration
         acceleration: f64,
-        ///The speed
+        /// The speed
         speed: f64,
 
-        ///The bed size
+        /// The bed size
         bed_size: f64,
     },
 
-    ///Temps to high
+    /// Temps to high
     NozzleTemperatureTooHigh {
-        ///Temp
+        /// Temp
         temp: f64,
     },
-    ///Temps too low
+    /// Temps too low
     NozzleTemperatureTooLow {
-        ///Temp
+        /// Temp
         temp: f64,
     },
 
-    ///The Skirt and Brim over lap
+    /// The Skirt and Brim over lap
     SkirtAndBrimOverlap {
-        ///The skirts distance
+        /// The skirts distance
         skirt_distance: f64,
 
-        ///The brims width
+        /// The brims width
         brim_width: f64,
     },
 
-    ///Extrusion width too high for the nozzle size
+    /// Extrusion width too high for the nozzle size
     ExtrusionWidthTooHigh {
-        ///The nozzles Diameter
+        /// The nozzles Diameter
         nozzle_diameter: f64,
-        ///The extrusion width
+        /// The extrusion width
         extrusion_width: f64,
     },
 
-    ///Extrusion width too low for the nozzle size
+    /// Extrusion width too low for the nozzle size
     ExtrusionWidthTooLow {
-        ///The nozzles Diameter
+        /// The nozzles Diameter
         nozzle_diameter: f64,
-        ///The extrusion width
+        /// The extrusion width
         extrusion_width: f64,
     },
 }
 
 impl SlicerWarnings {
-    ///Return the error code and pretty error message
+    /// Return the error code and pretty error message
+    #[must_use]
     pub fn get_code_and_message(&self) -> (u32, String) {
         match self {
             SlicerWarnings::LayerSizeTooLow { nozzle_diameter, layer_height } => {

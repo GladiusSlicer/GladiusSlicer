@@ -2,7 +2,7 @@ use gladius_shared::settings::LayerSettings;
 use gladius_shared::types::{Move, MoveChain, MoveType};
 
 use geo::prelude::*;
-use geo::*;
+use geo::MultiPolygon;
 
 use crate::PolygonOperations;
 use itertools::Itertools;
@@ -22,7 +22,7 @@ pub fn inset_polygon_recursive(
         } / -2.0,
     );
 
-    for raw_polygon in inset_poly.0.iter() {
+    for raw_polygon in &inset_poly.0 {
         let polygon = raw_polygon.simplify(&0.01);
         let mut outer_chains = vec![];
         let mut inner_chains = vec![];
@@ -117,7 +117,7 @@ pub fn inset_polygon_recursive(
                     move_type: MoveType::Travel,
                     width: 0.0,
                 });
-                full_moves.append(&mut chain.moves)
+                full_moves.append(&mut chain.moves);
             }
 
             MoveChain {

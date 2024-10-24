@@ -1,5 +1,5 @@
 use crate::error::SlicerErrors;
-use crate::loader::*;
+use crate::loader::{IndexedTriangle, Loader, Transform, Vertex};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -84,7 +84,7 @@ struct ThreeMFTriangles {
     list: Vec<ThreeMFTriangle>,
 }
 
-///Loader for 3MF files
+/// Loader for 3MF files
 pub struct ThreeMFLoader {}
 
 impl Loader for ThreeMFLoader {
@@ -132,7 +132,7 @@ impl Loader for ThreeMFLoader {
                 if let Some(t_str) = &item.transform {
                     let transform = get_transform_from_string(t_str)?;
 
-                    for vert in v.iter_mut() {
+                    for vert in &mut v {
                         *vert = &transform * *vert;
                     }
                 }
@@ -164,13 +164,13 @@ fn handle_object(
             if let Some(t_str) = &component.transform {
                 let transform = get_transform_from_string(t_str)?;
 
-                for vert in verts.iter_mut() {
+                for vert in &mut verts {
                     *vert = &transform * *vert;
                 }
             }
 
             if start != 0 {
-                for triangle in triangles.iter_mut() {
+                for triangle in &mut triangles {
                     triangle.verts[0] += start;
                     triangle.verts[1] += start;
                     triangle.verts[2] += start;
@@ -223,7 +223,7 @@ fn handle_mesh(mesh: &ThreeMFMesh) -> (Vec<Vertex>, Vec<IndexedTriangle>) {
 
 fn get_transform_from_string(transform_string: &str) -> Result<Transform, SlicerErrors> {
     let res_values: Result<Vec<f64>, _> =
-        transform_string.split(' ').map(|str| str.parse()).collect();
+        transform_string.split(' ').map(str::parse).collect();
 
     let values = res_values.map_err(|_| SlicerErrors::ThreemfLoadError)?;
     if values.len() != 12 {

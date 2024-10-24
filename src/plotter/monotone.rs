@@ -1,6 +1,6 @@
 use crate::utils::{orientation, Orientation};
 use geo::{Coord, Polygon, SimplifyVwPreserve};
-use geo_svg::*;
+use geo_svg::{Color, ToSvg};
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -55,15 +55,15 @@ enum PointType {
 }
 
 /// Divides a Polygon into Y-Monotone sections.
-///
+/// 
 /// The sections will only intersect any line perpendicular to the y-axis in two places.
-///
+/// 
 /// # Arguments
-///
+/// 
 /// * `poly` - the polygon to divide
 pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
-    //Convert polygon to Monotone points
-    //Simplify to remove self intersections
+    // Convert polygon to Monotone points
+    // Simplify to remove self intersections
     let mut mono_points = std::iter::once(poly.simplify_vw_preserve(&0.0001).exterior())
         .chain(poly.simplify_vw_preserve(&0.0001).interiors().iter())
         .flat_map(|line_string| {
@@ -102,8 +102,8 @@ pub fn get_monotone_sections(poly: &Polygon<f64>) -> Vec<MonotoneSection> {
         })
         .collect::<BinaryHeap<MonotonePoint>>();
 
-    let mut sweep_line_storage: Vec<MonotoneSection> = vec![];
-    let mut completed_sections: Vec<MonotoneSection> = vec![];
+    let mut sweep_line_storage: Vec<MonotoneSection> = Vec::new();
+    let mut completed_sections: Vec<MonotoneSection> = Vec::new();
 
     while let Some(point) = mono_points.pop() {
         match point.point_type {
