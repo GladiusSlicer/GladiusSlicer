@@ -3,10 +3,14 @@ use crate::*;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+/// The output of a file and a settings file
+type FileOutput = Result<(Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, Settings), SlicerErrors>;
+
 pub fn files_input(
     settings_path: Option<&str>,
     input: Option<Vec<String>>,
-) -> Result<(Vec<(Vec<Vertex>, Vec<IndexedTriangle>)>, Settings), SlicerErrors> {
+) -> FileOutput {
+    info!("Loading Settings");
     let settings: Settings = {
         if let Some(str) = settings_path {
             load_settings(str)
@@ -19,11 +23,9 @@ pub fn files_input(
 
     let converted_inputs: Vec<(Vec<Vertex>, Vec<IndexedTriangle>)> = input
         .ok_or(SlicerErrors::NoInputProvided)?
-        .iter()
+        .into_iter()
         .try_fold(vec![], |mut vec, value| {
-            let object: InputObject =
-                deser_hjson::from_str(value).map_err(|_| SlicerErrors::InputMisformat)?;
-            let model_path = Path::new(object.get_model_path());
+            let model_path = Path::new(&value);
 
             debug!("Using input file: {:?}", model_path);
 
@@ -42,6 +44,8 @@ pub fn files_input(
                 }),
             };
 
+            info!("Loading model from: {}", &value);
+
             let models = match loader?.load(model_path.to_str().ok_or(SlicerErrors::InputNotUTF8)?)
             {
                 Ok(v) => v,
@@ -50,6 +54,9 @@ pub fn files_input(
                     std::process::exit(-1);
                 }
             };
+
+            info!("Loading objects");
+            let object = InputObject::Auto(value);
 
             let (x, y) = match object {
                 InputObject::AutoTranslate(_, x, y) => (x, y),
@@ -92,7 +99,7 @@ pub fn files_input(
             debug!("Using Transform {}", trans_str);
 
             vec.extend(models.into_iter().map(move |(mut v, t)| {
-                for vert in v.iter_mut() {
+                for vert in &mut v {
                     *vert = &transform * *vert;
                 }
 
@@ -109,7 +116,7 @@ fn load_settings(filepath: &str) -> Result<Settings, SlicerErrors> {
         std::fs::read_to_string(filepath).map_err(|_| SlicerErrors::SettingsFileNotFound {
             filepath: filepath.to_string(),
         })?;
-    let partial_settings: PartialSettings =
+    let partial_settings: PartialSettingsFile =
         deser_hjson::from_str(&settings_data).map_err(|_| SlicerErrors::SettingsFileMisformat {
             filepath: filepath.to_string(),
         })?;

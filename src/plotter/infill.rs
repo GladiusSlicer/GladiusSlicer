@@ -2,10 +2,10 @@ use crate::plotter::monotone::get_monotone_sections;
 use gladius_shared::settings::LayerSettings;
 use gladius_shared::types::{Move, MoveChain, MoveType, PartialInfillTypes, SolidInfillTypes};
 
-use crate::utils::*;
+use crate::utils::point_y_lerp;
 use crate::PolygonOperations;
 use geo::prelude::*;
-use geo::*;
+use geo::{Coord, Point, Polygon};
 
 pub trait SolidInfillFill {
     fn fill(&self, filepath: &str) -> Vec<MoveChain>;
@@ -43,7 +43,7 @@ pub fn linear_fill_polygon(
         })
         .collect();
 
-    for chain in new_moves.iter_mut() {
+    for chain in &mut new_moves {
         chain.rotate(-angle.to_radians());
     }
 
@@ -70,7 +70,7 @@ pub fn partial_linear_fill_polygon(
         .flat_map(|polygon| spaced_fill_polygon(polygon, settings, fill_type, spacing, offset))
         .collect();
 
-    for chain in new_moves.iter_mut() {
+    for chain in &mut new_moves {
         chain.rotate(-angle.to_radians());
     }
 
@@ -93,7 +93,7 @@ pub fn support_linear_fill_polygon(
         .flat_map(|polygon| spaced_fill_polygon(polygon, settings, fill_type, spacing, offset))
         .collect();
 
-    for chain in new_moves.iter_mut() {
+    for chain in &mut new_moves {
         chain.rotate(-angle.to_radians());
     }
 

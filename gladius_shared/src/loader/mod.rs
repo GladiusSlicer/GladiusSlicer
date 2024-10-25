@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 
-use crate::error::*;
-use crate::types::*;
+use crate::error::SlicerErrors;
+use crate::types::{IndexedTriangle, Transform, Vertex};
 
 mod stl;
 mod threemf;
@@ -9,9 +9,9 @@ mod threemf;
 pub use stl::STLLoader;
 pub use threemf::ThreeMFLoader;
 
-///Loader trait to define loading in a file type of a model into a triangles and vertices
+/// Loader trait to define loading in a file type of a model into a triangles and vertices
 pub trait Loader {
-    ///Load a specifc file
+    /// Load a specific file
     fn load(
         &self,
         filepath: &str,

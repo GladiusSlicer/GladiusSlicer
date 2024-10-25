@@ -1,4 +1,4 @@
-use crate::optimizer::*;
+use crate::optimizer::{binary_optimizer, state_optomizer, unary_optimizer};
 use crate::*;
 
 pub trait CommandPass {
@@ -19,7 +19,7 @@ impl CommandPass for OptimizePass {
 
             cmds.len() != size
         } {
-            size = cmds.len()
+            size = cmds.len();
         }
     }
 }
@@ -75,8 +75,9 @@ impl CommandPass for SlowDownLayerPass {
                                 }
                                 Command::SetState { new_state } => {
                                     if let Some(speed) = new_state.movement_speed {
-                                        current_speed = speed
+                                        current_speed = speed;
                                     }
+
                                     if new_state.retract != RetractionType::NoRetract {
                                         non_move_time +=
                                             settings.retract_length / settings.retract_speed;
@@ -162,7 +163,7 @@ impl CommandPass for SlowDownLayerPass {
                                 .pop()
                                 .expect("Because map isn't empty, sorted can't be empty");
                             let (top_speed, _) =
-                                sorted.last().unwrap_or(&(OrderedFloat(0.000001), 0.0));
+                                sorted.last().unwrap_or(&(OrderedFloat(0.000_001), 0.0));
 
                             if min_time - total_time
                                 < (len / top_speed.into_inner()) - (len / speed.into_inner())
@@ -174,7 +175,7 @@ impl CommandPass for SlowDownLayerPass {
                             } else {
                                 total_time +=
                                     (len / top_speed.into_inner()) - (len / speed.into_inner());
-                                //println!("tt: {:.5}", total_time);
+                                // println!("tt: {:.5}", total_time);
                             }
                         }
                         Some((max_speed, start, end))

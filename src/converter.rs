@@ -184,7 +184,7 @@ pub fn convert(
                     )
                 )?;
                 current_z = *z;
-                layer_count = *index;
+                layer_count = *index as u32;
                 writeln!(write_buf, "G1 Z{:.5}", z)?;
 
                 writeln!(
@@ -273,7 +273,7 @@ pub fn convert(
         settings,
     );
 
-    writeln!(write_buf, "{}", end)?;
+    writeln!(write_buf, "{end}")?;
 
     write_buf
         .flush()
@@ -285,7 +285,7 @@ pub fn convert(
 fn convert_instructions(
     mut instructions: String,
     current_z_height: f64,
-    layer_count: usize,
+    layer_count: u32,
     previous_object: Option<usize>,
     current_object: Option<usize>,
     settings: &Settings,

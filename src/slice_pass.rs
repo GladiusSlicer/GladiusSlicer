@@ -4,7 +4,7 @@ use crate::plotter::Plotter;
 use crate::utils::display_state_update;
 use crate::{Object, PolygonOperations, Settings, Slice};
 use geo::prelude::*;
-use geo::*;
+use geo::MultiPolygon;
 use gladius_shared::error::SlicerErrors;
 use gladius_shared::types::PartialInfillTypes;
 use rayon::prelude::*;
@@ -83,7 +83,7 @@ impl ObjectPass for SkirtPass {
                     object
                         .layers
                         .iter()
-                        .take(skirt.layers)
+                        .take(skirt.layers as usize)
                         .map(|m| m.main_polygon.union_with(&m.get_support_polygon()))
                 })
                 .fold(MultiPolygon(vec![]), |a, b| a.union_with(&b))
@@ -95,8 +95,8 @@ impl ObjectPass for SkirtPass {
                 .expect("Needs an object")
                 .layers
                 .iter_mut()
-                .take(skirt.layers)
-                .for_each(|slice| slice.generate_skirt(&convex_hull, skirt, settings))
+                .take(skirt.layers as usize)
+                .for_each(|slice| slice.generate_skirt(&convex_hull, skirt, settings));
         }
     }
 }
@@ -135,7 +135,7 @@ impl SlicePass for PerimeterPass {
     ) -> Result<(), SlicerErrors> {
         display_state_update("Generating Moves: Perimeters", send_messages);
         slices.par_iter_mut().for_each(|slice| {
-            slice.slice_perimeters_into_chains(settings.number_of_perimeters);
+            slice.slice_perimeters_into_chains(settings.number_of_perimeters as usize);
         });
         Ok(())
     }
@@ -187,7 +187,7 @@ impl SlicePass for TopAndBottomLayersPass {
         let top_layers = settings.top_layers;
         let bottom_layers = settings.bottom_layers;
 
-        //Make sure at least 1 layer will not be solid
+        // Make sure at least 1 layer will not be solid
         if slices.len() > bottom_layers + top_layers {
             display_state_update("Generating Moves: Above and below support", send_messages);
 
