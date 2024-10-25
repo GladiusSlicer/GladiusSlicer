@@ -164,10 +164,10 @@ impl TowerRing {
         }
 
         if frags.is_empty() {
-            //add in the fragment
+            // add in the fragment
             frags.push(TowerRing { elements: new_ring });
         } else {
-            //append to the beginning to prevent ophaned segments
+            // append to the beginning to prevent ophaned segments
             if frags[0].elements.is_empty() {
                 frags[0].elements = new_ring;
             } else {
@@ -176,7 +176,7 @@ impl TowerRing {
             }
         }
 
-        //remove all fragments that are single sized and faces. They ends with that vertex
+        // remove all fragments that are single sized and faces. They ends with that vertex
 
         frags.retain(|frag| frag.elements.len() > 1);
 

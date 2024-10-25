@@ -83,7 +83,7 @@ impl ObjectPass for SkirtPass {
                     object
                         .layers
                         .iter()
-                        .take(skirt.layers)
+                        .take(skirt.layers as usize)
                         .map(|m| m.main_polygon.union_with(&m.get_support_polygon()))
                 })
                 .fold(MultiPolygon(vec![]), |a, b| a.union_with(&b))
@@ -95,7 +95,7 @@ impl ObjectPass for SkirtPass {
                 .expect("Needs an object")
                 .layers
                 .iter_mut()
-                .take(skirt.layers)
+                .take(skirt.layers as usize)
                 .for_each(|slice| slice.generate_skirt(&convex_hull, skirt, settings));
         }
     }
@@ -135,7 +135,7 @@ impl SlicePass for PerimeterPass {
     ) -> Result<(), SlicerErrors> {
         display_state_update("Generating Moves: Perimeters", send_messages);
         slices.par_iter_mut().for_each(|slice| {
-            slice.slice_perimeters_into_chains(settings.number_of_perimeters);
+            slice.slice_perimeters_into_chains(settings.number_of_perimeters as usize);
         });
         Ok(())
     }

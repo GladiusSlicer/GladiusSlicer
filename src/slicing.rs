@@ -16,7 +16,10 @@ pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Result<Vec<Object
                     .map(|(layer_count, ())| {
                         // Advance to the correct height
                         let layer_height =
-                            settings.get_layer_settings(layer_count, layer).layer_height;
+                            settings.get_layer_settings(
+                                layer_count.try_into().expect("I doute your layer_count will go past 4,294,967,295"),
+                                layer,
+                            ).layer_height;
 
                         let bottom_height = layer;
                         layer += layer_height / 2.0;
@@ -58,7 +61,7 @@ pub fn slice(towers: &[TriangleTower], settings: &Settings) -> Result<Vec<Object
                             .collect(),
                         *bot,
                         *top,
-                        count,
+                        count.try_into().expect("I doute your layer_count will go past 4,294,967,295"),
                         settings,
                     );
                     slice

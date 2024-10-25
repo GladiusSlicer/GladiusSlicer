@@ -116,7 +116,7 @@ pub struct Settings {
     pub inner_perimeters_first: bool,
 
     /// Number of perimeters to use if possible
-    pub number_of_perimeters: usize,
+    pub number_of_perimeters: u32,
 
     /// Number of solid top layers for infill
     pub top_layers: usize,
@@ -355,7 +355,7 @@ impl Default for Settings {
 
 impl Settings {
     /// Get the layer settings for a specific layer index and height
-    pub fn get_layer_settings(&self, layer: usize, height: f64) -> LayerSettings {
+    pub fn get_layer_settings(&self, layer: u32, height: f64) -> LayerSettings {
         let changes = self
             .layer_settings
             .iter()
@@ -681,7 +681,7 @@ pub struct FanSettings {
     pub fan_speed: f64,
 
     /// Disable the fan for layers below this value
-    pub disable_fan_for_layers: usize,
+    pub disable_fan_for_layers: u32,
 
     /// Threshold to start slowing down based on layer print time in seconds
     pub slow_down_threshold: f64,
@@ -727,7 +727,7 @@ pub struct SupportSettings {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SkirtSettings {
     /// the number of layer to generate the skirt
-    pub layers: usize,
+    pub layers: u32,
 
     /// Distance from the models to place the skirt
     pub distance: f64,
@@ -800,15 +800,15 @@ impl PartialSettingsFile {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum LayerRange {
     /// A single single based on the index
-    SingleLayer(usize),
+    SingleLayer(u32),
 
     /// A range of layers based on index inclusive
     LayerCountRange {
         /// The start index
-        start: usize,
+        start: u32,
 
         /// The end index
-        end: usize,
+        end: u32,
     },
 
     /// A Range of layers based on the height of the bottom on the slice
