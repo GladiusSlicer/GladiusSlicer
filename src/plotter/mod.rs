@@ -509,7 +509,7 @@ pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> 
                 .into_iter()
                 .enumerate()
                 .map(|(layer_num, mut slice)| {
-                    let layer_settings = settings.get_layer_settings(layer_num, slice.top_height);
+                    let layer_settings = settings.get_layer_settings(layer_num as u32, slice.top_height);
                     let mut moves = vec![];
                     moves.push(Command::ChangeObject { object: object_num });
                     moves.push(Command::LayerChange {
@@ -520,7 +520,7 @@ pub fn convert_objects_into_moves(objects: Vec<Object>, settings: &Settings) -> 
                         new_state: StateChange {
                             extruder_temp: Some(layer_settings.extruder_temp),
                             bed_temp: Some(layer_settings.bed_temp),
-                            fan_speed: Some(if layer_num < settings.fan.disable_fan_for_layers {
+                            fan_speed: Some(if (layer_num as u32) < settings.fan.disable_fan_for_layers {
                                 0.0
                             } else {
                                 settings.fan.fan_speed

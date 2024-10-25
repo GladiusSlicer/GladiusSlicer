@@ -38,13 +38,14 @@ pub struct Slice {
     /// A copy of this layers settings
     pub layer_settings: LayerSettings,
 }
+
 impl Slice {
     /// Creates a slice from a specific iterator of points
     pub fn from_single_point_loop<I>(
         line: I,
         bottom_height: f64,
         top_height: f64,
-        layer_count: usize,
+        layer_count: u32,
         settings: &Settings,
     ) -> Self
     where
@@ -73,7 +74,7 @@ impl Slice {
         lines: MultiLineString<f64>,
         bottom_height: f64,
         top_height: f64,
-        layer_count: usize,
+        layer_count: u32,
         settings: &Settings,
     ) -> Result<Self, SlicerErrors> {
         let mut lines_and_area: Vec<(LineString<f64>, f64)> = lines
