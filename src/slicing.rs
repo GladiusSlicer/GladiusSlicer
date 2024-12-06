@@ -1,15 +1,17 @@
 use crate::{
-    Coord, Object, Settings, Slice, SlicerErrors, TriangleTower, TriangleTowerIterator, Vertex,
+    tower::TowerVertex, Coord, Object, Settings, Slice, SlicerErrors, TriangleTower, TriangleTowerIterator
 };
 use rayon::{
-    iter::{
-        IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelBridge,
-        ParallelIterator,
-    },
+    iter::{IntoParallelIterator, ParallelBridge, ParallelIterator},
     slice::ParallelSliceMut,
 };
+use std::fmt::Debug;
 
-pub fn slice(towers: Vec<TriangleTower>, settings: &Settings) -> Result<Vec<Object>, SlicerErrors> {
+pub fn slice<V>(
+    towers: Vec<TriangleTower<V>>,
+    settings: &Settings,
+) -> Result<Vec<Object>, SlicerErrors>
+where V: Sync + Clone + TowerVertex + Debug {
     towers
         .into_par_iter()
         .map(|tower| {
@@ -17,7 +19,8 @@ pub fn slice(towers: Vec<TriangleTower>, settings: &Settings) -> Result<Vec<Obje
 
             let mut layer = 0.0;
 
-            let slices: Result<Vec<Slice>, SlicerErrors> = (0..u32::MAX)
+            // loop in max layers of printer
+            let slices: Result<Vec<Slice>, SlicerErrors> = (0..(settings.print_z / settings.layer_height).round() as u32)
                 .map(|layer_count| {
                     // Advance to the correct height
                     let layer_height = settings.get_layer_settings(layer_count, layer).layer_height;
@@ -30,11 +33,11 @@ pub fn slice(towers: Vec<TriangleTower>, settings: &Settings) -> Result<Vec<Obje
                     let top_height = layer;
 
                     // Get the ordered lists of points
-                    Ok((bottom_height, top_height, tower_iter.get_points()))
+                    Ok((bottom_height, top_height, tower_iter.get_points(),tower_iter.is_finished()))
                 })
                 .take_while(|r| {
-                    if let Ok((_, _, layer_loops)) = r {
-                        !layer_loops.is_empty()
+                    if let Ok((_, _, _, finished)) = r {
+                        !finished
                     } else {
                         true
                     }
@@ -42,7 +45,7 @@ pub fn slice(towers: Vec<TriangleTower>, settings: &Settings) -> Result<Vec<Obje
                 .enumerate()
                 .par_bridge()
                 .map(|(count, result)| {
-                    result.and_then(|(bot, top, layer_loops)| {
+                    result.and_then(|(bot, top, layer_loops, _)| {
                         // Add this slice to the
                         let slice = Slice::from_multiple_point_loop(
                             layer_loops
@@ -50,7 +53,10 @@ pub fn slice(towers: Vec<TriangleTower>, settings: &Settings) -> Result<Vec<Obje
                                 .map(|verts| {
                                     verts
                                         .iter()
-                                        .map(|v| Coord { x: v.x, y: v.y })
+                                        .map(|v| Coord {
+                                            x: v.get_slice_x(),
+                                            y: v.get_slice_y(),
+                                        })
                                         .collect::<Vec<Coord<f64>>>()
                                 })
                                 .collect(),
@@ -65,7 +71,7 @@ pub fn slice(towers: Vec<TriangleTower>, settings: &Settings) -> Result<Vec<Obje
                 .collect();
             let mut s = slices?;
 
-            //sort as parbridge isn't garenteed to return in order
+            // sort as parbridge isn't guaranteed to return in order
             s.par_sort_by(|a, b| {
                 a.top_height
                     .partial_cmp(&b.top_height)

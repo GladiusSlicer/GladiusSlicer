@@ -35,7 +35,6 @@ use gladius_shared::messages::Message;
 use itertools::Itertools;
 use log::{debug, info, LevelFilter};
 use ordered_float::OrderedFloat;
-use rayon::prelude::*;
 use simple_logger::SimpleLogger;
 use std::collections::HashMap;
 use std::io::BufWriter;
@@ -49,12 +48,17 @@ mod optimizer;
 mod plotter;
 mod slice_pass;
 mod slicing;
-mod test;
 mod tower;
 mod utils;
+#[cfg(test)]
+mod test;
+
+pub static PLANE_NORMAL: std::sync::OnceLock<Vertex> = std::sync::OnceLock::new();
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about,
+    long_about = "An *In-Progress* Slicer for FDM 3D printing written in Rust with a focus on customization and modularity."
+)]
 #[clap(group(
     clap::ArgGroup::new("settings-group")
         .required(true)
@@ -63,7 +67,9 @@ mod utils;
 struct Args {
     #[arg(
         required = true,
-        help = "The input files and there translations.\nBy default it takes a list of json strings that represents how the models should be loaded and translated.\nSee simple_input for an alterantive command. "
+        help = "The input files and there translations.
+By default it takes a list of json strings that represents how the models should be loaded and translated.
+See simple_input for an alternative command."
     )]
     input: Vec<String>,
 
@@ -142,7 +148,7 @@ fn main() {
             input::load_settings_json(
                 args.settings_file_path
                     .as_deref()
-                    .expect("CLAP should handle requring a settings option to be Some"),
+                    .expect("CLAP should handle requiring a settings option to be Some"),
             ),
             &state_context,
         )
@@ -152,6 +158,9 @@ fn main() {
         load_settings(args.settings_file_path.as_deref(), &settings_json),
         &state_context,
     );
+
+    // Set the plane normal
+    PLANE_NORMAL.get_or_init(|| tower::angle_to_normal(settings.slice_angle.unwrap_or(0.0)));
 
     let models = handle_err_or_return(
         crate::input::load_models(Some(args.input), &settings, args.simple_input),
@@ -174,7 +183,10 @@ fn main() {
 
     state_update("Creating Towers", &mut state_context);
 
-    let towers: Vec<TriangleTower> = handle_err_or_return(create_towers(&models), &state_context);
+    let towers: Vec<TriangleTower<_>> = handle_err_or_return(
+        create_towers::<tower::NormalVertex>(&models),
+        &state_context,
+    );
 
     state_update("Slicing", &mut state_context);
 
@@ -234,7 +246,7 @@ fn main() {
                 handle_err_or_return(convert(&moves, &settings, &mut gcode), &state_context);
                 let message = Message::GCode(
                     String::from_utf8(gcode)
-                        .expect("All write occur from write macro so should be utf8"),
+                        .expect("All write occur from write macro so should be utf-8"),
                 );
                 bincode::serialize_into(BufWriter::new(std::io::stdout()), &message)
                     .expect("Write Limit should not be hit");
@@ -258,18 +270,18 @@ fn main() {
 }
 
 /// Display info about the print; time and filament info
-fn print_info_message( state_context: &StateContext, moves: &[Command], settings: &Settings) {
+fn print_info_message(state_context: &StateContext, moves: &[Command], settings: &Settings) {
     let cv = calculate_values(moves, settings);
 
-    match state_context.display_type{
+    match state_context.display_type {
         DisplayType::Message => {
             let message = Message::CalculatedValues(cv);
             bincode::serialize_into(BufWriter::new(std::io::stdout()), &message)
                 .expect("Write Limit should not be hit");
-        },
+        }
         DisplayType::StdOut => {
             let (hour, min, sec, _) = cv.get_hours_minutes_seconds_fract_time();
-    
+
             info!(
                 "Total Time: {} hours {} minutes {:.3} seconds",
                 hour, min, sec
@@ -288,9 +300,8 @@ fn print_info_message( state_context: &StateContext, moves: &[Command], settings
                 (((cv.plastic_volume / 1000.0) * settings.filament.density) / 1000.0)
                     * settings.filament.cost
             );
-        },
+        }
     }
-
 }
 
 fn generate_moves(

@@ -7,14 +7,13 @@ use crate::error::SlicerErrors;
 use crate::types::{MoveType, PartialInfillTypes, SolidInfillTypes};
 use crate::warning::SlicerWarnings;
 // for exclude area setting
+use geo::MultiPolygon;
+use geo_validity_check::Valid;
 use gladius_proc_macros::Settings;
+use log::trace;
 #[cfg(feature = "json_schema_gen")]
 /// json schema gen
 use schemars::{schema_for, JsonSchema};
-use geo::{Contains, LinesIter, MultiPolygon};
-use geo_validity_check::Valid;
-use log::{info, trace};
-use nalgebra::Point2;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -74,6 +73,7 @@ macro_rules! option_setting_less_than_zero {
 #[cfg_attr(feature = "json_schema_gen", derive(JsonSchema))]
 #[derive(Settings, Serialize, Deserialize, Debug)]
 pub struct Settings {
+    #[cfg_attr(feature = "json_schema_gen", schemars(example = "0.2"))]
     /// The height of the layers
     pub layer_height: f64,
 
@@ -104,6 +104,7 @@ pub struct Settings {
     #[Recursive(PartialSupportSettings)]
     pub support: Option<SupportSettings>,
 
+    #[cfg_attr(feature = "json_schema_gen", validate(range(min = 0.1)))]
     /// Diameter of the nozzle in mm
     pub nozzle_diameter: f64,
 
@@ -129,12 +130,14 @@ pub struct Settings {
     /// The acceleration for movement
     pub acceleration: MovementParameter,
 
+    #[cfg_attr(feature = "json_schema_gen", validate(range(max = 100.0)))]
     /// The percentage of infill to use for partial infill
     pub infill_percentage: f64,
 
     /// Controls the order of perimeters
     pub inner_perimeters_first: bool,
 
+    #[cfg_attr(feature = "json_schema_gen", validate(range(min = 1)))]
     /// Number of perimeters to use if possible
     pub number_of_perimeters: u32,
 
@@ -144,12 +147,15 @@ pub struct Settings {
     /// Number of solid bottom layers before infill
     pub bottom_layers: usize,
 
+    #[cfg_attr(feature = "json_schema_gen", validate(range(min = 1)))]
     /// Size of the printer in x dimension in mm
     pub print_x: f64,
 
+    #[cfg_attr(feature = "json_schema_gen", validate(range(min = 1)))]
     /// Size of the printer in y dimension in mm
     pub print_y: f64,
 
+    #[cfg_attr(feature = "json_schema_gen", validate(range(min = 1)))]
     /// Size of the printer in z dimension in mm
     pub print_z: f64,
 
@@ -248,10 +254,15 @@ pub struct Settings {
 
     /// Tells the slicer if it can use an aux fan
     pub has_aux_fan: bool,
+
+    #[Optional]
+    #[cfg_attr(feature = "json_schema_gen", validate(range(min = -89.0, max = 89.0)))]
+    /// The tilt angle of the slicing plane from the Z-axis in degrees, **0** if flat
+    pub slice_angle: Option<f64>,
 }
 
 impl Settings {
-    /// Genarate the json schema for `Settings`
+    /// Generate the json schema for [`Settings`]
     #[cfg(feature = "json_schema_gen")]
     pub fn gen_schema(path: &std::path::Path) -> Result<(), std::io::Error> {
         use std::{fs::File, io::Write};
@@ -400,12 +411,14 @@ impl Default for Settings {
             bed_exclude_areas: None,
             max_extruder_temp: 260.0,
             has_aux_fan: false,
+            slice_angle: Some(0.0),
         }
     }
 }
 
 impl Settings {
     /// Get the layer settings for a specific layer index and height
+    // todo if their are no layer specific setting then skip
     pub fn get_layer_settings(&self, layer: u32, height: f64) -> LayerSettings {
         let changes = self
             .layer_settings
@@ -563,6 +576,15 @@ impl Settings {
             return SettingsValidationResult::Warning(SlicerWarnings::NozzleTemperatureTooHigh {
                 temp: self.filament.extruder_temp,
             });
+        }
+
+        // 90 or more can be represented with a smaller angle
+        if self.slice_angle.unwrap_or_default() >= 90.0 || self.slice_angle.unwrap_or_default() <= -90.0 {
+            return SettingsValidationResult::Error(
+                SlicerErrors::SliceAngleOutOfRange(
+                    self.slice_angle.expect("This can only be true if it's not default as that's 0.0")
+                )
+            );
         }
 
         for (_, pls) in &self.layer_settings {
@@ -787,6 +809,7 @@ pub struct FilamentSettings {
 #[cfg_attr(feature = "json_schema_gen", derive(JsonSchema))]
 #[derive(Settings, Serialize, Deserialize, Debug, Clone)]
 pub struct FanSettings {
+    #[cfg_attr(feature = "json_schema_gen", validate(range(max = 100.0)))]
     /// The default fan speed
     pub fan_speed: f64,
 
@@ -825,7 +848,7 @@ impl Default for FanSettings {
 
 /// Support settings
 #[cfg_attr(feature = "json_schema_gen", derive(JsonSchema))]
-#[derive(Settings,Serialize, Deserialize, Debug, Clone)]
+#[derive(Settings, Serialize, Deserialize, Debug, Clone)]
 pub struct SupportSettings {
     /// Angle to start production supports in degrees
     pub max_overhang_angle: f64,
@@ -836,7 +859,7 @@ pub struct SupportSettings {
 
 /// The Settings for Skirt generation
 #[cfg_attr(feature = "json_schema_gen", derive(JsonSchema))]
-#[derive(Settings,Serialize, Deserialize, Debug, Clone)]
+#[derive(Settings, Serialize, Deserialize, Debug, Clone)]
 pub struct SkirtSettings {
     /// the number of layer to generate the skirt
     pub layers: u32,
@@ -847,7 +870,7 @@ pub struct SkirtSettings {
 
 /// The Settings for Skirt generation
 #[cfg_attr(feature = "json_schema_gen", derive(JsonSchema))]
-#[derive(Settings,Serialize, Deserialize, Debug, Clone)]
+#[derive(Settings, Serialize, Deserialize, Debug, Clone)]
 pub struct RetractionWipeSettings {
     /// The speed the retract wipe move
     pub speed: f64,
@@ -866,7 +889,7 @@ pub struct PartialSettingsFile {
     /// Other files to load
     pub other_files: Option<Vec<String>>,
 
-    ///The incompete settings that this files comtains that will be prioritized over the contents of the other files
+    ///The incomplete settings that this files contains that will be prioritized over the contents of the other files
     #[serde(flatten)]
     pub partial_settings: PartialSettings,
 }

@@ -12,7 +12,7 @@ use nalgebra::Point3;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::fmt::{write, Display};
+use std::fmt::Display;
 
 /// A single slice of an object containing it's current plotting status.
 pub struct Slice {
@@ -149,6 +149,7 @@ pub enum SolidInfillTypes {
     /// Back and forth lines to fill polygons, rotating custom degrees each layer
     RectilinearCustom(f64),
 }
+
 impl Display for SolidInfillTypes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -230,15 +231,23 @@ impl From<Vertex> for Point3<f64> {
     }
 }
 
+impl Eq for Vertex {}
+
+impl Ord for Vertex {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.z != other.z {
+            self.z.partial_cmp(&other.z).expect("Non-NAN")
+        } else if self.y != other.y {
+            self.y.partial_cmp(&other.y).expect("Non-NAN")
+        } else {
+            self.x.partial_cmp(&other.x).expect("Non-NAN")
+        }
+    }
+}
+
 impl PartialOrd for Vertex {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if self.z != other.z {
-            self.z.partial_cmp(&other.z)
-        } else if self.y != other.y {
-            self.y.partial_cmp(&other.y)
-        } else {
-            self.x.partial_cmp(&other.x)
-        }
+        Some(self.cmp(other))
     }
 }
 

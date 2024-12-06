@@ -19,10 +19,12 @@ use itertools::Itertools;
 use log::info;
 use ordered_float::OrderedFloat;
 
+// todo document
 pub trait Plotter {
     fn slice_perimeters_into_chains(&mut self, number_of_perimeters: usize);
     fn shrink_layer(&mut self);
     fn fill_remaining_area(&mut self, solid: bool, layer_count: usize);
+    /// For each area not in this slice that is in the other polygon, fill solid
     fn fill_solid_subtracted_area(&mut self, other: &MultiPolygon<f64>, layer_count: usize);
     fn fill_solid_bridge_area(&mut self, layer_below: &MultiPolygon<f64>);
     fn fill_solid_top_layer(&mut self, layer_above: &MultiPolygon<f64>, layer_count: usize);
@@ -286,14 +288,14 @@ impl Plotter for Slice {
                     .iter()
                     .position_min_by_key(|a| {
                         OrderedFloat(
-                            ordered_chains
-                                .last()
-                                .expect("Chains is tests not to be empty")
-                                .moves
-                                .last()
-                                .expect("chain should contain moves")
-                                .end
-                                .euclidean_distance(&a.start_point),
+                            Euclidean::distance(
+                                ordered_chains
+                                    .last().expect("Chains is tests not to be empty")
+                                    .moves
+                                    .last().expect("chain should contain moves")
+                                    .end,
+                                a.start_point,
+                            ),
                         )
                     })
                     .expect("Chains is tests not to be empty");
@@ -345,17 +347,17 @@ impl Plotter for Slice {
 
                         let mut remaining_distance = retraction_wipe.distance;
                         let mut wipe_moves = ordered
-                            .iter()
+                            .into_iter()
                             .tuple_windows::<(_, _)>()
                             .map(|(cur_point, next_point)| {
-                                let len: f64 = cur_point.euclidean_distance(next_point);
+                                let len: f64 = Euclidean::distance(cur_point, next_point);
 
                                 (len, cur_point, next_point)
                             })
                             .filter_map(|(len, cur_point, next_point)| {
                                 if remaining_distance - len > 0.0 {
                                     remaining_distance -= len;
-                                    Some((len, *next_point))
+                                    Some((len, next_point))
                                 } else if remaining_distance > 0.0 {
                                     let ret = (
                                         remaining_distance,

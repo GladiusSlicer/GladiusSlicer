@@ -3,10 +3,10 @@
 ## [Unreleased]
 ### New Features
 - Sub settings ( Acceleration.Bridge) can be set independently now
-- Add in support for Math expresions in the Gcode file
+- Add in support for Math expressions in the Gcode file
 - Added a profile for the Voron0.1
 - Add support for aux fans
-- `max_temp` setting so printers can specifiy their max hotend temperature
+- `max_temp` setting so printers can specify their max hotend temperature
 - Added a profile for the Bambu Lab x1c
 - Added a profile for Bambu Lab PLA
 - Added a json schema
@@ -14,7 +14,7 @@
 - Other Settings files in settings files are now in reference to that files path
 - Add simple-input command
 - Add command to output settings
-- Settings now are outputed to gcode
+- Settings now are outputted to gcode
  
 
 ### Fixes
@@ -50,7 +50,7 @@
   - Added Messages mode that outputs messages in Bincode for IPC
   - Console hidden
   - Shared Library is documented
-  - All Common errors should now return slicer error rather than panicing
+  - All Common errors should now return slicer error rather than panicking
 - Added ABS and TPU settings files
 
 ### Fixes
@@ -75,7 +75,7 @@
 
 ### Fixes
 - Fixed issue with the optimizer removing state changes before short moves
-- Fixed issue with monotone panicing
+- Fixed issue with monotone panicking
 - Fixed issue with 0 fill prints
 - Fixed Issue with large and small amounts of infill layers
 

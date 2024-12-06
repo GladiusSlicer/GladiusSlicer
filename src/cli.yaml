@@ -33,7 +33,7 @@ args:
         short: j
 
 groups:
-    # the name of the ArgGoup is specified here
+    # the name of the ArgGroup is specified here
     - transforms:
           # All args and groups that are a part of this group are set here
           args:

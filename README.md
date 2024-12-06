@@ -93,10 +93,12 @@ Settings files are hJSON, a human readable json that supports comments. Examples
 
 ### Eventually
 * Multiple Extruder Support
+* Variable Width Perimeters
 
 ### Supported Printers
 * I only own a Prusa Mk3
 * Friend owns a CR10
+* Bambu Lab x1c, other Bambu Lab printers can be added easily
 * Other Marlin firmware printers can easily be added
   * Additional access to community printers will be needed to support other firmwares/G-code flavors
 

@@ -112,6 +112,9 @@ pub enum SlicerErrors {
     /// If a model is in an area of the bed that is rserved, contains the area that it intersected
     InExcludeArea(MultiPolygon),
 
+    /// An angle of 90 or more and -90 or less can be represented with a smaller angle
+    SliceAngleOutOfRange(f64),
+
     /// Invalid bed exclusion polygon
     InvalidBedExcludeArea(String),
 }
@@ -187,13 +190,16 @@ impl SlicerErrors {
                 (0x1014, "Slicer generated move outside build area.".to_string())
             }
             SlicerErrors::SettingMacroParseError { sub_error  }=> {
-                (0x1015,format!("Prasing the Macros Failed with error: {}",sub_error))
+                (0x1015, format!("Parsing the Macros Failed with error: {}", sub_error))
             }
             SlicerErrors::InExcludeArea(area) => {
                 (0x1016, format!("A model intersected with this excluded area: {:?}", area))
             },
+            SlicerErrors::SliceAngleOutOfRange(angle) => {
+                (0x1017, format!("The slice angle setting must in in a range of -89 to 89 as a higher angle can be redusted, angle was: {}", angle))
+            },
             SlicerErrors::InvalidBedExcludeArea(reason) => {
-                (0x1017, format!("The settings file contains an invalid bed exclusion area: {:?}", reason))
+                (0x1018, format!("The settings file contains an invalid bed exclusion area: {:?}", reason))
             },
         }
     }

@@ -24,9 +24,9 @@ log = "0.4.22"
 
 nalgebra = "0.33"
 itertools = "0.13"
-geo = { version = "0.28.0", features = ["use-serde"] }
+geo = { version = "0.29", features = ["use-serde"] }
 geo-clipper = "0.8.0"
-geo-svg = "0.6.3"
+geo-svg = "0.7"
 geo-offset = { version = "0.3.2", git = "https://github.com/TimTheBig/geo-offset.git" }
 
 serde = { version = "1.0", features = ["derive"] }
@@ -39,5 +39,8 @@ rayon = "1.5.1"
 rand = "0.8.5"
 
 evalexpr = "12.0.1"
+time = "0.3.36"
 
 gladius_shared = { path = "gladius_shared", version = "0.5.0" }
+
+binary-heap-plus = "0.5.0"

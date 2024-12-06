@@ -35,10 +35,10 @@ impl StateContext {
     }
 
     pub fn get_total_elapsed_time(&self) -> Duration {
-        let elapsed = SystemTime::now()
+        // elapsed
+        SystemTime::now()
             .duration_since(self.start_time)
-            .expect("Time can only go forward");
-        elapsed
+            .expect("Time can only go forward")
     }
 }
 
@@ -111,13 +111,15 @@ pub fn point_y_lerp(a: &Coord<f64>, b: &Coord<f64>, y: f64) -> Coord<f64> {
 }
 
 #[inline]
-pub fn point_lerp(a: &Coord<f64>, b: &Coord<f64>, f: f64) -> Coord<f64> {
+pub fn point_lerp(a: Coord<f64>, b: Coord<f64>, f: f64) -> Coord<f64> {
     Coord {
         x: lerp(a.x, b.x, f),
         y: lerp(a.y, b.y, f),
     }
 }
 
+/// ## Linear Interpolate
+/// Compute values between **a** and **b**, with **f** as the interpolated point from 0.0 to 1.0
 #[inline]
 pub fn lerp(a: f64, b: f64, f: f64) -> f64 {
     a + f * (b - a)

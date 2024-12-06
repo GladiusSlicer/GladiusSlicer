@@ -1,4 +1,4 @@
-use crate::utils::{orientation, Orientation};
+use crate::utils::{lerp, orientation, Orientation};
 use geo::{Coord, Polygon, SimplifyVwPreserve};
 use geo_svg::{Color, ToSvg};
 use itertools::Itertools;
@@ -299,9 +299,4 @@ fn point_lerp(a: &Coord<f64>, b: &Coord<f64>, y: f64) -> Coord<f64> {
         x: lerp(a.x, b.x, (y - a.y) / (b.y - a.y)),
         y,
     }
-}
-
-#[inline]
-fn lerp(a: f64, b: f64, f: f64) -> f64 {
-    a + f * (b - a)
 }

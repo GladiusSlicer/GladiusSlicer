@@ -74,7 +74,8 @@
     "infill_percentage": {
       "description": "The percentage of infill to use for partial infill",
       "type": "number",
-      "format": "double"
+      "format": "double",
+      "maximum": 100.0
     },
     "infill_perimeter_overlap_percentage": {
       "description": "Overlap between infill and interior perimeters",
@@ -88,7 +89,10 @@
     "layer_height": {
       "description": "The height of the layers",
       "type": "number",
-      "format": "double"
+      "format": "double",
+      "examples": [
+        "0.2"
+      ]
     },
     "layer_settings": {
       "description": "Settings for specific layers",
@@ -213,13 +217,14 @@
     "nozzle_diameter": {
       "description": "Diameter of the nozzle in mm",
       "type": "number",
-      "format": "double"
+      "format": "double",
+      "minimum": 0.1
     },
     "number_of_perimeters": {
       "description": "Number of perimeters to use if possible",
       "type": "integer",
       "format": "uint32",
-      "minimum": 0
+      "minimum": 1
     },
     "object_change_instructions": {
       "description": "The instructions to append between object changes",
@@ -232,17 +237,20 @@
     "print_x": {
       "description": "Size of the printer in x dimension in mm",
       "type": "number",
-      "format": "double"
+      "format": "double",
+      "minimum": 1
     },
     "print_y": {
       "description": "Size of the printer in y dimension in mm",
       "type": "number",
-      "format": "double"
+      "format": "double",
+      "minimum": 1
     },
     "print_z": {
       "description": "Size of the printer in z dimension in mm",
       "type": "number",
-      "format": "double"
+      "format": "double",
+      "minimum": 1
     },
     "retract_length": {
       "description": "length to retract in mm",
@@ -280,6 +288,16 @@
           "type": "null"
         }
       ]
+    },
+    "slice_angle": {
+      "description": "The tilt angle of the slicing plane from the Z-axis in degrees, **0** if flat",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double",
+      "maximum": 89.0,
+      "minimum": -89.0
     },
     "solid_infill_type": {
       "description": "Solid Infill type",
@@ -391,7 +409,8 @@
         "fan_speed": {
           "description": "The default fan speed",
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "maximum": 100.0
         },
         "min_print_speed": {
           "description": "Minimum speed to slow down to",
@@ -533,7 +552,8 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/Coord"
-      }
+      },
+      "minimum": 2
     },
     "MovementParameter": {
       "description": "A set of values for different movement types",
@@ -634,15 +654,14 @@
       ]
     },
     "PartialLayerSettings": {
-      "description": "Partial Version of the struct #struct_name_ident",
+      "description": "Partial Version of the struct `LayerSettings`",
       "type": "object",
       "properties": {
         "acceleration": {
           "anyOf": [
             {
-              "$ref": "#/$defs/MovementParameter"
-            },
-            {
+              "$ref": "#/$defs/PartialMovementParameter"
+            }, {
               "type": "null"
             }
           ]
@@ -664,9 +683,8 @@
         "extrusion_width": {
           "anyOf": [
             {
-              "$ref": "#/$defs/MovementParameter"
-            },
-            {
+              "$ref": "#/$defs/PartialMovementParameter"
+            }, {
               "type": "null"
             }
           ]
@@ -709,8 +727,7 @@
           "anyOf": [
             {
               "$ref": "#/$defs/PartialInfillTypes"
-            },
-            {
+            }, {
               "type": "null"
             }
           ]
@@ -726,8 +743,7 @@
           "anyOf": [
             {
               "$ref": "#/$defs/RetractionWipeSettings"
-            },
-            {
+            }, {
               "type": "null"
             }
           ]
@@ -736,8 +752,7 @@
           "anyOf": [
             {
               "$ref": "#/$defs/SolidInfillTypes"
-            },
-            {
+            }, {
               "type": "null"
             }
           ]
@@ -745,12 +760,87 @@
         "speed": {
           "anyOf": [
             {
-              "$ref": "#/$defs/MovementParameter"
-            },
-            {
+              "$ref": "#/$defs/PartialMovementParameter"
+            }, {
               "type": "null"
             }
           ]
+        }
+      }
+    },
+    "PartialMovementParameter": {
+      "description": "Partial Version of the struct `MovementParameter`",
+      "type": "object",
+      "properties": {
+        "bridge": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "exterior_inner_perimeter": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "exterior_surface_perimeter": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "infill": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "interior_inner_perimeter": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "interior_surface_perimeter": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "solid_infill": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "solid_top_infill": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "support": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "travel": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
         }
       }
     },
@@ -761,7 +851,8 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/Coord"
-          }
+          },
+          "minimum": 2
         },
         "interiors": {
           "type": "array",

@@ -8,6 +8,7 @@ struct Relationships {
     relationship: Vec<Relationship>,
 }
 
+// todo document
 #[derive(Deserialize, Debug)]
 struct Relationship {
     #[serde(rename = "Type")]
@@ -193,28 +194,10 @@ fn handle_mesh(mesh: &ThreeMFMesh) -> Vec<IndexedTriangle> {
     let mut triangles = vec![];
 
     for triangle in &mesh.triangles.list {
-        let mut converted_tri = IndexedTriangle {
+        let converted_tri = IndexedTriangle {
             verts: [triangle.v1, triangle.v2, triangle.v3],
         };
-        let v0 = &mesh.vertices.list[converted_tri.verts[0]];
-        let v1 = &mesh.vertices.list[converted_tri.verts[1]];
-        let v2 = &mesh.vertices.list[converted_tri.verts[2]];
-
-        if v0 < v1 && v0 < v2 {
-            triangles.push(converted_tri);
-        } else if v1 < v2 && v1 < v0 {
-            let temp = converted_tri.verts[0];
-            converted_tri.verts[0] = converted_tri.verts[1];
-            converted_tri.verts[1] = converted_tri.verts[2];
-            converted_tri.verts[2] = temp;
-            triangles.push(converted_tri);
-        } else {
-            let temp = converted_tri.verts[0];
-            converted_tri.verts[0] = converted_tri.verts[2];
-            converted_tri.verts[2] = converted_tri.verts[1];
-            converted_tri.verts[1] = temp;
-            triangles.push(converted_tri);
-        }
+        triangles.push(converted_tri);
     }
 
     triangles

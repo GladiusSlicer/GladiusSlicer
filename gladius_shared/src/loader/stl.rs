@@ -33,7 +33,7 @@ impl Loader for STLLoader {
             .collect::<Vec<Vertex>>();
 
         for triangle in mesh.triangles() {
-            let mut converted_tri = IndexedTriangle {
+            let converted_tri = IndexedTriangle {
                 verts: [
                     triangle.vertices_indices()[0],
                     triangle.vertices_indices()[1],
@@ -52,25 +52,7 @@ impl Loader for STLLoader {
                             std::mem::swap(&mut v0, &mut v1);
                         }
             */
-            let v0 = &vertices[converted_tri.verts[0]];
-            let v1 = &vertices[converted_tri.verts[1]];
-            let v2 = &vertices[converted_tri.verts[2]];
-
-            if v0 < v1 && v0 < v2 {
-                triangles.push(converted_tri);
-            } else if v1 < v2 && v1 < v0 {
-                let temp = converted_tri.verts[0];
-                converted_tri.verts[0] = converted_tri.verts[1];
-                converted_tri.verts[1] = converted_tri.verts[2];
-                converted_tri.verts[2] = temp;
-                triangles.push(converted_tri);
-            } else {
-                let temp = converted_tri.verts[0];
-                converted_tri.verts[0] = converted_tri.verts[2];
-                converted_tri.verts[2] = converted_tri.verts[1];
-                converted_tri.verts[1] = temp;
-                triangles.push(converted_tri);
-            }
+            triangles.push(converted_tri);
         }
 
         Ok(vec![(vertices, triangles)])
